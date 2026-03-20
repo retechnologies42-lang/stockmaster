@@ -691,8 +691,13 @@ var GAS_URL = "DEINE_GAS_URL_HIER";
 var emp="",allItems=[],lf="all",modalItem=null;
 var cardRegistry=[];
 // ── API HELPER: ersetzt google.script.run ────────────────────────
+// API_KEY – muss mit dem Wert in Code.gs übereinstimmen
+var API_KEY = "6261da177e8ba1f9b542da2f11ddf773916dbfe6304fdcbec13e93adcf2a8488";
+
 function gasCall(action, data, onSuccess, onError) {
+  // checkPassword ohne API_KEY senden (kein Henne-Ei-Problem beim Login)
   var payload = Object.assign({action: action}, data || {});
+  if(action !== "checkPassword") payload.apiKey = API_KEY;
   fetch(GAS_URL, {
     method: "POST",
     headers: {"Content-Type": "text/plain"},
