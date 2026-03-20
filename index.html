@@ -260,11 +260,33 @@ textarea.fc{resize:vertical;min-height:72px}
     <p>Professionelle Lagerverwaltung</p>
   </div>
   <div class="emp-form">
-    <label class="fl mb-2">DEIN NAME</label>
-    <input type="text" id="emp-in" class="fc mb-3" placeholder="Vorname Nachname" style="font-size:16px;padding:13px 15px"/>
-    <button class="btn btn-primary w-100 py-3 fw-bold" id="btn-emp">
-      <i class="bi bi-arrow-right-circle-fill me-2"></i>Einloggen
-    </button>
+    <!-- Passwort-Screen -->
+    <div id="pw-screen">
+      <label class="fl mb-2">ZUGANGSPASSWORT</label>
+      <div style="position:relative;margin-bottom:12px">
+        <input type="password" id="pw-in" class="fc" placeholder="Passwort eingeben…" style="font-size:16px;padding:13px 44px 13px 15px"/>
+        <button onclick="togglePwVis()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text2);cursor:pointer;font-size:16px" id="pw-eye">
+          <i class="bi bi-eye"></i>
+        </button>
+      </div>
+      <div id="pw-err" style="display:none;color:var(--red);font-size:13px;margin-bottom:10px;text-align:center">
+        <i class="bi bi-x-circle me-1"></i>Falsches Passwort
+      </div>
+      <button class="btn btn-primary w-100 py-3 fw-bold" id="btn-pw">
+        <i class="bi bi-lock-fill me-2"></i>Weiter
+      </button>
+    </div>
+    <!-- Name-Screen (nach korrektem Passwort) -->
+    <div id="name-screen" style="display:none">
+      <label class="fl mb-2">DEIN NAME</label>
+      <input type="text" id="emp-in" class="fc mb-3" placeholder="Vorname Nachname" style="font-size:16px;padding:13px 15px"/>
+      <button class="btn btn-primary w-100 py-3 fw-bold" id="btn-emp">
+        <i class="bi bi-arrow-right-circle-fill me-2"></i>Einloggen
+      </button>
+      <button onclick="showPwScreen()" class="btn btn-outline-secondary w-100 mt-2" style="font-size:13px">
+        <i class="bi bi-arrow-left me-1"></i>Zurück
+      </button>
+    </div>
   </div>
 </div>
 
@@ -676,7 +698,7 @@ textarea.fc{resize:vertical;min-height:72px}
 <script>
 // ── STATE ─────────────────────────────────────────────────────────
 // ⚠️ Apps Script URL eintragen:
-var GAS_URL = "https://script.google.com/macros/s/1wmrC1Sd4nTBVV1wrh8D1HQvjYFNQHjYedrf1x0MZHLP-9d7rp7V9xObY/exec";
+var GAS_URL = "DEINE_GAS_URL_HIER";
 
 var emp="",allItems=[],lf="all",modalItem=null;
 var cardRegistry=[];
@@ -710,19 +732,70 @@ var SNAMES={
 };
 
 // ── EMPLOYEE ──────────────────────────────────────────────────────
+// ── PASSWORT KONFIGURATION ───────────────────────────────────────
+// Ändere dieses Passwort nach dem Upload auf GitHub!
+var APP_PASSWORD = "stockmaster2026";
+
 function initEmp(){
   var s="";
   try{ s=localStorage.getItem("smp_e")||""; }catch(e){}
   s = s.trim();
-  if(s.length > 0){
-    // Gespeicherter Name – direkt einloggen
+
+  // Passwort bereits bestätigt in dieser Session?
+  var pwOk = false;
+  try{ pwOk = sessionStorage.getItem("smp_pw")==="1"; }catch(e){}
+
+  if(s.length > 0 && pwOk){
+    // Gespeicherter Name + Passwort OK → direkt einloggen
     applyEmp(s);
+  } else if(s.length > 0 && !pwOk){
+    // Name gespeichert aber Session abgelaufen → Passwort abfragen
+    showPwScreen();
   } else {
-    // Kein Name – Login-Screen bleibt sichtbar
-    setTimeout(function(){
-      var inp=document.getElementById("emp-in");
-      if(inp) inp.focus();
-    }, 300);
+    // Kein Name → Passwort dann Name
+    showPwScreen();
+  }
+}
+
+function showPwScreen(){
+  document.getElementById("pw-screen").style.display="block";
+  document.getElementById("name-screen").style.display="none";
+  setTimeout(function(){ var i=document.getElementById("pw-in"); if(i)i.focus(); },200);
+}
+function showNameScreen(){
+  document.getElementById("pw-screen").style.display="none";
+  document.getElementById("name-screen").style.display="block";
+  setTimeout(function(){ var i=document.getElementById("emp-in"); if(i)i.focus(); },200);
+}
+function togglePwVis(){
+  var inp=document.getElementById("pw-in");
+  var eye=document.getElementById("pw-eye");
+  if(!inp||!eye)return;
+  var isHidden = inp.type==="password";
+  inp.type = isHidden?"text":"password";
+  eye.innerHTML = isHidden?'<i class="bi bi-eye-slash"></i>':'<i class="bi bi-eye"></i>';
+}
+function checkPassword(){
+  var val=document.getElementById("pw-in")?document.getElementById("pw-in").value:"";
+  if(val===APP_PASSWORD){
+    try{ sessionStorage.setItem("smp_pw","1"); }catch(e){}
+    document.getElementById("pw-err").style.display="none";
+    // Bereits eingeloggter Name? Direkt einloggen
+    var savedName="";
+    try{ savedName=localStorage.getItem("smp_e")||""; }catch(e){}
+    if(savedName.trim().length>0){
+      applyEmp(savedName.trim());
+    } else {
+      showNameScreen();
+    }
+  } else {
+    var err=document.getElementById("pw-err");
+    if(err) err.style.display="block";
+    var inp=document.getElementById("pw-in");
+    if(inp){ inp.value=""; inp.focus(); }
+    // Kurzes Shake-Feedback
+    var form=document.getElementById("pw-in");
+    if(form){ form.style.animation="none"; setTimeout(function(){form.style.borderColor="var(--red)";setTimeout(function(){form.style.borderColor="";},1500);},50); }
   }
 }
 function applyEmp(n){
@@ -740,15 +813,13 @@ function applyEmp(n){
 }
 function changeEmp(){
   try{ localStorage.removeItem("smp_e"); }catch(e){}
+  try{ sessionStorage.removeItem("smp_pw"); }catch(e){}
   emp = "";
   var inp = document.getElementById("emp-in");
   if(inp) inp.value = "";
   var scr = document.getElementById("emp-scr");
   if(scr) scr.classList.remove("hidden");
-  setTimeout(function(){
-    var i = document.getElementById("emp-in");
-    if(i) i.focus();
-  }, 150);
+  showPwScreen();
 }
 function fillMA(){var el=document.getElementById("f-ma");if(el)el.value=emp;}
 
@@ -784,8 +855,15 @@ function updateMyStats(){
   var nf=document.getElementById("my-notifs");   if(nf) nf.textContent=notifications.length;
 }
 
-// Login-Button – safe getElementById
+// Login-Buttons – safe getElementById
 (function(){
+  // Passwort-Button
+  var btnPw = document.getElementById("btn-pw");
+  var pwIn  = document.getElementById("pw-in");
+  if(btnPw) btnPw.addEventListener("click", function(){ checkPassword(); });
+  if(pwIn)  pwIn.addEventListener("keydown", function(e){ if(e.key==="Enter") checkPassword(); });
+
+  // Name-Button
   var btnEmp = document.getElementById("btn-emp");
   var empIn  = document.getElementById("emp-in");
   if(btnEmp){
