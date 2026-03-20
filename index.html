@@ -749,35 +749,45 @@ function togglePwVis(){
 }
 
 function doLogin(){
-  var name = (document.getElementById("emp-in")||{value:""}).value.trim();
-  var pw   = (document.getElementById("pw-in")||{value:""}).value;
-  var errEl = document.getElementById("pw-err");
+  var name  = (document.getElementById("emp-in")||{value:""}).value.trim();
+  var pw    = (document.getElementById("pw-in")||{value:""}).value.trim();
   var btn   = document.getElementById("btn-emp");
 
+  // Lokale Validierung
   if(!name){ showLoginErr("Bitte Namen eingeben."); return; }
   if(!pw)  { showLoginErr("Bitte Passwort eingeben."); return; }
 
-  // Passwort-Check über Apps Script (serverseitig – nicht im Code sichtbar)
   setBL(btn, true);
-  gasCall("checkPassword", {password: pw},
-    function(r){
-      setBL(btn, false);
-      if(r && r.ok){
-        if(errEl) errEl.style.display = "none";
-        applyEmp(name);
-        toast("Hey "+name+" 🚀","ok");
-        loadStats();
-      } else {
-        showLoginErr("Falsches Passwort.");
-        var pwIn = document.getElementById("pw-in");
-        if(pwIn){ pwIn.value=""; pwIn.focus(); }
-      }
-    },
-    function(e){
-      setBL(btn, false);
-      showLoginErr("Verbindungsfehler – bitte Seite neu laden.");
+
+  // Direkt per fetch ohne gasCall-Wrapper – kein API_KEY nötig
+  var payload = JSON.stringify({action:"checkPassword", password:pw});
+  fetch(GAS_URL, {
+    method: "POST",
+    headers: {"Content-Type":"text/plain"},
+    body: payload
+  })
+  .then(function(res){
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    return res.json();
+  })
+  .then(function(r){
+    setBL(btn, false);
+    if(r && r.ok){
+      document.getElementById("pw-err").style.display = "none";
+      applyEmp(name);
+      toast("Hey "+name+" 🚀","ok");
+      loadStats();
+    } else {
+      showLoginErr("❌ Falsches Passwort. Bitte nochmal versuchen.");
+      var pwIn = document.getElementById("pw-in");
+      if(pwIn){ pwIn.value=""; pwIn.focus(); }
     }
-  );
+  })
+  .catch(function(e){
+    setBL(btn, false);
+    // Keine "Verbindungsfehler" Meldung – zeige was wirklich passiert
+    showLoginErr("⚠️ Fehler: "+String(e)+". GAS_URL korrekt? Seite neu laden.");
+  });
 }
 
 function showLoginErr(msg){
