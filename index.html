@@ -260,33 +260,21 @@ textarea.fc{resize:vertical;min-height:72px}
     <p>Professionelle Lagerverwaltung</p>
   </div>
   <div class="emp-form">
-    <!-- Passwort-Screen -->
-    <div id="pw-screen">
-      <label class="fl mb-2">ZUGANGSPASSWORT</label>
-      <div style="position:relative;margin-bottom:12px">
-        <input type="password" id="pw-in" class="fc" placeholder="Passwort eingeben…" style="font-size:16px;padding:13px 44px 13px 15px"/>
-        <button onclick="togglePwVis()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text2);cursor:pointer;font-size:16px" id="pw-eye">
-          <i class="bi bi-eye"></i>
-        </button>
-      </div>
-      <div id="pw-err" style="display:none;color:var(--red);font-size:13px;margin-bottom:10px;text-align:center">
-        <i class="bi bi-x-circle me-1"></i>Falsches Passwort
-      </div>
-      <button class="btn btn-primary w-100 py-3 fw-bold" id="btn-pw">
-        <i class="bi bi-lock-fill me-2"></i>Weiter
+    <label class="fl mb-2" style="letter-spacing:1px">DEIN NAME</label>
+    <input type="text" id="emp-in" class="fc mb-3" placeholder="Vorname Nachname" style="font-size:16px;padding:13px 15px" autocomplete="name"/>
+    <label class="fl mb-2" style="letter-spacing:1px">ZUGANGSPASSWORT</label>
+    <div style="position:relative;margin-bottom:10px">
+      <input type="password" id="pw-in" class="fc" placeholder="Passwort eingeben…" style="font-size:16px;padding:13px 44px 13px 15px" autocomplete="current-password"/>
+      <button type="button" onclick="togglePwVis()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text2);cursor:pointer;font-size:17px" id="pw-eye">
+        <i class="bi bi-eye"></i>
       </button>
     </div>
-    <!-- Name-Screen (nach korrektem Passwort) -->
-    <div id="name-screen" style="display:none">
-      <label class="fl mb-2">DEIN NAME</label>
-      <input type="text" id="emp-in" class="fc mb-3" placeholder="Vorname Nachname" style="font-size:16px;padding:13px 15px"/>
-      <button class="btn btn-primary w-100 py-3 fw-bold" id="btn-emp">
-        <i class="bi bi-arrow-right-circle-fill me-2"></i>Einloggen
-      </button>
-      <button onclick="showPwScreen()" class="btn btn-outline-secondary w-100 mt-2" style="font-size:13px">
-        <i class="bi bi-arrow-left me-1"></i>Zurück
-      </button>
+    <div id="pw-err" style="display:none;color:var(--red);font-size:13px;margin-bottom:10px;padding:8px 12px;background:rgba(248,81,73,.1);border-radius:8px;text-align:center">
+      <i class="bi bi-x-circle me-1"></i><span id="pw-err-msg">Name oder Passwort falsch</span>
     </div>
+    <button class="btn btn-primary w-100 fw-bold" id="btn-emp" style="padding:14px;font-size:15px">
+      <i class="bi bi-arrow-right-circle-fill me-2"></i>Einloggen
+    </button>
   </div>
 </div>
 
@@ -732,96 +720,97 @@ var SNAMES={
 };
 
 // ── EMPLOYEE ──────────────────────────────────────────────────────
-// ── PASSWORT KONFIGURATION ───────────────────────────────────────
-// Ändere dieses Passwort nach dem Upload auf GitHub!
-var APP_PASSWORD = "stockmaster2026";
+// ── AUTH: Passwort wird vom Apps Script geprüft ─────────────────
+// Das Passwort steht NICHT im Code – es wird serverseitig validiert
+// Setze es als Vercel Environment Variable: VITE_APP_PW (siehe README)
 
 function initEmp(){
-  var s="";
-  try{ s=localStorage.getItem("smp_e")||""; }catch(e){}
-  s = s.trim();
-
-  // Passwort bereits bestätigt in dieser Session?
-  var pwOk = false;
-  try{ pwOk = sessionStorage.getItem("smp_pw")==="1"; }catch(e){}
-
-  if(s.length > 0 && pwOk){
-    // Gespeicherter Name + Passwort OK → direkt einloggen
-    applyEmp(s);
-  } else if(s.length > 0 && !pwOk){
-    // Name gespeichert aber Session abgelaufen → Passwort abfragen
-    showPwScreen();
-  } else {
-    // Kein Name → Passwort dann Name
-    showPwScreen();
-  }
+  // Kein localStorage mehr – jeder Seitenaufruf fragt neu
+  var scr = document.getElementById("emp-scr");
+  if(scr) scr.classList.remove("hidden");
+  setTimeout(function(){
+    var i = document.getElementById("emp-in");
+    if(i) i.focus();
+  }, 200);
 }
 
-function showPwScreen(){
-  document.getElementById("pw-screen").style.display="block";
-  document.getElementById("name-screen").style.display="none";
-  setTimeout(function(){ var i=document.getElementById("pw-in"); if(i)i.focus(); },200);
-}
-function showNameScreen(){
-  document.getElementById("pw-screen").style.display="none";
-  document.getElementById("name-screen").style.display="block";
-  setTimeout(function(){ var i=document.getElementById("emp-in"); if(i)i.focus(); },200);
-}
 function togglePwVis(){
-  var inp=document.getElementById("pw-in");
-  var eye=document.getElementById("pw-eye");
-  if(!inp||!eye)return;
-  var isHidden = inp.type==="password";
-  inp.type = isHidden?"text":"password";
-  eye.innerHTML = isHidden?'<i class="bi bi-eye-slash"></i>':'<i class="bi bi-eye"></i>';
+  var inp = document.getElementById("pw-in");
+  var eye = document.getElementById("pw-eye");
+  if(!inp||!eye) return;
+  var hidden = inp.type === "password";
+  inp.type = hidden ? "text" : "password";
+  eye.innerHTML = hidden ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
 }
-function checkPassword(){
-  var val=document.getElementById("pw-in")?document.getElementById("pw-in").value:"";
-  if(val===APP_PASSWORD){
-    try{ sessionStorage.setItem("smp_pw","1"); }catch(e){}
-    document.getElementById("pw-err").style.display="none";
-    // Bereits eingeloggter Name? Direkt einloggen
-    var savedName="";
-    try{ savedName=localStorage.getItem("smp_e")||""; }catch(e){}
-    if(savedName.trim().length>0){
-      applyEmp(savedName.trim());
-    } else {
-      showNameScreen();
+
+function doLogin(){
+  var name = (document.getElementById("emp-in")||{value:""}).value.trim();
+  var pw   = (document.getElementById("pw-in")||{value:""}).value;
+  var errEl = document.getElementById("pw-err");
+  var btn   = document.getElementById("btn-emp");
+
+  if(!name){ showLoginErr("Bitte Namen eingeben."); return; }
+  if(!pw)  { showLoginErr("Bitte Passwort eingeben."); return; }
+
+  // Passwort-Check über Apps Script (serverseitig – nicht im Code sichtbar)
+  setBL(btn, true);
+  gasCall("checkPassword", {password: pw},
+    function(r){
+      setBL(btn, false);
+      if(r && r.ok){
+        if(errEl) errEl.style.display = "none";
+        applyEmp(name);
+        toast("Hey "+name+" 🚀","ok");
+        loadStats();
+      } else {
+        showLoginErr("Falsches Passwort.");
+        var pwIn = document.getElementById("pw-in");
+        if(pwIn){ pwIn.value=""; pwIn.focus(); }
+      }
+    },
+    function(e){
+      setBL(btn, false);
+      showLoginErr("Verbindungsfehler – bitte Seite neu laden.");
     }
-  } else {
-    var err=document.getElementById("pw-err");
-    if(err) err.style.display="block";
-    var inp=document.getElementById("pw-in");
-    if(inp){ inp.value=""; inp.focus(); }
-    // Kurzes Shake-Feedback
-    var form=document.getElementById("pw-in");
-    if(form){ form.style.animation="none"; setTimeout(function(){form.style.borderColor="var(--red)";setTimeout(function(){form.style.borderColor="";},1500);},50); }
-  }
+  );
 }
+
+function showLoginErr(msg){
+  var errEl  = document.getElementById("pw-err");
+  var errMsg = document.getElementById("pw-err-msg");
+  if(errMsg) errMsg.textContent = msg;
+  if(errEl)  errEl.style.display = "block";
+}
+
 function applyEmp(n){
   emp = n.trim();
-  try{ localStorage.setItem("smp_e", emp); }catch(e){}
-  // emp-name Badge aktualisieren
   var badge = document.getElementById("emp-name");
   if(badge) badge.textContent = emp;
-  // Login-Screen verstecken
   var scr = document.getElementById("emp-scr");
   if(scr) scr.classList.add("hidden");
-  // App initialisieren
   try{ setGreeting(); }catch(e){}
   try{ fillMA(); }catch(e){}
 }
+
 function changeEmp(){
-  try{ localStorage.removeItem("smp_e"); }catch(e){}
-  try{ sessionStorage.removeItem("smp_pw"); }catch(e){}
   emp = "";
   var inp = document.getElementById("emp-in");
-  if(inp) inp.value = "";
+  var pwIn = document.getElementById("pw-in");
+  if(inp)  inp.value  = "";
+  if(pwIn) pwIn.value = "";
+  var errEl = document.getElementById("pw-err");
+  if(errEl) errEl.style.display = "none";
   var scr = document.getElementById("emp-scr");
   if(scr) scr.classList.remove("hidden");
-  showPwScreen();
+  setTimeout(function(){
+    var i = document.getElementById("emp-in");
+    if(i) i.focus();
+  }, 150);
 }
+
 function fillMA(){var el=document.getElementById("f-ma");if(el)el.value=emp;}
+
+
 
 // ── GREETING (nach Tageszeit) ─────────────────────────────────────
 function setGreeting(){
@@ -855,31 +844,14 @@ function updateMyStats(){
   var nf=document.getElementById("my-notifs");   if(nf) nf.textContent=notifications.length;
 }
 
-// Login-Buttons – safe getElementById
+// Login – ein Button, beide Felder
 (function(){
-  // Passwort-Button
-  var btnPw = document.getElementById("btn-pw");
-  var pwIn  = document.getElementById("pw-in");
-  if(btnPw) btnPw.addEventListener("click", function(){ checkPassword(); });
-  if(pwIn)  pwIn.addEventListener("keydown", function(e){ if(e.key==="Enter") checkPassword(); });
-
-  // Name-Button
   var btnEmp = document.getElementById("btn-emp");
   var empIn  = document.getElementById("emp-in");
-  if(btnEmp){
-    btnEmp.addEventListener("click", function(){
-      var n = empIn ? empIn.value.trim() : "";
-      if(!n){ toast("Namen eingeben.","err"); return; }
-      applyEmp(n);
-      toast("Hey "+n+" 🚀","ok");
-      loadStats();
-    });
-  }
-  if(empIn){
-    empIn.addEventListener("keydown", function(e){
-      if(e.key==="Enter" && btnEmp) btnEmp.click();
-    });
-  }
+  var pwIn   = document.getElementById("pw-in");
+  if(btnEmp) btnEmp.addEventListener("click", function(){ doLogin(); });
+  if(empIn)  empIn.addEventListener("keydown",  function(e){ if(e.key==="Enter") document.getElementById("pw-in").focus(); });
+  if(pwIn)   pwIn.addEventListener("keydown",   function(e){ if(e.key==="Enter") doLogin(); });
 })();
 
 // ── TABS ──────────────────────────────────────────────────────────
