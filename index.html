@@ -686,7 +686,7 @@ textarea.fc{resize:vertical;min-height:72px}
 <script>
 // ── STATE ─────────────────────────────────────────────────────────
 // ⚠️ Apps Script URL eintragen:
-var GAS_URL = "DEINE_GAS_URL_HIER";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbxt8GfGWKLeeWs1OPMc3rJOmWwsCL3BHYFePag-kUPes5PJV6L7y5nNycHycGQf/exec";
 
 var emp="",allItems=[],lf="all",modalItem=null;
 var cardRegistry=[];
@@ -1165,12 +1165,36 @@ function camStart(){
 
 // Scan-Loop: liest jeden Frame mit jsQR
 // ZXing Reader – einmal erstellen, wiederverwendbar
+// ZXing mit ALLEN verfügbaren Formaten
 var zxingReader = null;
 function getZxingReader(){
   if(!zxingReader){
     try {
-      zxingReader = new ZXingBrowser.BrowserMultiFormatReader();
+      // Hints: alle Formate aktivieren + schnelleren Scan
+      var hints = new Map();
+      // Alle unterstützten Formate
+      hints.set(ZXingBrowser.DecodeHintType.POSSIBLE_FORMATS, [
+        ZXingBrowser.BarcodeFormat.EAN_13,      // Standard-Supermarkt (13-stellig)
+        ZXingBrowser.BarcodeFormat.EAN_8,       // Kleiner EAN (8-stellig)
+        ZXingBrowser.BarcodeFormat.UPC_A,       // US Standard (12-stellig)
+        ZXingBrowser.BarcodeFormat.UPC_E,       // Kompakter UPC (8-stellig)
+        ZXingBrowser.BarcodeFormat.CODE_128,    // Logistik / Seriennummern
+        ZXingBrowser.BarcodeFormat.CODE_39,     // Industrie-Barcodes
+        ZXingBrowser.BarcodeFormat.CODE_93,     // Erweiterter Code 39
+        ZXingBrowser.BarcodeFormat.CODABAR,     // Bibliotheken / Blutbanken
+        ZXingBrowser.BarcodeFormat.ITF,         // Versandkartons
+        ZXingBrowser.BarcodeFormat.RSS_14,      // GS1 DataBar
+        ZXingBrowser.BarcodeFormat.RSS_EXPANDED,
+        ZXingBrowser.BarcodeFormat.QR_CODE,     // QR Codes
+        ZXingBrowser.BarcodeFormat.DATA_MATRIX, // 2D Matrix
+        ZXingBrowser.BarcodeFormat.AZTEC,       // Aztec Code
+        ZXingBrowser.BarcodeFormat.PDF_417,     // PDF417 (Ausweise etc.)
+        ZXingBrowser.BarcodeFormat.MAXICODE,
+      ]);
+      hints.set(ZXingBrowser.DecodeHintType.TRY_HARDER, true);
+      zxingReader = new ZXingBrowser.BrowserMultiFormatReader(hints);
     } catch(e){
+      console.warn("ZXing init Fehler:", e);
       zxingReader = null;
     }
   }
@@ -1192,7 +1216,6 @@ function camScanLoop(){
 
   var reader = getZxingReader();
   if(reader){
-    // ZXing: liest EAN-13, EAN-8, Code-128, Code-39, UPC, QR etc.
     try {
       var result = reader.decodeFromCanvas(canvas);
       if(result && result.getText()){
@@ -1201,12 +1224,14 @@ function camScanLoop(){
         return;
       }
     } catch(notFound){
-      // Kein Barcode in diesem Frame – normal, weiter scannen
+      // Kein Barcode erkannt – nächster Frame
     }
   } else {
-    // Fallback: BarcodeDetector (Chrome 83+)
+    // Fallback: BarcodeDetector API (Chrome/Android)
     if(typeof BarcodeDetector !== "undefined"){
-      var det = new BarcodeDetector({formats:["ean_13","ean_8","code_128","code_39","upc_a","upc_e","qr_code","itf"]});
+      var det = new BarcodeDetector({
+        formats:["ean_13","ean_8","upc_a","upc_e","code_128","code_39","code_93","itf","qr_code","data_matrix","pdf417","aztec","codabar"]
+      });
       det.detect(canvas).then(function(codes){
         if(codes && codes.length > 0){
           camStop();
