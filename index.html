@@ -8,8 +8,8 @@
 <title>StockMaster Pro</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"/>
-<!-- jsQR: zuverlässige Barcode-Erkennung, funktioniert überall -->
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<!-- ZXing: liest EAN-13, Code128, QR und alle gängigen Barcodes -->
+<script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.4/umd/index.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style>
 :root{
@@ -686,7 +686,7 @@ textarea.fc{resize:vertical;min-height:72px}
 <script>
 // ── STATE ─────────────────────────────────────────────────────────
 // ⚠️ Apps Script URL eintragen:
-var GAS_URL = "https://script.google.com/macros/s/AKfycbzGvT_tm04UIbgHNVP3jvWB6c3g_NfkimDElpubDaFXgxx0hZ97jHohUkgQo4IPDg/exec";
+var GAS_URL = "DEINE_GAS_URL_HIER";
 
 var emp="",allItems=[],lf="all",modalItem=null;
 var cardRegistry=[];
@@ -1164,6 +1164,19 @@ function camStart(){
 }
 
 // Scan-Loop: liest jeden Frame mit jsQR
+// ZXing Reader – einmal erstellen, wiederverwendbar
+var zxingReader = null;
+function getZxingReader(){
+  if(!zxingReader){
+    try {
+      zxingReader = new ZXingBrowser.BrowserMultiFormatReader();
+    } catch(e){
+      zxingReader = null;
+    }
+  }
+  return zxingReader;
+}
+
 function camScanLoop(){
   if(!camRunning) return;
   var video  = document.getElementById("cam-video");
@@ -1176,17 +1189,36 @@ function camScanLoop(){
   canvas.height = video.videoHeight;
   var ctx = canvas.getContext("2d");
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  // jsQR erkennt EAN-13, QR, Code128 etc.
-  var code = jsQR(imageData.data, imageData.width, imageData.height, {
-    inversionAttempts: "dontInvert"
-  });
-  if(code && code.data){
-    camStop();
-    camOnCode(code.data);
+
+  var reader = getZxingReader();
+  if(reader){
+    // ZXing: liest EAN-13, EAN-8, Code-128, Code-39, UPC, QR etc.
+    try {
+      var result = reader.decodeFromCanvas(canvas);
+      if(result && result.getText()){
+        camStop();
+        camOnCode(result.getText());
+        return;
+      }
+    } catch(notFound){
+      // Kein Barcode in diesem Frame – normal, weiter scannen
+    }
   } else {
-    camAnimFrame = requestAnimationFrame(camScanLoop);
+    // Fallback: BarcodeDetector (Chrome 83+)
+    if(typeof BarcodeDetector !== "undefined"){
+      var det = new BarcodeDetector({formats:["ean_13","ean_8","code_128","code_39","upc_a","upc_e","qr_code","itf"]});
+      det.detect(canvas).then(function(codes){
+        if(codes && codes.length > 0){
+          camStop();
+          camOnCode(codes[0].rawValue);
+        } else {
+          camAnimFrame = requestAnimationFrame(camScanLoop);
+        }
+      }).catch(function(){ camAnimFrame = requestAnimationFrame(camScanLoop); });
+      return;
+    }
   }
+  camAnimFrame = requestAnimationFrame(camScanLoop);
 }
 
 // Kamera stoppen
@@ -1752,12 +1784,23 @@ document.getElementById("s-bc-in").addEventListener("keydown",function(e){if(e.k
 function test1(){
   var b=document.getElementById("bt1"),o=b.innerHTML;setBL(b,true);
   var x=document.getElementById("t1o");x.className="diag dinf";x.textContent="Warte…";x.style.display="block";
-  gasCall("verbindungstest",{},function(r){setBL(b,false,o);x.className="diag dok";x.textContent="✅ "+r.msg+" – "+r.zeit;},function(e){setBL(b,false,o);x.className="diag derr";x.textContent="❌ "+e+" → Neue Bereitstellung erstellen!";});
+  gasCall("verbindungstest",{},function(r){
+    setBL(b,false,o);
+    if(r&&r.ok){x.className="diag dok";x.textContent="✅ "+(r.msg||"OK")+" – "+(r.zeit||"");}
+    else{x.className="diag derr";x.textContent="❌ Fehler: "+(r?JSON.stringify(r):"keine Antwort");}
+  },function(e){setBL(b,false,o);x.className="diag derr";x.textContent="❌ "+String(e);});
 }
 function test2(){
   var b=document.getElementById("bt2"),o=b.innerHTML;setBL(b,true);
   var x=document.getElementById("t2o");x.className="diag dinf";x.textContent="Prüfe…";x.style.display="block";
-  gasCall("sheetTest",{},function(r){setBL(b,false,o);x.className=r.ok?"diag dok":"diag derr";x.textContent=r.ok?"✅ Sheet: "+r.name:"❌ "+r.fehler;},function(e){setBL(b,false,o);x.className="diag derr";x.textContent="❌ "+e;});
+  gasCall("sheetTest",{},
+    function(r){
+      setBL(b,false,o);
+      if(r&&r.ok){x.className="diag dok";x.textContent="✅ Sheet: "+(r.name||"OK");}
+      else{x.className="diag derr";x.textContent="❌ "+(r&&r.fehler?r.fehler:JSON.stringify(r));}
+    },
+    function(e){setBL(b,false,o);x.className="diag derr";x.textContent="❌ "+String(e);}
+  );
 }
 
 // Test3: Zeile schreiben → 3s Timer → automatisch löschen
