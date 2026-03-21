@@ -691,13 +691,8 @@ var GAS_URL = "https://script.google.com/macros/s/AKfycbxt8GfGWKLeeWs1OPMc3rJOmW
 var emp="",allItems=[],lf="all",modalItem=null;
 var cardRegistry=[];
 // ── API HELPER: ersetzt google.script.run ────────────────────────
-// API_KEY – muss mit dem Wert in Code.gs übereinstimmen
-var API_KEY = "6261da177e8ba1f9b542da2f11ddf773916dbfe6304fdcbec13e93adcf2a8488";
-
 function gasCall(action, data, onSuccess, onError) {
-  // checkPassword ohne API_KEY senden (kein Henne-Ei-Problem beim Login)
   var payload = Object.assign({action: action}, data || {});
-  if(action !== "checkPassword") payload.apiKey = API_KEY;
   fetch(GAS_URL, {
     method: "POST",
     headers: {"Content-Type": "text/plain"},
@@ -759,7 +754,7 @@ function doLogin(){
 
   setBL(btn, true);
 
-  // Direkt per fetch ohne gasCall-Wrapper – kein API_KEY nötig
+  // Login direkt per fetch
   var payload = JSON.stringify({action:"checkPassword", password:pw});
   fetch(GAS_URL, {
     method: "POST",
@@ -898,13 +893,15 @@ function goTabFn(id,lfMode){
 
 // ── STATS ─────────────────────────────────────────────────────────
 function loadStats(){
-  gasCall("uploadFileToDrive",b64clean, fname, "image/jpeg", folderName,function(r){if(!r||!r.ok)return;var s=r.stats;
-      document.getElementById("st-sw").textContent=(s.konsolen||0)+(s.spiele||0);
-      document.getElementById("st-h").textContent=s.handys||0;
-      document.getElementById("st-pc").textContent=s.pcs||0;
-      document.getElementById("st-def").textContent=s.defekte||0;
-      document.getElementById("st-heu").textContent=s.heute||0;
-    }).withFailureHandler(function(){}).getStats();
+  gasCall("getStats",{},function(r){
+    if(!r||!r.ok)return;
+    var s=r.stats||{};
+    document.getElementById("st-sw").textContent=(s.konsolen||0)+(s.spiele||0);
+    document.getElementById("st-h").textContent=s.handys||0;
+    document.getElementById("st-pc").textContent=s.pcs||0;
+    document.getElementById("st-def").textContent=s.defekte||0;
+    document.getElementById("st-heu").textContent=s.heute||0;
+  },function(){});
 }
 
 // ── KATEGORIE ─────────────────────────────────────────────────────
@@ -1131,9 +1128,8 @@ function camStart(){
             var lbl = d.label || ("Kamera " + (i+1));
             var back = /back|rear|environment|rück/i.test(lbl);
             opt.textContent = (back ? "🔙 " : "🤳 ") + lbl;
-            // Aktive Kamera markieren
-            var active = stream.getVideoTracks()[0];
-            if(active && lbl === active.label) opt.selected = true;
+            // Kamera 0 immer vorauswählen (beste Rückkamera)
+            if(i === 0) opt.selected = true;
             sel.appendChild(opt);
           });
           document.getElementById("cam-select-row").style.display = "block";
