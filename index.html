@@ -193,6 +193,29 @@ textarea.fc{resize:vertical;min-height:72px}
 .empty{text-align:center;padding:44px 18px;color:var(--text3)}
 .empty i{font-size:42px;opacity:.25;display:block;margin-bottom:9px}
 .slabel{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:9px;display:block}
+/* Foto-Anleitung */
+.photo-guide{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);padding:13px 14px;margin-bottom:12px}
+.photo-guide-title{font-size:13px;font-weight:700;color:var(--blue);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.photo-guide-item{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;font-size:12px;color:var(--text2)}
+.photo-guide-num{width:20px;height:20px;background:var(--blue);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
+/* Preisvorschlag */
+.price-badge{background:rgba(63,185,80,.12);border:1px solid rgba(63,185,80,.3);border-radius:var(--r-sm);padding:10px 13px;margin-top:10px;display:flex;align-items:center;justify-content:space-between}
+.price-badge .pv{font-size:20px;font-weight:800;color:var(--green)}
+.price-badge .pl{font-size:11px;color:var(--text2)}
+/* Mitarbeiter-Account */
+.acc-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:11px 13px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+.acc-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--purple));display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;flex-shrink:0}
+/* Mini chart bars */
+.mini-bar-wrap{display:flex;align-items:flex-end;gap:3px;height:48px;margin-top:8px}
+.mini-bar{flex:1;border-radius:3px 3px 0 0;background:var(--blue);opacity:.7;transition:all .3s;min-width:6px}
+.mini-bar.today{opacity:1;background:var(--green)}
+/* Scanner overlay für Suche */
+.scan-overlay{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+.scan-overlay.hidden{display:none}
+.scan-overlay-video{width:100%;max-width:400px;border-radius:var(--r);overflow:hidden;position:relative}
+.scan-overlay-video video{width:100%;display:block;max-height:60vh;object-fit:cover}
+.scan-overlay-frame{position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center}
+.scan-overlay-frame div{width:65%;height:65%;border:2px solid var(--blue);border-radius:var(--r-sm);box-shadow:0 0 0 2000px rgba(0,0,0,.4)}
 </style>
 </head>
 <body>
@@ -260,10 +283,35 @@ textarea.fc{resize:vertical;min-height:72px}
     </div>
     <span class="slabel">MEINE AKTIVITÄT</span>
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:14px;display:flex;gap:16px;flex-wrap:wrap">
-      <div style="flex:1;min-width:80px;text-align:center"><div style="font-size:24px;font-weight:800;color:var(--blue)" id="my-total">–</div><div style="font-size:11px;color:var(--text2);font-weight:600">Gesamt</div></div>
+      <div style="flex:1;min-width:80px;text-align:center;cursor:pointer" onclick="goTabFn('list-panel','all')"><div style="font-size:24px;font-weight:800;color:var(--blue)" id="my-total">–</div><div style="font-size:11px;color:var(--text2);font-weight:600">Gesamt</div></div>
       <div style="flex:1;min-width:80px;text-align:center"><div style="font-size:24px;font-weight:800;color:var(--green)" id="my-today">–</div><div style="font-size:11px;color:var(--text2);font-weight:600">Heute</div></div>
-      <div style="flex:1;min-width:80px;text-align:center"><div style="font-size:24px;font-weight:800;color:var(--orange)" id="my-defekte">–</div><div style="font-size:11px;color:var(--text2);font-weight:600">Defekte</div></div>
-      <div style="flex:1;min-width:80px;text-align:center"><div style="font-size:24px;font-weight:800;color:var(--purple)" id="my-notifs">–</div><div style="font-size:11px;color:var(--text2);font-weight:600">Nachrichten</div></div>
+      <div style="flex:1;min-width:80px;text-align:center;cursor:pointer" onclick="goTabFn('list-panel','defekt')"><div style="font-size:24px;font-weight:800;color:var(--orange)" id="my-defekte">–</div><div style="font-size:11px;color:var(--text2);font-weight:600">Defekte</div></div>
+      <div style="flex:1;min-width:80px;text-align:center;cursor:pointer" onclick="openNotifications()"><div style="font-size:24px;font-weight:800;color:var(--purple)" id="my-notifs">–</div><div style="font-size:11px;color:var(--text2);font-weight:600">Hinweise</div></div>
+    </div>
+
+    <!-- Kleinanzeigen Fortschritt -->
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:12px;font-weight:700;color:var(--text2)">📢 KLEINANZEIGEN STATUS</span>
+        <span id="kl-pct" style="font-size:12px;font-weight:700;color:var(--green)">–</span>
+      </div>
+      <div style="background:var(--border);border-radius:99px;height:7px;overflow:hidden">
+        <div id="kl-bar" style="height:100%;background:linear-gradient(90deg,var(--green),var(--blue));border-radius:99px;transition:width .6s ease;width:0%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:5px">
+        <span id="kl-done" style="font-size:11px;color:var(--green)">– hochgeladen</span>
+        <span id="kl-todo" style="font-size:11px;color:var(--red)">– ausstehend</span>
+      </div>
+    </div>
+
+    <!-- Wöchentlicher Mini-Chart -->
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:12px;font-weight:700;color:var(--text2)">📊 EINLAGERUNGEN (7 TAGE)</span>
+        <span id="chart-total" style="font-size:11px;color:var(--text3)"></span>
+      </div>
+      <div class="mini-bar-wrap" id="week-chart"></div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px" id="week-labels"></div>
     </div>
     <span class="slabel">SCHNELLZUGRIFF</span>
     <div class="quick-grid">
@@ -271,6 +319,7 @@ textarea.fc{resize:vertical;min-height:72px}
       <button class="quick-btn" onclick="goTabFn('scan-panel');selCat('handy')"><div class="quick-icon" style="background:rgba(63,185,80,.15)">📱</div><div><div class="quick-text">Handy</div><div class="quick-sub">Smartphone</div></div></button>
       <button class="quick-btn" onclick="goTabFn('scan-panel');selCat('pc')"><div class="quick-icon" style="background:rgba(88,166,255,.15)">💻</div><div><div class="quick-text">PC / Laptop</div><div class="quick-sub">Computer</div></div></button>
       <button class="quick-btn" onclick="goTabFn('list-panel','defekt')"><div class="quick-icon" style="background:rgba(248,81,73,.15)">🔧</div><div><div class="quick-text">Defekte</div><div class="quick-sub">Alle Mängel</div></div></button>
+      <button class="quick-btn" onclick="openAccModal()"><div class="quick-icon" style="background:rgba(163,113,247,.15)">👥</div><div><div class="quick-text">Mitarbeiter</div><div class="quick-sub">Accounts verwalten</div></div></button>
     </div>
   </div>
 </div>
@@ -367,6 +416,8 @@ textarea.fc{resize:vertical;min-height:72px}
             </div>
             <div id="photo-row" style="display:none;margin-top:12px">
               <label class="fl">Fotos des Schadens <span class="badge bg-danger ms-1 fw-bold">Pflicht</span></label>
+              <!-- Foto-Anleitung je Kategorie (wird per JS befüllt) -->
+              <div class="photo-guide" id="photo-guide-box"></div>
               <div class="photo-zone">
                 <div class="pz-top" onclick="triggerPhotoInput('gallery')">
                   <i class="bi bi-camera-plus"></i>
@@ -383,10 +434,15 @@ textarea.fc{resize:vertical;min-height:72px}
             </div>
           </div>
           <div class="step" id="st-s5">
-            <div class="step-title">Mitarbeiter</div>
+            <div class="step-title">Mitarbeiter & Preis</div>
             <div class="step-sub">Wer lagert das Gerät ein?</div>
             <label class="fl">Mitarbeiter</label>
             <input type="text" id="f-ma" class="fc mb-3"/>
+            <!-- Preisvorschlag -->
+            <div id="price-suggest-box" style="display:none" class="price-badge">
+              <div><div class="pl">💡 Empfohlener Preis</div><div class="pv" id="price-suggest-val">–</div></div>
+              <div style="font-size:11px;color:var(--text2);text-align:right">Basierend auf<br>Zustand & Kategorie</div>
+            </div>
             <div id="s5-extra"></div>
           </div>
         </div>
@@ -429,6 +485,7 @@ textarea.fc{resize:vertical;min-height:72px}
     <span class="slabel">SUCHE & FILTER</span>
     <div class="d-flex gap-2 mb-2">
       <input type="text" id="s-bc-in" class="fc" placeholder="Name, Barcode, Modell…" oninput="liveSearch(this.value)"/>
+      <button class="btn btn-outline-secondary" onclick="openSearchScanner()" title="Barcode scannen"><i class="bi bi-upc-scan"></i></button>
       <button class="btn btn-primary" onclick="doSearch()"><i class="bi bi-search"></i></button>
     </div>
     <div id="recent-searches" style="display:none;margin-bottom:12px">
@@ -510,6 +567,42 @@ textarea.fc{resize:vertical;min-height:72px}
   </div>
 </div>
 
+<!-- ACCOUNT MODAL -->
+<div class="moverlay" id="acc-modal">
+  <div class="msheet">
+    <div class="mhead"><h3>👥 Mitarbeiter-Accounts</h3><button class="btn btn-sm btn-outline-secondary" onclick="closeAccModal()"><i class="bi bi-x-lg"></i></button></div>
+    <div class="mbody">
+      <div class="diag" id="acc-diag"></div>
+      <div id="acc-list" style="margin-bottom:14px"></div>
+      <div style="border-top:1px solid var(--border);padding-top:14px">
+        <span class="slabel">NEUEN MITARBEITER ANLEGEN</span>
+        <div class="mb-2"><label class="fl">Name</label><input type="text" id="acc-name-in" class="fc" placeholder="Vorname Nachname"/></div>
+        <div class="mb-3"><label class="fl">Passwort</label>
+          <div style="position:relative">
+            <input type="password" id="acc-pw-in" class="fc" placeholder="Eigenes Passwort festlegen" style="padding-right:44px"/>
+            <button onclick="toggleAccPw()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text2);cursor:pointer;font-size:16px" id="acc-pw-eye"><i class="bi bi-eye"></i></button>
+          </div>
+        </div>
+        <button class="btn btn-primary w-100 fw-bold" onclick="addAccount()"><i class="bi bi-person-plus-fill me-2"></i>Account anlegen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SEARCH SCANNER OVERLAY (Fix 6) -->
+<div class="scan-overlay hidden" id="search-scan-overlay">
+  <div class="scan-overlay-video">
+    <video id="search-scan-video" autoplay playsinline muted></video>
+    <canvas id="search-scan-canvas" style="display:none"></canvas>
+    <div class="scan-overlay-frame"><div></div></div>
+    <div style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);color:#fff;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:600;white-space:nowrap" id="search-scan-hint">Halte Barcode in den Rahmen</div>
+  </div>
+  <div style="margin-top:16px;text-align:center">
+    <p style="color:var(--text2);font-size:13px;margin-bottom:12px">Barcode wird automatisch erkannt</p>
+    <button class="btn btn-outline-light" onclick="closeSearchScanner()"><i class="bi bi-x-circle me-1"></i>Abbrechen</button>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 var GAS_URL = "https://script.google.com/macros/s/AKfycbzFZJWwBVKgdQFTxHOswDSJrvA6moCXoPwl69ccodDHUT1f0SMc6rltl2BnVI8Njw/exec";
@@ -570,18 +663,6 @@ function gasCall(action, data, onSuccess, onError) {
 // ── LOGIN ─────────────────────────────────────────────────────────
 function initEmp(){var s=document.getElementById("emp-scr");if(s)s.classList.remove("hidden");setTimeout(function(){var i=document.getElementById("emp-in");if(i)i.focus();},200);}
 function togglePwVis(){var i=document.getElementById("pw-in"),e=document.getElementById("pw-eye");if(!i||!e)return;var h=i.type==="password";i.type=h?"text":"password";e.innerHTML=h?'<i class="bi bi-eye-slash"></i>':'<i class="bi bi-eye"></i>';}
-function doLogin(){
-  var name=(document.getElementById("emp-in")||{value:""}).value.trim();
-  var pw=(document.getElementById("pw-in")||{value:""}).value.trim();
-  var btn=document.getElementById("btn-emp");
-  if(!name){showLoginErr("Bitte Namen eingeben.");return;}
-  if(!pw){showLoginErr("Bitte Passwort eingeben.");return;}
-  setBL(btn,true);
-  gasGet("checkPassword",{password:pw},
-    function(r){setBL(btn,false);if(r&&r.ok){document.getElementById("pw-err").style.display="none";applyEmp(name);toast("Hey "+name+" 🚀","ok");loadStats();}else{showLoginErr("❌ Ungültig. Server sagt: "+(r?JSON.stringify(r):"keine Antwort"));var p=document.getElementById("pw-in");if(p)p.focus();}},
-    function(e){setBL(btn,false);showLoginErr("⚠️ Verbindungsfehler: "+String(e));}
-  );
-}
 function showLoginErr(msg){var e=document.getElementById("pw-err"),m=document.getElementById("pw-err-msg");if(m)m.textContent=msg;if(e)e.style.display="block";}
 function applyEmp(n){emp=n.trim();var b=document.getElementById("emp-name");if(b)b.textContent=emp;var s=document.getElementById("emp-scr");if(s)s.classList.add("hidden");try{setGreeting();}catch(e){}try{fillMA();}catch(e){}}
 function changeEmp(){emp="";var i=document.getElementById("emp-in"),p=document.getElementById("pw-in");if(i)i.value="";if(p)p.value="";var e=document.getElementById("pw-err");if(e)e.style.display="none";var s=document.getElementById("emp-scr");if(s)s.classList.remove("hidden");setTimeout(function(){var x=document.getElementById("emp-in");if(x)x.focus();},150);}
@@ -831,7 +912,9 @@ function doSave(){
   );
 }
 
-function resetStepperState(){probChoice=null;probType=null;photos=[];["f-scanid","f-name","f-ma","f-prob-beschr"].forEach(function(id){var e=document.getElementById(id);if(e)e.value="";});var mw=document.getElementById("photo-main-wrap");if(mw)mw.innerHTML="";var pt=document.getElementById("photo-thumbs");if(pt)pt.innerHTML="";var ptr=document.getElementById("prob-type-row");if(ptr)ptr.style.display="none";var pdr=document.getElementById("prob-descr-row");if(pdr)pdr.style.display="none";var phr=document.getElementById("photo-row");if(phr)phr.style.display="none";var pn=document.getElementById("pb-nein");if(pn)pn.className="cbtn";var pj=document.getElementById("pb-ja");if(pj)pj.className="cbtn";stopCam();}
+function resetStepperState(){probChoice=null;probType=null;photos=[];["f-scanid","f-name","f-ma","f-prob-beschr"].forEach(function(id){var e=document.getElementById(id);if(e)e.value="";});var mw=document.getElementById("photo-main-wrap");if(mw)mw.innerHTML="";var pt=document.getElementById("photo-thumbs");if(pt)pt.innerHTML="";var ptr=document.getElementById("prob-type-row");if(ptr)ptr.style.display="none";var pdr=document.getElementById("prob-descr-row");if(pdr)pdr.style.display="none";var phr=document.getElementById("photo-row");if(phr)phr.style.display="none";var pn=document.getElementById("pb-nein");if(pn)pn.className="cbtn";var pj=document.getElementById("pb-ja");if(pj)pj.className="cbtn";// Fix 1: Barcode-Banner zurücksetzen
+var so=document.getElementById("scan-ok");if(so)so.style.display="none";var sv2=document.getElementById("scan-ok-val");if(sv2)sv2.textContent="";// Fix 2: Mängel-Buttons zurücksetzen
+var pp=document.getElementById("pb-phys");if(pp)pp.className="cbtn";var ps=document.getElementById("pb-soft");if(ps)ps.className="cbtn";stopCam();}
 
 // ── LAGER ─────────────────────────────────────────────────────────
 function loadAll(){document.getElementById("list-body").innerHTML='<div class="empty"><span class="spin-b"></span><p>Lade…</p></div>';allItems=[];var done=0,total=5,kd=[],sd=[],hd=[],pd=[],dd=[];function tryR(){done++;if(done<total)return;allItems=kd.concat(sd,hd,pd,dd);renderList();checkLongStorageItems();}gasGet("getAllKonsolen",{},function(r){if(r&&r.ok)kd=r.data||[];tryR();},function(){tryR();});gasGet("getAllSpiele",{},function(r){if(r&&r.ok)sd=r.data||[];tryR();},function(){tryR();});gasGet("getAllHandys",{},function(r){if(r&&r.ok)hd=r.data||[];tryR();},function(){tryR();});gasGet("getAllPCs",{},function(r){if(r&&r.ok)pd=r.data||[];tryR();},function(){tryR();});gasGet("getAllDefekte",{},function(r){if(r&&r.ok)dd=r.data||[];tryR();},function(){tryR();});}
@@ -841,7 +924,9 @@ function setLF(m){lf=m;var tabs=document.querySelectorAll(".ltab");var idx=lfArr
 
 function mkCard(item){
   var isV=String(item.verfuegbarkeit||"").indexOf("Nicht")===-1&&String(item.verfuegbarkeit||"").length>0;
+  // Fix 7: "Verfügbar" → "Hochgeladen?" (auf Kleinanzeigen)
   var avc=isV?"av-v":"av-n",avi=isV?"bi-check-circle-fill":"bi-x-circle-fill";
+  var avLabel=isV?"✓ Bei Kleinanzeigen":"✗ Noch nicht hochgeladen";
   var nm=item.name||item.spiel||item.modell||item.geraet||"–";
   var tmap={konsole:["ib-k","🕹️ Konsole"],spiel:["ib-sp","💿 Spiel"],handy:["ib-h","📱 Handy"],pc:["ib-pc","💻 PC/Laptop"],defekt:["ib-def","⚠️ Defekt"]};
   var tm=tmap[item.type]||["","–"];
@@ -868,7 +953,7 @@ function mkCard(item){
   if(item.type!=="defekt"){actions+='<button class="btn btn-outline-primary btn-sm" onclick="openEditStepper('+rIdx+')"><i class="bi bi-pencil-fill me-1"></i>Bearbeiten</button><button class="btn btn-outline-danger btn-sm" onclick="confirmDelete('+rIdx+')"><i class="bi bi-trash3"></i></button>';}
   else{actions+='<button class="btn btn-outline-danger btn-sm" onclick="confirmDeleteDefekt('+rIdx+')"><i class="bi bi-trash3 me-1"></i>Löschen</button>';}
   actions+='</div>';
-  return '<div class="ic"><div class="ic-top"><div class="ic-name">'+esc(nm)+'</div><span class="ic-badge '+tm[0]+'">'+tm[1]+'</span></div><div class="chips">'+chips+(item.type!=="defekt"?'<span class="av-badge '+avc+'"><i class="bi '+avi+' me-1"></i>'+esc(item.verfuegbarkeit||"–")+'</span>':'')+' </div>'+(note?'<div style="font-size:12px;color:var(--text2);margin-bottom:4px"><i class="bi bi-chat-text me-1"></i>'+esc(note)+'</div>':"")+fotosHtml+actions+'</div>';
+  return '<div class="ic"><div class="ic-top"><div class="ic-name">'+esc(nm)+'</div><span class="ic-badge '+tm[0]+'">'+tm[1]+'</span></div><div class="chips">'+chips+(item.type!=="defekt"?'<span class="av-badge '+avc+'"><i class="bi '+avi+' me-1"></i>'+avLabel+'</span>':'')+' </div>'+(note?'<div style="font-size:12px;color:var(--text2);margin-bottom:4px"><i class="bi bi-chat-text me-1"></i>'+esc(note)+'</div>':"")+fotosHtml+actions+'</div>';
 }
 
 function openLightbox(itemIdx,fotoIdx){var item=cardRegistry[itemIdx];if(!item||!item.fotos||!item.fotos[fotoIdx])return;var lb=document.createElement("div");lb.className="lightbox";lb.innerHTML='<img src="'+esc(item.fotos[fotoIdx])+'" alt="Foto"/>';lb.onclick=function(){lb.remove();};document.body.appendChild(lb);}
@@ -924,8 +1009,296 @@ function checkLongStorageItems(){if(!allItems||allItems.length===0)return;var no
 window.addEventListener("load",function(){
   var no=document.getElementById("notif-overlay");if(no)no.addEventListener("click",function(e){if(e.target===this)closeNotifications();});
   var dm=document.getElementById("del-modal");if(dm)dm.addEventListener("click",function(e){if(e.target===this)closeDelModal();});
+  var am=document.getElementById("acc-modal");if(am)am.addEventListener("click",function(e){if(e.target===this)closeAccModal();});
   initEmp();initSearch();loadNotifications();
+  // Smart notifications beim Start prüfen
+  setTimeout(runSmartNotifications, 3000);
+  // Täglich um Mitternacht nochmal
+  setInterval(runSmartNotifications, 24*60*60*1000);
 });
+
+// ── FEATURE: MITARBEITER-ACCOUNTS (Fix 3) ─────────────────────────
+// Accounts lokal in localStorage (kein separater Server nötig)
+// Admin-Passwort bleibt in GAS Script Properties
+function getAccounts(){try{var s=localStorage.getItem("smp_accounts");return s?JSON.parse(s):[];}catch(e){return[];}}
+function saveAccounts(arr){try{localStorage.setItem("smp_accounts",JSON.stringify(arr));}catch(e){}}
+
+function openAccModal(){
+  renderAccList();
+  document.getElementById("acc-modal").classList.add("open");
+}
+function closeAccModal(){document.getElementById("acc-modal").classList.remove("open");}
+
+function renderAccList(){
+  var accs=getAccounts();
+  var list=document.getElementById("acc-list");
+  if(!accs.length){list.innerHTML='<div style="font-size:13px;color:var(--text3);text-align:center;padding:14px">Noch keine Mitarbeiter angelegt.</div>';return;}
+  list.innerHTML=accs.map(function(a,i){
+    var ini=(a.name||"?").split(" ").map(function(w){return w[0]||"";}).join("").toUpperCase().substring(0,2);
+    return'<div class="acc-item"><div style="display:flex;align-items:center;gap:10px"><div class="acc-avatar">'+esc(ini)+'</div><div><div style="font-size:13px;font-weight:700;color:var(--text)">'+esc(a.name)+'</div><div style="font-size:11px;color:var(--text3)">Mitarbeiter</div></div></div><button class="btn btn-outline-danger btn-sm" onclick="deleteAccount('+i+')"><i class="bi bi-trash3"></i></button></div>';
+  }).join("");
+}
+
+function addAccount(){
+  var name=document.getElementById("acc-name-in").value.trim();
+  var pw=document.getElementById("acc-pw-in").value.trim();
+  var diag=document.getElementById("acc-diag");
+  if(!name){diag.className="diag derr";diag.textContent="Bitte Namen eingeben.";diag.style.display="block";return;}
+  if(!pw||pw.length<4){diag.className="diag derr";diag.textContent="Passwort muss mind. 4 Zeichen haben.";diag.style.display="block";return;}
+  var accs=getAccounts();
+  if(accs.find(function(a){return a.name.toLowerCase()===name.toLowerCase();})){
+    diag.className="diag derr";diag.textContent="Dieser Name existiert bereits.";diag.style.display="block";return;
+  }
+  accs.push({name:name,pw:pw,created:new Date().toLocaleDateString("de-DE")});
+  saveAccounts(accs);
+  document.getElementById("acc-name-in").value="";
+  document.getElementById("acc-pw-in").value="";
+  diag.className="diag dok";diag.textContent="✅ "+name+" wurde angelegt.";diag.style.display="block";
+  renderAccList();
+  // Passwort-Prüfung beim Login auch gegen lokale Accounts
+  toast(name+" wurde als Mitarbeiter angelegt ✅","ok");
+}
+
+function deleteAccount(idx){
+  var accs=getAccounts();
+  if(!confirm('"'+accs[idx].name+'" wirklich löschen?'))return;
+  accs.splice(idx,1);saveAccounts(accs);renderAccList();
+}
+
+function toggleAccPw(){
+  var i=document.getElementById("acc-pw-in"),e=document.getElementById("acc-pw-eye");
+  if(!i||!e)return;var h=i.type==="password";i.type=h?"text":"password";
+  e.innerHTML=h?'<i class="bi bi-eye-slash"></i>':'<i class="bi bi-eye"></i>';
+}
+
+// Login erweitern: auch lokale Accounts akzeptieren
+var _origDoLogin=doLogin;
+function doLogin(){
+  var name=(document.getElementById("emp-in")||{value:""}).value.trim();
+  var pw=(document.getElementById("pw-in")||{value:""}).value.trim();
+  // Lokale Mitarbeiter-Accounts prüfen
+  var accs=getAccounts();
+  var localMatch=accs.find(function(a){return a.name.toLowerCase()===name.toLowerCase()&&a.pw===pw;});
+  if(localMatch){
+    document.getElementById("pw-err").style.display="none";
+    applyEmp(name);toast("Hey "+name+" 🚀","ok");loadStats();return;
+  }
+  // Sonst Admin-Login via GAS
+  var btn=document.getElementById("btn-emp");
+  if(!name){showLoginErr("Bitte Namen eingeben.");return;}
+  if(!pw){showLoginErr("Bitte Passwort eingeben.");return;}
+  setBL(btn,true);
+  gasGet("checkPassword",{password:pw},
+    function(r){setBL(btn,false);if(r&&r.ok){document.getElementById("pw-err").style.display="none";applyEmp(name);toast("Hey "+name+" 🚀","ok");loadStats();}else{showLoginErr("❌ Ungültig. Server sagt: "+(r?JSON.stringify(r):"keine Antwort"));var p=document.getElementById("pw-in");if(p)p.focus();}},
+    function(e){setBL(btn,false);showLoginErr("⚠️ Verbindungsfehler: "+String(e));}
+  );
+}
+
+// ── FEATURE: FOTO-ANLEITUNG je Kategorie (Fix 4) ──────────────────
+var FOTO_GUIDES={
+  konsole:[
+    "Vorderseite der Konsole (Gesamtbild)",
+    "Beschädigte Stelle aus nächster Nähe",
+    "Anschlüsse / Ports (HDMI, USB etc.)",
+    "Seriennummer-Aufkleber (Unterseite)"
+  ],
+  handy:[
+    "Display gerade von vorne (Kratzer sichtbar?)",
+    "Rückseite (Kamera-Bereich, Gehäuse)",
+    "Seiten / Rahmen (Dellen, Kratzer)",
+    "Lade-Port aus nächster Nähe"
+  ],
+  pc:[
+    "Gesamtbild des Geräts (Vorderseite)",
+    "Beschädigte Stelle aus nächster Nähe",
+    "Alle Anschlüsse / I/O-Ports",
+    "Seriennummer-Aufkleber"
+  ],
+  defekt:[
+    "Gesamtbild des defekten Geräts",
+    "Defekte Stelle aus nächster Nähe",
+    "Zweite Perspektive des Defekts"
+  ]
+};
+
+function showPhotoGuide(type){
+  var box=document.getElementById("photo-guide-box");if(!box)return;
+  var guide=FOTO_GUIDES[type]||FOTO_GUIDES.defekt;
+  box.innerHTML='<div class="photo-guide-title"><i class="bi bi-camera-fill" style="font-size:14px"></i>Foto-Anleitung für '+type.charAt(0).toUpperCase()+type.slice(1)+'</div>'+
+    guide.map(function(g,i){return'<div class="photo-guide-item"><div class="photo-guide-num">'+(i+1)+'</div><span>'+esc(g)+'</span></div>';}).join("");
+}
+
+// selProbType erweitern um Foto-Guide zu zeigen
+var _origSelProbType=selProbType;
+function selProbType(v){
+  _origSelProbType(v);
+  if(v==="physisch"){showPhotoGuide(curType);}
+}
+
+// ── FEATURE: PREISVORSCHLAG (Fix 8a) ──────────────────────────────
+var PREISE={
+  konsole:{Neuwertig:[180,250],Sehrg:[120,180],"Sehr gut":[120,180],Gut:[80,130],Akzeptabel:[40,80],Defekt:[10,30]},
+  spiel:{Neuwertig:[25,45],"Sehr gut":[15,25],Gut:[8,15],Akzeptabel:[3,8],Defekt:[1,3]},
+  handy:{Neuwertig:[200,400],"Sehr gut":[120,200],Gut:[70,120],Akzeptabel:[30,70],Defekt:[10,30]},
+  pc:{Neuwertig:[400,800],"Sehr gut":[250,400],Gut:[150,250],Akzeptabel:[80,150],Defekt:[20,60]}
+};
+
+function updatePriceSuggest(){
+  var box=document.getElementById("price-suggest-box"),val=document.getElementById("price-suggest-val");
+  if(!box||!val)return;
+  var zustand=gv("f-zustand")||"";
+  var cat=curType;
+  var table=PREISE[cat];
+  if(!table||!zustand){box.style.display="none";return;}
+  var range=table[zustand]||null;
+  if(!range){box.style.display="none";return;}
+  val.textContent=range[0]+"€ – "+range[1]+"€";
+  box.style.display="flex";
+}
+
+// stepNext erweitern um Preis beim Eintreten in Schritt 5 zu berechnen
+var _origStepNext=stepNext;
+function stepNext(){
+  _origStepNext();
+  if(stepCur===5)updatePriceSuggest();
+}
+
+// ── FEATURE: WÖCHENTLICHER MINI-CHART (Fix 9) ─────────────────────
+function buildWeekChart(){
+  var chartEl=document.getElementById("week-chart"),labelEl=document.getElementById("week-labels");
+  var totalEl=document.getElementById("chart-total");
+  if(!chartEl||!allItems.length)return;
+  var days=["Mo","Di","Mi","Do","Fr","Sa","So"];
+  var counts=[];
+  var now=new Date();
+  var todayIdx=(now.getDay()+6)%7; // 0=Mo
+  for(var i=6;i>=0;i--){
+    var d=new Date(now);d.setDate(d.getDate()-i);
+    var ds=d.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"});
+    var cnt=allItems.filter(function(item){return item.datum&&item.datum.startsWith(ds.split(".")[0]+"."+ds.split(".")[1]);}).length;
+    counts.push({cnt:cnt,day:days[(d.getDay()+6)%7],isToday:i===0});
+  }
+  var maxCnt=Math.max.apply(null,counts.map(function(c){return c.cnt;}));
+  chartEl.innerHTML=counts.map(function(c){
+    var h=maxCnt>0?Math.max(4,Math.round((c.cnt/maxCnt)*44)):4;
+    return'<div class="mini-bar'+(c.isToday?" today":"")+(maxCnt===0?" ":" ")+'" style="height:'+h+'px" title="'+c.cnt+' Artikel"></div>';
+  }).join("");
+  labelEl.innerHTML=counts.map(function(c){
+    return'<span style="flex:1;font-size:9px;color:'+(c.isToday?'var(--green)':'var(--text3)')+';text-align:center;font-weight:'+(c.isToday?'700':'400')+'">'+c.day+'</span>';
+  }).join("");
+  var total7=counts.reduce(function(s,c){return s+c.cnt;},0);
+  if(totalEl)totalEl.textContent=total7+" diese Woche";
+}
+
+// ── FEATURE: KLEINANZEIGEN FORTSCHRITT (Fix 9) ────────────────────
+function buildKAProgress(){
+  var bar=document.getElementById("kl-bar"),pct=document.getElementById("kl-pct");
+  var done=document.getElementById("kl-done"),todo=document.getElementById("kl-todo");
+  if(!bar||!allItems.length)return;
+  var relevant=allItems.filter(function(i){return i.type!=="defekt";});
+  var hochgeladen=relevant.filter(function(i){return String(i.verfuegbarkeit||"").indexOf("Nicht")===-1&&String(i.verfuegbarkeit||"").length>0;}).length;
+  var total=relevant.length;
+  var p=total>0?Math.round((hochgeladen/total)*100):0;
+  bar.style.width=p+"%";
+  if(pct)pct.textContent=p+"% hochgeladen";
+  if(done)done.textContent=hochgeladen+" hochgeladen";
+  if(todo)todo.textContent=(total-hochgeladen)+" ausstehend";
+}
+
+// loadAll ergänzen um Charts zu bauen
+var _origLoadAll=loadAll;
+function loadAll(){
+  _origLoadAll.apply(this,arguments);
+}
+
+// renderList erweitern
+var _origRenderList=renderList;
+function renderList(){
+  _origRenderList();
+  buildWeekChart();
+  buildKAProgress();
+  updateMyStats();
+}
+
+// ── FEATURE: SEARCH SCANNER (Fix 6) ───────────────────────────────
+var searchScanStream=null,searchScanRunning=false,searchScanFrame=null;
+
+function openSearchScanner(){
+  var overlay=document.getElementById("search-scan-overlay");
+  overlay.classList.remove("hidden");
+  var video=document.getElementById("search-scan-video");
+  var constraints={video:firstCamDeviceId?{deviceId:{exact:firstCamDeviceId}}:{facingMode:{ideal:"environment"}}};
+  navigator.mediaDevices.getUserMedia(constraints).then(function(stream){
+    searchScanStream=stream;searchScanRunning=true;
+    video.srcObject=stream;
+    video.onloadedmetadata=function(){video.play().then(function(){searchScanLoopStart();});};
+  }).catch(function(err){
+    toast("Kamera: "+String(err),"err");
+    closeSearchScanner();
+  });
+}
+
+function closeSearchScanner(){
+  searchScanRunning=false;
+  if(searchScanFrame){cancelAnimationFrame(searchScanFrame);searchScanFrame=null;}
+  if(searchScanStream){searchScanStream.getTracks().forEach(function(t){t.stop();});searchScanStream=null;}
+  var video=document.getElementById("search-scan-video");if(video)video.srcObject=null;
+  document.getElementById("search-scan-overlay").classList.add("hidden");
+}
+
+function searchScanLoopStart(){
+  var video=document.getElementById("search-scan-video"),canvas=document.getElementById("search-scan-canvas");
+  if(!searchScanRunning)return;
+  if(!video||video.readyState<2){searchScanFrame=requestAnimationFrame(searchScanLoopStart);return;}
+  canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+  var ctx=canvas.getContext("2d");ctx.drawImage(video,0,0,canvas.width,canvas.height);
+  var reader=getZxingReader();var detected=null;
+  if(reader){try{var res=reader.decodeFromCanvas(canvas);if(res&&res.getText())detected=res.getText().trim();}catch(e){}}
+  if(detected){
+    closeSearchScanner();
+    document.getElementById("s-bc-in").value=detected;
+    doSearch();
+    toast("✓ Barcode: "+detected,"ok",2500);
+    try{if(navigator.vibrate)navigator.vibrate([80]);}catch(e){}
+    return;
+  }
+  if(searchScanRunning)searchScanFrame=requestAnimationFrame(searchScanLoopStart);
+}
+
+// ── FEATURE: SMARTE BENACHRICHTIGUNGEN (Fix 5) ────────────────────
+function runSmartNotifications(){
+  if(!allItems||allItems.length===0)return;
+  var now=new Date();
+  var nichtHochgeladen=allItems.filter(function(i){return i.type!=="defekt"&&(String(i.verfuegbarkeit||"").indexOf("Nicht")>-1||String(i.verfuegbarkeit||"").length===0);}).length;
+  // Wenn 10+ Artikel noch nicht bei Kleinanzeigen
+  if(nichtHochgeladen>=10){
+    var already=notifications.find(function(n){return n.title.indexOf("Kleinanzeigen")>-1;});
+    if(!already){addNotification("📢 Kleinanzeigen ausstehend",nichtHochgeladen+" Artikel noch nicht bei Kleinanzeigen hochgeladen.","warn");}
+  }
+  // Wöchentliche Zusammenfassung (Samstag)
+  if(now.getDay()===6){
+    var woche=allItems.filter(function(i){
+      if(!i.datum)return false;
+      var parts=i.datum.split(".");if(parts.length<3)return false;
+      var d=new Date(parts[2].split(" ")[0],parts[1]-1,parts[0]);
+      return(now-d)<7*24*60*60*1000;
+    }).length;
+    var alreadyW=notifications.find(function(n){return n.title.indexOf("Woche")>-1&&n.time&&n.time.indexOf(now.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"}))>-1;});
+    if(!alreadyW&&woche>0){addNotification("📊 Wochenrückblick","Diese Woche wurden "+woche+" Artikel eingelagert. Weiter so!","info");}
+  }
+  // Defekte ohne Bearbeitung
+  var alteDefekte=allItems.filter(function(i){
+    if(i.type!=="defekt")return false;
+    if(!i.datum)return false;
+    var parts=i.datum.split(".");if(parts.length<3)return false;
+    var d=new Date(parts[2].split(" ")[0],parts[1]-1,parts[0]);
+    return(now-d)>14*24*60*60*1000;
+  }).length;
+  if(alteDefekte>0){
+    var alreadyD=notifications.find(function(n){return n.title.indexOf("Defekte")>-1&&n.title.indexOf("Bearbeitung")>-1;});
+    if(!alreadyD){addNotification("🔧 Defekte ohne Bearbeitung",alteDefekte+" defekte Geräte warten seit über 14 Tagen auf Bearbeitung.","alert");}
+  }
+}
 </script>
 <input type="file" id="f-photo-cam"     accept="image/*" capture="environment" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0"/>
 <input type="file" id="f-photo-gallery" accept="image/*"                       style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0"/>
