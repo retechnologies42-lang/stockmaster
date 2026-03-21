@@ -686,7 +686,7 @@ textarea.fc{resize:vertical;min-height:72px}
 <script>
 // ── STATE ─────────────────────────────────────────────────────────
 // ⚠️ Apps Script URL eintragen:
-var GAS_URL = "https://script.google.com/macros/s/AKfycbzQ_jnEzDVQ1sbguTheVMtBU4yELDtF13X0kY76ONkHrl1XHLbYmdHh9HnpT1UxuQ/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycby6bwhTLyzswk3-VTtj2fB1fBfID35_Og_1lkNp6mJlGzmxeOJQElZt_VHVin1s5g/exec";
 
 var emp="",allItems=[],lf="all",modalItem=null;
 var cardRegistry=[];
@@ -773,15 +773,16 @@ function doLogin(){
       toast("Hey "+name+" 🚀","ok");
       loadStats();
     } else {
-      showLoginErr("❌ Falsches Passwort. Bitte nochmal versuchen.");
+      // Zeige genau was Apps Script zurückgibt
+      var detail = r ? JSON.stringify(r) : "keine Antwort";
+      showLoginErr("❌ Ungültig. Server sagt: " + detail);
       var pwIn = document.getElementById("pw-in");
-      if(pwIn){ pwIn.value=""; pwIn.focus(); }
+      if(pwIn){ pwIn.focus(); }
     }
   })
   .catch(function(e){
     setBL(btn, false);
-    // Keine "Verbindungsfehler" Meldung – zeige was wirklich passiert
-    showLoginErr("⚠️ Fehler: "+String(e)+". GAS_URL korrekt? Seite neu laden.");
+    showLoginErr("⚠️ Verbindungsfehler: "+String(e));
   });
 }
 
