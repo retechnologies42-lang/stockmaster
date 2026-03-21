@@ -1163,38 +1163,38 @@ function camStart(){
     });
 }
 
-// Scan-Loop: liest jeden Frame mit jsQR
-// ZXing Reader – einmal erstellen, wiederverwendbar
-// ZXing mit ALLEN verfügbaren Formaten
+// ZXing – einmal initialisieren, alle Formate
 var zxingReader = null;
+// Bestätigungs-Variablen: Code muss 3x stabil erkannt werden
+var scanLastCode   = "";   // zuletzt erkannter Code
+var scanConfirmCnt = 0;    // wie oft hintereinander derselbe Code
+var SCAN_CONFIRM_NEEDED = 3; // so oft muss er übereinstimmen
+
 function getZxingReader(){
   if(!zxingReader){
     try {
-      // Hints: alle Formate aktivieren + schnelleren Scan
       var hints = new Map();
-      // Alle unterstützten Formate
       hints.set(ZXingBrowser.DecodeHintType.POSSIBLE_FORMATS, [
-        ZXingBrowser.BarcodeFormat.EAN_13,      // Standard-Supermarkt (13-stellig)
-        ZXingBrowser.BarcodeFormat.EAN_8,       // Kleiner EAN (8-stellig)
-        ZXingBrowser.BarcodeFormat.UPC_A,       // US Standard (12-stellig)
-        ZXingBrowser.BarcodeFormat.UPC_E,       // Kompakter UPC (8-stellig)
-        ZXingBrowser.BarcodeFormat.CODE_128,    // Logistik / Seriennummern
-        ZXingBrowser.BarcodeFormat.CODE_39,     // Industrie-Barcodes
-        ZXingBrowser.BarcodeFormat.CODE_93,     // Erweiterter Code 39
-        ZXingBrowser.BarcodeFormat.CODABAR,     // Bibliotheken / Blutbanken
-        ZXingBrowser.BarcodeFormat.ITF,         // Versandkartons
-        ZXingBrowser.BarcodeFormat.RSS_14,      // GS1 DataBar
+        ZXingBrowser.BarcodeFormat.EAN_13,
+        ZXingBrowser.BarcodeFormat.EAN_8,
+        ZXingBrowser.BarcodeFormat.UPC_A,
+        ZXingBrowser.BarcodeFormat.UPC_E,
+        ZXingBrowser.BarcodeFormat.CODE_128,
+        ZXingBrowser.BarcodeFormat.CODE_39,
+        ZXingBrowser.BarcodeFormat.CODE_93,
+        ZXingBrowser.BarcodeFormat.CODABAR,
+        ZXingBrowser.BarcodeFormat.ITF,
+        ZXingBrowser.BarcodeFormat.RSS_14,
         ZXingBrowser.BarcodeFormat.RSS_EXPANDED,
-        ZXingBrowser.BarcodeFormat.QR_CODE,     // QR Codes
-        ZXingBrowser.BarcodeFormat.DATA_MATRIX, // 2D Matrix
-        ZXingBrowser.BarcodeFormat.AZTEC,       // Aztec Code
-        ZXingBrowser.BarcodeFormat.PDF_417,     // PDF417 (Ausweise etc.)
-        ZXingBrowser.BarcodeFormat.MAXICODE,
+        ZXingBrowser.BarcodeFormat.QR_CODE,
+        ZXingBrowser.BarcodeFormat.DATA_MATRIX,
+        ZXingBrowser.BarcodeFormat.AZTEC,
+        ZXingBrowser.BarcodeFormat.PDF_417,
       ]);
       hints.set(ZXingBrowser.DecodeHintType.TRY_HARDER, true);
       zxingReader = new ZXingBrowser.BrowserMultiFormatReader(hints);
     } catch(e){
-      console.warn("ZXing init Fehler:", e);
+      console.warn("ZXing init:", e);
       zxingReader = null;
     }
   }
@@ -1209,46 +1209,94 @@ function camScanLoop(){
     camAnimFrame = requestAnimationFrame(camScanLoop);
     return;
   }
+
   canvas.width  = video.videoWidth;
   canvas.height = video.videoHeight;
   var ctx = canvas.getContext("2d");
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
+  var detectedCode = null;
   var reader = getZxingReader();
+
   if(reader){
     try {
-      var result = reader.decodeFromCanvas(canvas);
-      if(result && result.getText()){
-        camStop();
-        camOnCode(result.getText());
-        return;
+      var res = reader.decodeFromCanvas(canvas);
+      if(res && res.getText()) detectedCode = res.getText().trim();
+    } catch(e){ /* kein Barcode in diesem Frame */ }
+  }
+
+  // Fallback BarcodeDetector wenn ZXing nichts findet
+  if(!detectedCode && typeof BarcodeDetector !== "undefined"){
+    // BarcodeDetector ist async – separaten Pfad nutzen
+    var det = new BarcodeDetector({
+      formats:["ean_13","ean_8","upc_a","upc_e","code_128","code_39","code_93","itf","qr_code","data_matrix","pdf417","aztec","codabar"]
+    });
+    det.detect(canvas).then(function(codes){
+      if(codes && codes.length > 0){
+        processDetectedCode(codes[0].rawValue.trim());
       }
-    } catch(notFound){
-      // Kein Barcode erkannt – nächster Frame
-    }
+      if(camRunning) camAnimFrame = requestAnimationFrame(camScanLoop);
+    }).catch(function(){
+      if(camRunning) camAnimFrame = requestAnimationFrame(camScanLoop);
+    });
+    return; // BarcodeDetector läuft async – früh zurückkehren
+  }
+
+  if(detectedCode){
+    processDetectedCode(detectedCode);
   } else {
-    // Fallback: BarcodeDetector API (Chrome/Android)
-    if(typeof BarcodeDetector !== "undefined"){
-      var det = new BarcodeDetector({
-        formats:["ean_13","ean_8","upc_a","upc_e","code_128","code_39","code_93","itf","qr_code","data_matrix","pdf417","aztec","codabar"]
-      });
-      det.detect(canvas).then(function(codes){
-        if(codes && codes.length > 0){
-          camStop();
-          camOnCode(codes[0].rawValue);
-        } else {
-          camAnimFrame = requestAnimationFrame(camScanLoop);
-        }
-      }).catch(function(){ camAnimFrame = requestAnimationFrame(camScanLoop); });
-      return;
+    // Nichts erkannt – Zähler zurücksetzen
+    if(scanConfirmCnt > 0){
+      scanConfirmCnt = 0;
+      scanLastCode   = "";
+      updateScanStatus(""); // Status zurücksetzen
     }
   }
-  camAnimFrame = requestAnimationFrame(camScanLoop);
+
+  if(camRunning) camAnimFrame = requestAnimationFrame(camScanLoop);
+}
+
+// Bestätigungslogik – Code muss SCAN_CONFIRM_NEEDED mal hintereinander gleich sein
+function processDetectedCode(code){
+  if(code === scanLastCode){
+    scanConfirmCnt++;
+    // Fortschritt im Status anzeigen
+    var dots = "";
+    for(var i=0;i<scanConfirmCnt;i++) dots += "●";
+    for(var j=scanConfirmCnt;j<SCAN_CONFIRM_NEEDED;j++) dots += "○";
+    updateScanStatus("Prüfe: " + dots + "  " + code.substring(0,20));
+  } else {
+    // Anderer Code → von vorne
+    scanLastCode   = code;
+    scanConfirmCnt = 1;
+    updateScanStatus("Erkenne: " + code.substring(0,20));
+  }
+
+  // Genug Bestätigungen → akzeptieren
+  if(scanConfirmCnt >= SCAN_CONFIRM_NEEDED){
+    scanLastCode   = "";
+    scanConfirmCnt = 0;
+    camStop();
+    camOnCode(code);
+  }
+}
+
+function updateScanStatus(msg){
+  var hint = document.getElementById("cam-hint");
+  if(!hint) return;
+  if(!msg){
+    hint.textContent = "Halte Barcode in den Rahmen";
+    hint.style.background = "rgba(0,0,0,.7)";
+  } else {
+    hint.textContent = msg;
+    hint.style.background = "rgba(88,166,255,.8)";
+  }
 }
 
 // Kamera stoppen
 function camStop(){
   camRunning = false;
+  scanLastCode = ""; scanConfirmCnt = 0; // Bestätigungszähler zurücksetzen
   if(camAnimFrame){ cancelAnimationFrame(camAnimFrame); camAnimFrame = null; }
   if(camStream){ camStream.getTracks().forEach(function(t){ t.stop(); }); camStream = null; }
   var video = document.getElementById("cam-video");
