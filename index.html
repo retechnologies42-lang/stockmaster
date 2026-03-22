@@ -244,6 +244,29 @@ textarea.fc{resize:vertical;min-height:72px}
 .scan-overlay-video video{width:100%;display:block;max-height:60vh;object-fit:cover}
 .scan-overlay-frame{position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center}
 .scan-overlay-frame div{width:65%;height:65%;border:2px solid var(--blue);border-radius:var(--r-sm);box-shadow:0 0 0 2000px rgba(0,0,0,.4)}
+/* Produkt Detail Page */
+.detail-overlay{position:fixed;inset:0;background:var(--bg);z-index:300;overflow-y:auto;display:none}
+.detail-overlay.open{display:block}
+.detail-hero{width:100%;aspect-ratio:4/3;background:var(--bg2);position:relative;overflow:hidden}
+.detail-hero img{width:100%;height:100%;object-fit:cover}
+.detail-hero-empty{display:flex;align-items:center;justify-content:center;background:var(--bg2);color:var(--text3);font-size:48px;width:100%;aspect-ratio:4/3}
+.detail-photos{display:flex;gap:8px;padding:10px 14px;overflow-x:auto;background:var(--bg1)}
+.detail-photo-thumb{width:60px;height:60px;border-radius:var(--r-sm);overflow:hidden;flex-shrink:0;cursor:pointer;border:2px solid transparent}
+.detail-photo-thumb.active{border-color:var(--blue)}
+.detail-photo-thumb img{width:100%;height:100%;object-fit:cover}
+.detail-body{padding:16px 14px}
+.detail-title{font-size:20px;font-weight:800;color:var(--text);margin-bottom:4px}
+.detail-price{font-size:24px;font-weight:800;color:var(--green);margin-bottom:2px}
+.detail-price-sub{font-size:12px;color:var(--text3);margin-bottom:14px}
+.detail-spec{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
+.detail-spec-key{color:var(--text2);font-weight:600}
+.detail-spec-val{color:var(--text);font-weight:700;text-align:right}
+/* Upload Panel */
+.upload-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:11px 13px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.upload-item-check{width:22px;height:22px;border-radius:6px;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:all .15s}
+.upload-item-check.checked{background:var(--blue);border-color:var(--blue);color:#fff}
+/* VK Stepper cbtn active */
+.cbtn.vk-sel{border-color:var(--green);background:rgba(63,185,80,.12);color:var(--green)}
 </style>
 </head>
 <body>
@@ -368,6 +391,7 @@ textarea.fc{resize:vertical;min-height:72px}
         <button class="cat-btn cb-sw" onclick="selCat('spielwaren')"><span class="ci">🎮</span>Spielwaren</button>
         <button class="cat-btn cb-h"  onclick="selCat('handy')"><span class="ci">📱</span>Handy</button>
         <button class="cat-btn cb-pc" style="grid-column:1/-1" onclick="selCat('pc')"><span class="ci">💻</span>PC & Laptop</button>
+        <button class="cat-btn" style="grid-column:1/-1;border-color:var(--blue);color:var(--blue)" onclick="openUploadWizard()"><span class="ci" style="font-size:24px">📢</span>Produkt Hochladen</button>
       </div>
       </div>
     </div>
@@ -635,80 +659,130 @@ textarea.fc{resize:vertical;min-height:72px}
 <!-- VERKAUF FORM MODAL -->
 <div class="moverlay" id="vk-modal">
   <div class="msheet">
-    <div class="mhead"><h3 id="vk-modal-title">💸 Verkauf eintragen</h3><button class="btn btn-sm btn-outline-secondary" onclick="closeVKModal()"><i class="bi bi-x-lg"></i></button></div>
-    <div class="mbody">
-      <div class="diag" id="vk-diag"></div>
-      <div class="row g-2 mb-2">
-        <div class="col-12"><label class="fl">Produkt *</label>
-          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
-            <input type="text" id="vk-produkte" class="fc" placeholder="z.B. PS5 Slim" style="flex:1"/>
-            <button type="button" onclick="openVKProductPicker()" class="btn btn-outline-primary btn-sm" style="white-space:nowrap"><i class="bi bi-box-seam me-1"></i>Aus Lager</button>
-            <button type="button" onclick="openVKScanner()" class="btn btn-outline-secondary btn-sm"><i class="bi bi-upc-scan"></i></button>
-          </div>
-          <div id="vk-product-info" style="display:none;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);padding:8px 11px;font-size:12px;color:var(--text2)"></div>
-        </div>
-      </div>
-      <div class="row g-2 mb-2">
-        <div class="col-6"><label class="fl">Scan-ID (auto)</label><input type="text" id="vk-scanid" class="fc" placeholder="wird auto befüllt" readonly style="opacity:.7"/></div>
-        <div class="col-6"><label class="fl">Preis (€)</label><input type="number" id="vk-preis" class="fc" placeholder="0.00"/></div>
-      </div>
-      <div class="row g-2 mb-2">
-        <div class="col-6"><label class="fl">Kunde</label><input type="text" id="vk-kunde" class="fc" placeholder="Name"/></div>
-        <div class="col-6"><label class="fl">Plattform</label>
-          <select id="vk-plattform" class="fc"><option>Kleinanzeigen</option><option>eBay</option><option>Facebook</option><option>Direkt</option><option>Sonstiges</option></select>
-        </div>
-        <div class="col-6"><label class="fl">Status</label>
-          <select id="vk-status" class="fc"><option>Vorgemerkt</option><option>Aktiv</option><option>Verkauft</option><option>Versendet</option><option>Abgeschlossen</option><option>Storniert</option></select>
-        </div>
-      </div>
-      <div class="row g-2 mb-2">
-        <div class="col-6"><label class="fl">Angebots-Nr. / Referenz</label><input type="text" id="vk-bestellnr" class="fc" placeholder="z.B. KA-Angebotsnr." /></div>
-        <div class="col-6"><label class="fl">Versand (€)</label><input type="number" id="vk-versand" class="fc" placeholder="0.00"/></div>
-      </div>
-      <div class="row g-2 mb-2">
-        <div class="col-6"><label class="fl">Geld erhalten?</label>
-          <select id="vk-geld" class="fc"><option value="">–</option><option>Ja</option><option>Nein</option></select>
-        </div>
-        <div class="col-6"><label class="fl">Bezahlt mit</label>
-          <select id="vk-bezahlt" class="fc"><option value="">–</option><option>PayPal</option><option>Überweisung</option><option>Bar</option><option>Klarna</option><option>Kreditkarte</option><option>Ausstehend</option></select>
-        </div>
-      </div>
-      <div class="row g-2 mb-2">
-        <div class="col-6"><label class="fl">Abholung</label>
-          <select id="vk-abholung" class="fc"><option>NEIN</option><option>JA</option></select>
-        </div>
-        <div class="col-6"><label class="fl">Mitarbeiter</label><input type="text" id="vk-ma" class="fc"/></div>
-      </div>
-      <!-- Lieferstatus – dynamisch: Sendenummer erscheint bei Versendet -->
-      <div class="mb-2">
-        <label class="fl">Lieferstatus</label>
-        <select id="vk-lieferstatus" class="fc" onchange="onVKLieferstatusChange()">
-          <option>In Bearbeitung</option>
-          <option>Versendet</option>
-          <option>Unterwegs</option>
-          <option>Zugestellt</option>
-          <option>Problem</option>
-          <option>Ausstehend</option>
-        </select>
-      </div>
-      <!-- Sendenummer + VDL: erscheint automatisch wenn Versendet/Unterwegs/Zugestellt -->
-      <div id="vk-sende-wrap" style="display:none">
-        <div class="row g-2 mb-2">
-          <div class="col-7"><label class="fl">Sendenummer</label><input type="text" id="vk-sende" class="fc" placeholder="z.B. 1234567890" oninput="onVKSendeInput()"/></div>
-          <div class="col-5"><label class="fl">Versanddienstleister</label>
-            <select id="vk-vdl" class="fc"><option value=""></option><option>DHL</option><option>Hermes</option><option>DPD</option><option>UPS</option><option>GLS</option><option>Selbstabholung</option></select>
+    <div class="mhead">
+      <div style="flex:1">
+        <h3 id="vk-modal-title">💸 Verkauf eintragen</h3>
+        <div style="margin-top:4px">
+          <div class="progress" style="height:4px"><div class="progress-bar" id="vk-prog" style="width:20%"></div></div>
+          <div style="display:flex;justify-content:space-between;margin-top:3px">
+            <span style="font-size:10px;color:var(--text3)" id="vk-step-lbl">Schritt 1 von 5</span>
+            <span style="font-size:10px;color:var(--blue)" id="vk-step-name">Produkt</span>
           </div>
         </div>
-        <div id="vk-track-link" style="display:none;margin-bottom:8px">
-          <a id="vk-track-a" href="#" target="_blank" class="btn btn-outline-info btn-sm w-100"><i class="bi bi-box-arrow-up-right me-1"></i>Sendung verfolgen</a>
-        </div>
       </div>
-      <div class="mb-2"><label class="fl">Hinweise</label><textarea id="vk-hinweise" class="fc" rows="2" placeholder="Notizen…"></textarea></div>
+      <button class="btn btn-sm btn-outline-secondary" onclick="closeVKModal()" style="margin-left:10px"><i class="bi bi-x-lg"></i></button>
     </div>
-    <div class="mfoot">
-      <button class="btn btn-outline-danger btn-sm" id="vk-del-btn" onclick="deleteHandelEntry('verkauf')" style="display:none"><i class="bi bi-trash3 me-1"></i>Löschen</button>
-      <button class="btn btn-outline-secondary btn-sm" onclick="closeVKModal()">Abbrechen</button>
-      <button class="btn btn-success fw-bold" onclick="saveVKForm()"><i class="bi bi-cloud-upload-fill me-1"></i>Speichern</button>
+    <div class="mbody" style="padding:16px">
+      <div class="diag" id="vk-diag"></div>
+
+      <!-- STEP 1: Produkt wählen -->
+      <div id="vks-1">
+        <div class="step-title">Welches Produkt?</div>
+        <div class="step-sub">Aus dem Lager auswählen oder Barcode scannen.</div>
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <input type="text" id="vk-produkte" class="fc" placeholder="Produktname…" style="flex:1"/>
+          <button type="button" onclick="openVKProductPicker()" class="btn btn-outline-primary btn-sm"><i class="bi bi-box-seam"></i></button>
+          <button type="button" onclick="openVKScanner()" class="btn btn-outline-secondary btn-sm"><i class="bi bi-upc-scan"></i></button>
+        </div>
+        <div id="vk-product-info" style="display:none;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);padding:8px 11px;font-size:12px;color:var(--text2);margin-bottom:8px"></div>
+        <input type="hidden" id="vk-scanid"/>
+        <div class="row g-2">
+          <div class="col-6"><label class="fl">Preis (€) *</label><input type="number" id="vk-preis" class="fc" placeholder="0.00"/></div>
+          <div class="col-6"><label class="fl">Versandkosten (€)</label><input type="number" id="vk-versand" class="fc" placeholder="0.00"/></div>
+        </div>
+      </div>
+
+      <!-- STEP 2: Plattform + Käufer -->
+      <div id="vks-2" style="display:none">
+        <div class="step-title">Wo & wer kauft?</div>
+        <div class="step-sub">Plattform und Käufer-Info.</div>
+        <div class="mb-3">
+          <label class="fl">Plattform *</label>
+          <div class="cg2" style="margin-bottom:0">
+            <button class="cbtn" id="vkp-ka" onclick="selVKPlattform('Kleinanzeigen')"><span class="ci" style="font-size:20px">🟡</span>Kleinanzeigen</button>
+            <button class="cbtn" id="vkp-eb" onclick="selVKPlattform('eBay')"><span class="ci" style="font-size:20px">🛒</span>eBay</button>
+            <button class="cbtn" id="vkp-ab" onclick="selVKPlattform('Abholung')"><span class="ci" style="font-size:20px">🚶</span>Abholung</button>
+            <button class="cbtn" id="vkp-so" onclick="selVKPlattform('Sonstiges')"><span class="ci" style="font-size:20px">📦</span>Sonstiges</button>
+          </div>
+          <input type="hidden" id="vk-plattform" value=""/>
+        </div>
+        <div class="row g-2">
+          <div class="col-12"><label class="fl">Käufer / Kunde</label><input type="text" id="vk-kunde" class="fc" placeholder="Name oder Nutzername"/></div>
+        </div>
+        <div class="row g-2 mt-2">
+          <div class="col-12"><label class="fl">Angebots-Nr. / Referenz</label><input type="text" id="vk-bestellnr" class="fc" placeholder="z.B. KA-Angebotsnr., eBay-Artikel-Nr."/></div>
+        </div>
+      </div>
+
+      <!-- STEP 3: Bezahlung -->
+      <div id="vks-3" style="display:none">
+        <div class="step-title">Bezahlung</div>
+        <div class="step-sub" id="vks-3-sub">Zahlungsinfos eintragen.</div>
+        <div class="mb-3">
+          <label class="fl">Bezahlmethode</label>
+          <div id="vk-bezahl-opts" class="cg2" style="margin-bottom:0"></div>
+          <input type="hidden" id="vk-bezahlt" value=""/>
+        </div>
+        <div class="row g-2">
+          <div class="col-6"><label class="fl">Geld erhalten?</label>
+            <select id="vk-geld" class="fc"><option value="">–</option><option>Ja</option><option>Nein</option></select>
+          </div>
+          <div class="col-6"><label class="fl">Versand / Abholung</label>
+            <select id="vk-abholung" class="fc"><option>Versand</option><option>Abholung</option></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 4: Versand / Status -->
+      <div id="vks-4" style="display:none">
+        <div class="step-title">Versand & Status</div>
+        <div class="step-sub">Aktuellen Stand der Sendung eintragen.</div>
+        <div class="mb-3">
+          <label class="fl">Status</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <button class="cbtn" id="vkst-vm" onclick="selVKStatus('Vorgemerkt')"><span class="ci" style="font-size:18px">📝</span>Vorgemerkt</button>
+            <button class="cbtn" id="vkst-vk" onclick="selVKStatus('Verkauft')"><span class="ci" style="font-size:18px">✅</span>Verkauft</button>
+            <button class="cbtn" id="vkst-vs" onclick="selVKStatus('Versendet')"><span class="ci" style="font-size:18px">📦</span>Versendet</button>
+            <button class="cbtn" id="vkst-ab" onclick="selVKStatus('Abgeschlossen')"><span class="ci" style="font-size:18px">🏁</span>Abgeschlossen</button>
+          </div>
+          <input type="hidden" id="vk-status" value="Vorgemerkt"/>
+        </div>
+        <!-- Sendenummer – erscheint bei Versendet -->
+        <div id="vk-sende-wrap" style="display:none">
+          <div class="row g-2 mb-2">
+            <div class="col-7"><label class="fl">Sendenummer</label><input type="text" id="vk-sende" class="fc" placeholder="1234567890" oninput="onVKSendeInput()"/></div>
+            <div class="col-5"><label class="fl">Dienstleister</label>
+              <select id="vk-vdl" class="fc"><option value=""></option><option>DHL</option><option>Hermes</option><option>DPD</option><option>UPS</option><option>GLS</option></select>
+            </div>
+          </div>
+          <div id="vk-track-link" style="display:none;margin-bottom:8px">
+            <a id="vk-track-a" href="#" target="_blank" class="btn btn-outline-info btn-sm w-100"><i class="bi bi-box-arrow-up-right me-1"></i>Sendung verfolgen</a>
+          </div>
+        </div>
+        <div class="mb-2"><label class="fl">Lieferstatus</label>
+          <select id="vk-lieferstatus" class="fc" onchange="onVKLieferstatusChange()">
+            <option>Ausstehend</option><option>In Bearbeitung</option><option>Versendet</option><option>Unterwegs</option><option>Zugestellt</option><option>Problem</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- STEP 5: Abschluss -->
+      <div id="vks-5" style="display:none">
+        <div class="step-title">Fertig!</div>
+        <div class="step-sub">Noch letzte Details und speichern.</div>
+        <div class="row g-2 mb-2">
+          <div class="col-6"><label class="fl">Mitarbeiter</label><input type="text" id="vk-ma" class="fc"/></div>
+        </div>
+        <div class="mb-2"><label class="fl">Hinweise / Notizen</label><textarea id="vk-hinweise" class="fc" rows="3" placeholder="Optional…"></textarea></div>
+        <!-- Zusammenfassung -->
+        <div id="vk-summary" style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);padding:11px 13px;font-size:12px;color:var(--text2)"></div>
+      </div>
+    </div>
+    <div class="d-flex gap-2 justify-content-between p-3 border-top" style="border-color:var(--border)!important">
+      <button class="btn btn-outline-secondary" id="vk-back-btn" onclick="vkStepNav(-1)" disabled><i class="bi bi-arrow-left"></i> Zurück</button>
+      <button class="btn btn-outline-danger btn-sm" id="vk-del-btn" onclick="deleteHandelEntry('verkauf')" style="display:none"><i class="bi bi-trash3"></i></button>
+      <button class="btn btn-success px-4 fw-bold" id="vk-next-btn" onclick="vkStepNav(1)">Weiter <i class="bi bi-arrow-right ms-1"></i></button>
+      <button class="btn btn-success px-4 fw-bold" id="vk-save-btn" style="display:none" onclick="saveVKForm()"><i class="bi bi-cloud-upload-fill me-1"></i>Speichern</button>
     </div>
   </div>
 </div>
@@ -762,6 +836,110 @@ textarea.fc{resize:vertical;min-height:72px}
       <button class="btn btn-outline-danger btn-sm" id="ek-del-btn" onclick="deleteHandelEntry('einkauf')" style="display:none"><i class="bi bi-trash3 me-1"></i>Löschen</button>
       <button class="btn btn-outline-secondary btn-sm" onclick="closeEKModal()">Abbrechen</button>
       <button class="btn btn-primary fw-bold" onclick="saveEKForm()"><i class="bi bi-cloud-upload-fill me-1"></i>Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- PRODUCT DETAIL OVERLAY -->
+<div class="detail-overlay" id="detail-overlay">
+  <div style="position:sticky;top:0;z-index:10;background:rgba(8,12,18,.95);backdrop-filter:blur(10px);padding:10px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)">
+    <button onclick="closeDetail()" style="background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;padding:0"><i class="bi bi-arrow-left"></i></button>
+    <span style="font-size:15px;font-weight:700;color:var(--text)" id="detail-header-title">Produktdetail</span>
+    <div style="margin-left:auto;display:flex;gap:6px">
+      <button id="detail-edit-btn" onclick="detailEdit()" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil-fill"></i></button>
+    </div>
+  </div>
+  <!-- Foto Galerie -->
+  <div id="detail-hero" class="detail-hero-empty">📦</div>
+  <div id="detail-thumbs" class="detail-photos" style="display:none"></div>
+  <!-- Body -->
+  <div class="detail-body">
+    <div class="detail-title" id="detail-title"></div>
+    <div id="detail-ka-badge" style="margin-bottom:8px"></div>
+    <div class="detail-price" id="detail-price"></div>
+    <div class="detail-price-sub" id="detail-price-sub"></div>
+    <!-- Hochgeladene Fotos Bereich -->
+    <div id="detail-upload-photos-wrap" style="display:none;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--blue);margin-bottom:6px;text-transform:uppercase">📸 Anzeigen-Fotos</div>
+      <div id="detail-upload-photos" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+    </div>
+    <!-- Anzeigen-Links -->
+    <div id="detail-links-wrap" style="display:none;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--blue);margin-bottom:6px;text-transform:uppercase">🔗 Anzeigen-Links</div>
+      <div id="detail-links"></div>
+    </div>
+    <!-- Specs -->
+    <div id="detail-specs"></div>
+    <!-- Defekt Fotos -->
+    <div id="detail-defekt-wrap" style="display:none;margin:14px 0">
+      <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--red);margin-bottom:6px;text-transform:uppercase">⚠️ Defekt-Fotos</div>
+      <div id="detail-defekt-fotos" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+    </div>
+    <div id="detail-notes" style="display:none;margin-top:10px;padding:10px 13px;background:var(--bg3);border-radius:var(--r-sm);font-size:13px;color:var(--text2)"></div>
+  </div>
+</div>
+
+<!-- UPLOAD WIZARD MODAL -->
+<div class="moverlay" id="upload-wizard">
+  <div class="msheet">
+    <div class="mhead">
+      <div style="flex:1">
+        <h3 id="uw-title">📢 Produkt Hochladen</h3>
+        <div style="margin-top:4px">
+          <div class="progress" style="height:4px"><div class="progress-bar" id="uw-prog" style="width:33%"></div></div>
+          <span style="font-size:10px;color:var(--text3)" id="uw-step-lbl">Schritt 1 von 3</span>
+        </div>
+      </div>
+      <button class="btn btn-sm btn-outline-secondary" onclick="closeUploadWizard()" style="margin-left:10px"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="mbody">
+      <div class="diag" id="uw-diag"></div>
+
+      <!-- STEP 1: Artikel auswählen -->
+      <div id="uws-1">
+        <div class="step-title">Welche Artikel hochladen?</div>
+        <div class="step-sub">Nur Artikel die noch nicht hochgeladen sind.</div>
+        <input type="text" id="uw-search" class="fc mb-3" placeholder="🔍 Suchen…" oninput="filterUWItems()"/>
+        <div id="uw-items" style="max-height:320px;overflow-y:auto"></div>
+        <div style="font-size:12px;color:var(--text3);margin-top:8px"><span id="uw-selected-cnt">0</span> ausgewählt</div>
+      </div>
+
+      <!-- STEP 2: Plattform + Preis -->
+      <div id="uws-2" style="display:none">
+        <div class="step-title">Wo hochgeladen?</div>
+        <div class="step-sub">Plattform auswählen und Preise eintragen.</div>
+        <div class="mb-3">
+          <label class="fl">Plattform</label>
+          <div class="cg2">
+            <button class="cbtn" id="uwp-ka" onclick="selUWPlattform('Kleinanzeigen')"><span class="ci" style="font-size:20px">🟡</span>Kleinanzeigen</button>
+            <button class="cbtn" id="uwp-eb" onclick="selUWPlattform('eBay')"><span class="ci" style="font-size:20px">🛒</span>eBay</button>
+            <button class="cbtn" id="uwp-fb" onclick="selUWPlattform('Facebook')"><span class="ci" style="font-size:20px">📘</span>Facebook</button>
+            <button class="cbtn" id="uwp-so" onclick="selUWPlattform('Sonstiges')"><span class="ci" style="font-size:20px">📦</span>Sonstiges</button>
+          </div>
+          <input type="hidden" id="uw-plattform" value=""/>
+        </div>
+        <!-- Pro-Artikel Preis + VB/Festpreis -->
+        <div id="uw-price-list"></div>
+      </div>
+
+      <!-- STEP 3: Links + Fotos -->
+      <div id="uws-3" style="display:none">
+        <div class="step-title">Links & Fotos</div>
+        <div class="step-sub">Anzeigen-Links eintragen und Fotos hinzufügen.</div>
+        <div id="uw-link-list"></div>
+        <div class="mt-3">
+          <label class="fl">Fotos zur Anzeige</label>
+          <div class="photo-zone" onclick="triggerUWPhoto()">
+            <div class="pz-top"><i class="bi bi-camera-plus"></i><div class="pz-l">Fotos hinzufügen</div><div class="pz-s">Werden zur Anzeige gespeichert</div></div>
+          </div>
+          <div class="photo-thumbs mt-2" id="uw-photo-thumbs"></div>
+        </div>
+      </div>
+    </div>
+    <div class="d-flex gap-2 justify-content-between p-3 border-top" style="border-color:var(--border)!important">
+      <button class="btn btn-outline-secondary" id="uw-back-btn" onclick="uwStepNav(-1)" disabled><i class="bi bi-arrow-left"></i> Zurück</button>
+      <button class="btn btn-primary px-4 fw-bold" id="uw-next-btn" onclick="uwStepNav(1)">Weiter <i class="bi bi-arrow-right ms-1"></i></button>
+      <button class="btn btn-success px-4 fw-bold" id="uw-save-btn" style="display:none" onclick="saveUploadWizard()"><i class="bi bi-megaphone-fill me-1"></i>Hochladen</button>
     </div>
   </div>
 </div>
@@ -830,7 +1008,7 @@ textarea.fc{resize:vertical;min-height:72px}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-var GAS_URL = "https://script.google.com/macros/s/AKfycbwEFRccCy2YD8_OoV1XLdqUU5WKoqm3PX4W_tEa4mo8lauJCTrSzHwNCxwPhirXNQ/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbwSXqWi2PYQAzdEvjwNSHdgeqVsYNJPHM-B-XhWkQda2O8oEJu0oCykjY4loHXYCQ/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -1187,10 +1365,10 @@ function mkCard(item){
   if(item.fotos&&item.fotos.length>0){fotosHtml='<div class="card-fotos">';item.fotos.forEach(function(b64,fi){fotosHtml+='<div class="card-foto" onclick="openLightbox('+rIdx+','+fi+')"><img src="'+esc(b64)+'" loading="lazy"/></div>';});fotosHtml+='</div>';}
   cardRegistry.push(item);
   var actions='<div class="ic-actions">';
-  if(item.type!=="defekt"){actions+='<button class="btn btn-outline-primary btn-sm" onclick="openEditStepper('+rIdx+')"><i class="bi bi-pencil-fill me-1"></i>Bearbeiten</button><button class="btn btn-outline-danger btn-sm" onclick="confirmDelete('+rIdx+')"><i class="bi bi-trash3"></i></button>';}
-  else{actions+='<button class="btn btn-outline-danger btn-sm" onclick="confirmDeleteDefekt('+rIdx+')"><i class="bi bi-trash3 me-1"></i>Löschen</button>';}
+  if(item.type!=="defekt"){actions+='<button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation();openEditStepper('+rIdx+')"><i class="bi bi-pencil-fill me-1"></i>Bearbeiten</button><button class="btn btn-outline-danger btn-sm" onclick="confirmDelete('+rIdx+')"><i class="bi bi-trash3"></i></button>';}
+  else{actions+='<button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDeleteDefekt('+rIdx+')"><i class="bi bi-trash3 me-1"></i>Löschen</button>';}
   actions+='</div>';
-  return '<div class="ic"><div class="ic-top"><div class="ic-name">'+esc(nm)+'</div><div style="display:flex;gap:4px;align-items:center"><span class="ic-badge '+tm[0]+'">'+tm[1]+'</span>'+katBadge+'</div></div><div class="chips">'+chips+(item.type!=="defekt"?'<span class="av-badge '+avc+'"><i class="bi '+avi+' me-1"></i>'+avLabel+'</span>':'')+' </div>'+(note?'<div style="font-size:12px;color:var(--text2);margin-bottom:4px"><i class="bi bi-chat-text me-1"></i>'+esc(note)+'</div>':"")+fotosHtml+actions+'</div>';
+  return '<div class="ic" onclick="openDetail('+rIdx+')" style="cursor:pointer"><div class="ic-top"><div class="ic-name">'+esc(nm)+'</div><div style="display:flex;gap:4px;align-items:center"><span class="ic-badge '+tm[0]+'">'+tm[1]+'</span>'+katBadge+'</div></div><div class="chips">'+chips+(item.type!=="defekt"?'<span class="av-badge '+avc+'"><i class="bi '+avi+' me-1"></i>'+avLabel+'</span>':'')+' </div>'+(note?'<div style="font-size:12px;color:var(--text2);margin-bottom:4px"><i class="bi bi-chat-text me-1"></i>'+esc(note)+'</div>':"")+fotosHtml+actions+'</div>';
 }
 
 function openLightbox(itemIdx,fotoIdx){var item=cardRegistry[itemIdx];if(!item||!item.fotos||!item.fotos[fotoIdx])return;var lb=document.createElement("div");lb.className="lightbox";lb.innerHTML='<img src="'+esc(item.fotos[fotoIdx])+'" alt="Foto"/>';lb.onclick=function(){lb.remove();};document.body.appendChild(lb);}
@@ -1672,6 +1850,464 @@ function toggleKA(type,rowIndex,setDone){
     }else{toast("Fehler: "+(r?r.fehler:"?"),"err");}
   },function(e){toast("Fehler: "+e,"err");});
 }
+
+
+// ================================================================
+// 1. GLOBAL KAMERA-AUSWAHL (shared für alle Scanner)
+// ================================================================
+// initCamPreselect already defined - it fills #cam-preselect
+// All scanner functions already use firstCamDeviceId
+// The search scanner and vk scanner also use firstCamDeviceId ✓
+// Additional: make cam-preselect update propagate
+function onCamPreselect(){
+  var sel=document.getElementById("cam-preselect");
+  if(sel&&sel.value){firstCamDeviceId=sel.value;}
+}
+
+// ================================================================
+// VK STEPPER
+// ================================================================
+var vkStep=1, vkTotalSteps=5;
+
+function vkStepNav(dir){
+  // Validate current step
+  if(dir>0){
+    if(vkStep===1){
+      if(!gv("vk-produkte").trim()){var d=document.getElementById("vk-diag");d.className="diag derr";d.textContent="Bitte Produkt eingeben.";d.style.display="block";return;}
+      if(!gv("vk-preis")){var d=document.getElementById("vk-diag");d.className="diag derr";d.textContent="Bitte Preis eingeben.";d.style.display="block";return;}
+    }
+    if(vkStep===2&&!gv("vk-plattform")){var d=document.getElementById("vk-diag");d.className="diag derr";d.textContent="Bitte Plattform auswählen.";d.style.display="block";return;}
+    if(vkStep===3&&!gv("vk-bezahlt")){var d=document.getElementById("vk-diag");d.className="diag derr";d.textContent="Bitte Bezahlmethode wählen.";d.style.display="block";return;}
+    if(vkStep===4&&gv("vk-status")==="Versendet"&&!gv("vk-sende")){var d=document.getElementById("vk-diag");d.className="diag derr";d.textContent="Bitte Sendenummer eintragen.";d.style.display="block";return;}
+  }
+  var d=document.getElementById("vk-diag");if(d)d.style.display="none";
+  vkStep=Math.max(1,Math.min(vkTotalSteps,vkStep+dir));
+  _renderVKStep();
+}
+
+function _renderVKStep(){
+  for(var i=1;i<=vkTotalSteps;i++){
+    var el=document.getElementById("vks-"+i);
+    if(el)el.style.display=(i===vkStep?"block":"none");
+  }
+  var pct=Math.round((vkStep/vkTotalSteps)*100);
+  var pb=document.getElementById("vk-prog");if(pb)pb.style.width=pct+"%";
+  var sl=document.getElementById("vk-step-lbl");if(sl)sl.textContent="Schritt "+vkStep+" von "+vkTotalSteps;
+  var snames=["Produkt","Plattform","Bezahlung","Versand","Abschluss"];
+  var sn=document.getElementById("vk-step-name");if(sn)sn.textContent=snames[vkStep-1]||"";
+  var bb=document.getElementById("vk-back-btn");if(bb)bb.disabled=(vkStep===1);
+  var nb=document.getElementById("vk-next-btn");if(nb)nb.style.display=(vkStep<vkTotalSteps?"inline-flex":"none");
+  var sb=document.getElementById("vk-save-btn");if(sb)sb.style.display=(vkStep===vkTotalSteps?"inline-flex":"none");
+  // Step 3: update payment options based on platform
+  if(vkStep===3)_updateVKBezahlOpts();
+  // Step 4: update lieferstatus wrap
+  if(vkStep===4)onVKLieferstatusChange();
+  // Step 5: show summary
+  if(vkStep===5)_buildVKSummary();
+  // Step 2: show platform sub-hint
+  if(vkStep===2){var p=gv("vk-plattform");if(p)_highlightVKPlattform(p);}
+}
+
+function selVKPlattform(p){
+  sv2("vk-plattform",p);
+  _highlightVKPlattform(p);
+}
+function _highlightVKPlattform(p){
+  ["ka","eb","ab","so"].forEach(function(id){var el=document.getElementById("vkp-"+id);if(el)el.className="cbtn";});
+  var map={Kleinanzeigen:"ka",eBay:"eb",Abholung:"ab",Sonstiges:"so"};
+  var el=document.getElementById("vkp-"+(map[p]||"so"));if(el)el.className="cbtn vk-sel";
+}
+
+function _updateVKBezahlOpts(){
+  var p=gv("vk-plattform");
+  var opts={
+    Kleinanzeigen:["PayPal","Überweisung","Bar (Abholung)"],
+    eBay:["eBay","PayPal"],
+    Abholung:["Bar"],
+    Sonstiges:["PayPal","Überweisung","Bar","Sonstiges"]
+  };
+  var list=opts[p]||opts.Sonstiges;
+  var wrap=document.getElementById("vk-bezahl-opts");if(!wrap)return;
+  var cur=gv("vk-bezahlt");
+  wrap.innerHTML=list.map(function(o){
+    var isSel=(cur===o);
+    return'<button class="cbtn'+(isSel?" vk-sel":"")+'" onclick="selVKBezahl(\'"+o+"\')">'+esc(o)+'</button>';
+  }).join("");
+  var sub=document.getElementById("vks-3-sub");
+  if(sub){var hints={Kleinanzeigen:"PayPal-Adresse oder Konto für Überweisung bereithalten.",eBay:"Zahlung läuft über eBay-System.",Abholung:"Barzahlung bei Übergabe."};sub.textContent=hints[p]||"Zahlungsinfos eintragen.";}
+}
+
+function selVKBezahl(v){
+  sv2("vk-bezahlt",v);
+  _updateVKBezahlOpts();
+}
+
+function selVKStatus(v){
+  sv2("vk-status",v);
+  ["vm","vk","vs","ab"].forEach(function(id){var el=document.getElementById("vkst-"+id);if(el)el.className="cbtn";});
+  var map={Vorgemerkt:"vm",Verkauft:"vk",Versendet:"vs",Abgeschlossen:"ab"};
+  var el=document.getElementById("vkst-"+(map[v]||"vm"));if(el)el.className="cbtn vk-sel";
+  onVKLieferstatusChange();
+}
+
+function _buildVKSummary(){
+  var s=document.getElementById("vk-summary");if(!s)return;
+  var items=[
+    ["Produkt",gv("vk-produkte")],["Preis",gv("vk-preis")?"€"+gv("vk-preis"):"–"],
+    ["Plattform",gv("vk-plattform")],["Käufer",gv("vk-kunde")||"–"],
+    ["Bezahlt mit",gv("vk-bezahlt")||"–"],["Status",gv("vk-status")],
+    ["Versand",gv("vk-abholung")]
+  ];
+  if(gv("vk-sende"))items.push(["Sendenummer",gv("vk-sende")]);
+  s.innerHTML=items.map(function(r){return'<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--text2)">'+esc(r[0])+'</span><span style="font-weight:700;color:var(--text)">'+esc(r[1])+'</span></div>';}).join("");
+}
+
+function openVerkaufForm(item, prefillScanId){
+  editVerkaufItem=item||null;
+  vkStep=1;
+  var title=document.getElementById("vk-modal-title");
+  if(title)title.textContent=item?"✏️ Verkauf bearbeiten":"💸 Verkauf eintragen";
+  var delBtn=document.getElementById("vk-del-btn");if(delBtn)delBtn.style.display=item?"inline-flex":"none";
+  // Fill all fields
+  sv2("vk-produkte",item?item.produkte:"");
+  sv2("vk-scanid",item?item.scanId:(prefillScanId||""));
+  sv2("vk-preis",item?item.preis:"");
+  sv2("vk-versand",item?item.versand:"");
+  sv2("vk-plattform",item?item.plattform:"");
+  sv2("vk-kunde",item?item.kunde:"");
+  sv2("vk-bestellnr",item?item.bestellnr:"");
+  sv2("vk-bezahlt",item?item.schonBezahlt:"");
+  sv2("vk-geld",item?item.geldErhalten:"");
+  sv2("vk-abholung",item?(item.abholung==="JA"?"Abholung":"Versand"):"Versand");
+  sv2("vk-status",item?item.status:"Vorgemerkt");
+  sv2("vk-lieferstatus",item?item.lieferstatus:"Ausstehend");
+  sv2("vk-sende",item?item.sendenummer:"");
+  sv2("vk-vdl",item?item.versanddienstleister:"");
+  sv2("vk-ma",item?item.mitarbeiter:emp);
+  sv2("vk-hinweise",item?item.hinweise:"");
+  var pi=document.getElementById("vk-product-info");if(pi){pi.style.display="none";pi.textContent="";}
+  // Highlight platform if set
+  if(item&&item.plattform){_highlightVKPlattform(item.plattform);}
+  if(item&&item.status){selVKStatus(item.status);}
+  var d=document.getElementById("vk-diag");if(d)d.style.display="none";
+  _renderVKStep();
+  document.getElementById("vk-modal").classList.add("open");
+}
+
+// ================================================================
+// PRODUCT DETAIL OVERLAY (Fix 5)
+// ================================================================
+var detailItem=null;
+
+function openDetail(rIdx){
+  var item=cardRegistry[rIdx];if(!item)return;
+  detailItem=item;
+  var nm=item.name||item.spiel||item.modell||item.geraet||"–";
+  document.getElementById("detail-header-title").textContent=nm;
+  document.getElementById("detail-title").textContent=nm;
+  // Edit button
+  var eb=document.getElementById("detail-edit-btn");
+  if(eb)eb.onclick=function(){closeDetail();openEditStepper(rIdx);};
+
+  // Price
+  var sugPrice=_getSuggestedPrice(item);
+  var kaPreis=item.kaPreis||"";
+  var kaTyp=item.kaPreisTyp||"";
+  var pp=document.getElementById("detail-price");
+  var ps=document.getElementById("detail-price-sub");
+  if(kaPreis){
+    pp.textContent=kaPreis+"€"+(kaTyp?" ("+kaTyp+")":"");
+    pp.style.color="var(--green)";
+    if(sugPrice)ps.textContent="Vorgeschlagener Preis: "+sugPrice;
+    else ps.textContent="";
+  } else if(sugPrice){
+    pp.textContent=sugPrice;
+    pp.style.color="var(--yellow)";
+    ps.textContent="Vorgeschlagener Preis – noch kein Preis eingetragen";
+  } else {
+    pp.textContent="Kein Preis";
+    pp.style.color="var(--text3)";
+    ps.textContent="";
+  }
+
+  // Kleinanzeigen Badge
+  var kab=document.getElementById("detail-ka-badge");
+  var isDone=(item.kleinanzeigen||"").toLowerCase().includes("hochgeladen")||item.kleinanzeigen==="ja";
+  kab.innerHTML=isDone?'<span class="av-badge av-v"><i class="bi bi-check-circle-fill me-1"></i>Bei Kleinanzeigen hochgeladen</span>':'<span class="av-badge av-n"><i class="bi bi-x-circle-fill me-1"></i>Noch nicht hochgeladen</span>';
+
+  // Hero image: kaFotos first, then defekt fotos
+  var heroEl=document.getElementById("detail-hero");
+  var thumbsEl=document.getElementById("detail-thumbs");
+  var kaFotos=item.kaFotos||[];
+  var defFotos=item.fotos||[];
+  var allFotos=kaFotos.concat(defFotos);
+  if(allFotos.length>0){
+    heroEl.innerHTML='<img src="'+esc(allFotos[0])+'" style="width:100%;height:100%;object-fit:cover"/>';
+    heroEl.className="detail-hero";
+    if(allFotos.length>1){
+      thumbsEl.style.display="flex";
+      thumbsEl.innerHTML=allFotos.map(function(b,i){return'<div class="detail-photo-thumb'+(i===0?" active":"")+'" onclick="detailSetHero('+(i)+')" data-src="'+esc(b)+'"><img src="'+esc(b)+'"/></div>';}).join("");
+    } else {thumbsEl.style.display="none";}
+  } else {
+    heroEl.className="detail-hero-empty";heroEl.innerHTML="📦";
+    thumbsEl.style.display="none";
+  }
+
+  // KA Photos separate
+  var upWrap=document.getElementById("detail-upload-photos-wrap");
+  var upEl=document.getElementById("detail-upload-photos");
+  if(kaFotos.length>0){
+    upWrap.style.display="block";
+    upEl.innerHTML=kaFotos.map(function(b,i){return'<div class="card-foto" onclick="openLightboxDirect(\'"+b+"\')" style="width:64px;height:64px"><img src="'+esc(b)+'"/></div>';}).join("");
+  } else {upWrap.style.display="none";}
+
+  // Links
+  var linksWrap=document.getElementById("detail-links-wrap");
+  var linksEl=document.getElementById("detail-links");
+  var links=item.kaLinks||[];
+  if(typeof links==="string")try{links=JSON.parse(links);}catch(e){links=links?[links]:[];}
+  if(links.length>0){
+    linksWrap.style.display="block";
+    linksEl.innerHTML=links.map(function(l){return'<a href="'+esc(l)+'" target="_blank" class="btn btn-outline-primary btn-sm w-100 mb-1"><i class="bi bi-box-arrow-up-right me-1"></i>'+esc(l.length>40?l.substring(0,40)+"…":l)+'</a>';}).join("");
+  } else {linksWrap.style.display="none";}
+
+  // Specs
+  var specs=_buildSpecs(item);
+  document.getElementById("detail-specs").innerHTML=specs;
+
+  // Defekt fotos
+  var dw=document.getElementById("detail-defekt-wrap");
+  var df=document.getElementById("detail-defekt-fotos");
+  if(defFotos.length>0){
+    dw.style.display="block";
+    df.innerHTML=defFotos.map(function(b){return'<div class="card-foto" onclick="openLightboxDirect(\'"+b+"\')" style="width:64px;height:64px"><img src="'+esc(b)+'"/></div>';}).join("");
+  } else {dw.style.display="none";}
+
+  // Notes
+  var note=item.problemBeschr||item.hinweise||"";
+  var nw=document.getElementById("detail-notes");
+  if(note){nw.style.display="block";nw.innerHTML='<i class="bi bi-chat-text me-1"></i>'+esc(note);}
+  else{nw.style.display="none";}
+
+  document.getElementById("detail-overlay").classList.add("open");
+}
+
+function detailSetHero(idx){
+  var item=detailItem;if(!item)return;
+  var kaFotos=item.kaFotos||[];var defFotos=item.fotos||[];
+  var all=kaFotos.concat(defFotos);
+  if(!all[idx])return;
+  var heroEl=document.getElementById("detail-hero");
+  heroEl.innerHTML='<img src="'+esc(all[idx])+'" style="width:100%;height:100%;object-fit:cover"/>';
+  document.querySelectorAll("#detail-thumbs .detail-photo-thumb").forEach(function(el,i){el.classList.toggle("active",i===idx);});
+}
+
+function openLightboxDirect(b64){
+  var lb=document.createElement("div");lb.className="lightbox";lb.innerHTML='<img src="'+esc(b64)+'" alt="Foto"/>';lb.onclick=function(){lb.remove();};document.body.appendChild(lb);
+}
+
+function closeDetail(){
+  document.getElementById("detail-overlay").classList.remove("open");
+  detailItem=null;
+}
+
+function detailEdit(){
+  // handled by onclick on edit button
+}
+
+function _getSuggestedPrice(item){
+  var PREISE={konsole:{Neuwertig:"180–250€","Sehr gut":"120–180€",Gut:"80–130€",Akzeptabel:"40–80€",Defekt:"10–30€"},spiel:{Neuwertig:"25–45€","Sehr gut":"15–25€",Gut:"8–15€",Akzeptabel:"3–8€",Defekt:"1–3€"},handy:{Neuwertig:"200–400€","Sehr gut":"120–200€",Gut:"70–120€",Akzeptabel:"30–70€",Defekt:"10–30€"},pc:{Neuwertig:"400–800€","Sehr gut":"250–400€",Gut:"150–250€",Akzeptabel:"80–150€",Defekt:"20–60€"}};
+  var t=PREISE[item.type];if(!t)return"";
+  return t[item.zustand]||"";
+}
+
+function _buildSpecs(item){
+  var rows=[];
+  function row(k,v){if(v&&String(v).trim())rows.push('<div class="detail-spec"><span class="detail-spec-key">'+esc(k)+'</span><span class="detail-spec-val">'+esc(String(v))+'</span></div>');}
+  row("Datum",item.datum);row("Mitarbeiter",item.mitarbeiter);row("Zustand",item.zustand);
+  if(item.type==="konsole"){row("Speicher",item.speicherGB?(item.speicherGB+" GB"):"");row("Farbe",item.farbe);}
+  if(item.type==="spiel"){row("System",item.system);row("USK",item.usk);row("Sprache",item.sprache);}
+  if(item.type==="handy"){row("Speicher",item.speicherGB?(item.speicherGB+" GB"):"");row("RAM",item.ram?(item.ram+" GB"):"");row("Farbe",item.farbe);row("Netzwerk",item.netzwerk);row("IMEI",item.imei);}
+  if(item.type==="pc"){row("Typ",item.typ_);row("Prozessor",item.prozessor);row("RAM",item.ram?(item.ram+" GB"):"");row("Speicher",item.speicherGB?(item.speicherGB+" GB"):"");row("GPU",item.grafikkarte);row("OS",item.betriebssystem);}
+  if(item.problemTyp)row("Problemtyp",item.problemTyp);
+  row("Kategorien",item.kategorien);
+  if(item.scanId)row("Scan-ID",item.scanId);
+  return rows.join("");
+}
+
+// ================================================================
+// UPLOAD WIZARD
+// ================================================================
+var uwStep=1, uwTotalSteps=3, uwSelectedItems=[], uwPhotos=[], uwPlattform="";
+
+function openUploadWizard(){
+  uwStep=1;uwSelectedItems=[];uwPhotos=[];uwPlattform="";
+  document.getElementById("mode-chooser").style.display="block";
+  // If allItems empty, load first
+  if(!allItems.length){loadAll();setTimeout(function(){_initUWItems();},2000);}
+  else{_initUWItems();}
+  document.getElementById("upload-wizard").classList.add("open");
+  _renderUWStep();
+}
+function closeUploadWizard(){
+  document.getElementById("upload-wizard").classList.remove("open");
+}
+function _initUWItems(){
+  // Only items not yet uploaded
+  window._uwAllItems=allItems.filter(function(i){
+    return i.type!=="defekt"&&!(i.kleinanzeigen||"").toLowerCase().includes("hochgeladen")&&i.kleinanzeigen!=="ja";
+  });
+  _renderUWItemList(window._uwAllItems);
+}
+function filterUWItems(){
+  var q=(document.getElementById("uw-search")||{value:""}).value.toLowerCase();
+  var items=window._uwAllItems||[];
+  _renderUWItemList(q?items.filter(function(i){var nm=i.name||i.spiel||i.modell||"";return nm.toLowerCase().includes(q)||(i.scanId||"").toLowerCase().includes(q);}):items);
+}
+function _renderUWItemList(items){
+  var el=document.getElementById("uw-items");if(!el)return;
+  if(!items.length){el.innerHTML='<div class="empty"><i class="bi bi-check-circle"></i><p>Alle Artikel bereits hochgeladen!</p></div>';return;}
+  el.innerHTML=items.map(function(item){
+    var nm=item.name||item.spiel||item.modell||"–";
+    var isSelected=uwSelectedItems.some(function(s){return s.rowIndex===item.rowIndex&&s.type===item.type;});
+    return'<div class="upload-item" onclick="toggleUWItem(this,\'"+item.type+"\',"+(item.rowIndex)+')">'
+      +'<div class="upload-item-check'+(isSelected?" checked":"")+'">'+(isSelected?'<i class="bi bi-check"></i>':"")+'</div>'
+      +'<div><div style="font-size:13px;font-weight:700;color:var(--text)">'+esc(nm)+'</div>'
+      +'<div style="font-size:11px;color:var(--text3)">'+esc(item.datum||"")+' · '+esc(item.zustand||"")+'</div></div></div>';
+  }).join("");
+  _updateUWSelCount();
+}
+function toggleUWItem(el,type,rowIndex){
+  var idx=uwSelectedItems.findIndex(function(s){return s.rowIndex===rowIndex&&s.type===type;});
+  var item=(window._uwAllItems||[]).find(function(i){return i.rowIndex===rowIndex&&i.type===type;});
+  if(!item)return;
+  if(idx>-1){uwSelectedItems.splice(idx,1);}else{uwSelectedItems.push(item);}
+  // Update UI
+  var check=el.querySelector(".upload-item-check");
+  var isNowSelected=uwSelectedItems.some(function(s){return s.rowIndex===rowIndex&&s.type===type;});
+  if(check){check.className="upload-item-check"+(isNowSelected?" checked":"");check.innerHTML=isNowSelected?'<i class="bi bi-check"></i>':""; }
+  _updateUWSelCount();
+}
+function _updateUWSelCount(){var el=document.getElementById("uw-selected-cnt");if(el)el.textContent=uwSelectedItems.length;}
+
+function selUWPlattform(p){
+  uwPlattform=p;
+  sv2("uw-plattform",p);
+  ["ka","eb","fb","so"].forEach(function(id){var el=document.getElementById("uwp-"+id);if(el)el.className="cbtn";});
+  var map={Kleinanzeigen:"ka",eBay:"eb",Facebook:"fb",Sonstiges:"so"};
+  var el=document.getElementById("uwp-"+(map[p]||"so"));if(el)el.className="cbtn vk-sel";
+  _renderUWPriceList();
+}
+function _renderUWPriceList(){
+  var el=document.getElementById("uw-price-list");if(!el)return;
+  el.innerHTML=uwSelectedItems.map(function(item,i){
+    var nm=item.name||item.spiel||item.modell||"–";
+    var sug=_getSuggestedPrice(item);
+    return'<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:8px">'
+      +'<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">'+esc(nm)+'</div>'
+      +(sug?'<div style="font-size:11px;color:var(--text3);margin-bottom:5px">Vorschlag: '+esc(sug)+'</div>':"")
+      +'<div style="display:flex;gap:6px;align-items:center">'
+      +'<input type="number" class="fc" id="uw-preis-'+i+'" placeholder="Preis (€)" style="flex:1"/>'
+      +'<select class="fc" id="uw-typ-'+i+'" style="max-width:120px"><option value="VB">VB</option><option value="Festpreis">Festpreis</option></select>'
+      +'</div></div>';
+  }).join("");
+}
+
+function _renderUWLinkList(){
+  var el=document.getElementById("uw-link-list");if(!el)return;
+  el.innerHTML=uwSelectedItems.map(function(item,i){
+    var nm=item.name||item.spiel||item.modell||"–";
+    return'<div style="margin-bottom:10px">'
+      +'<label class="fl" style="margin-bottom:4px">'+esc(nm)+' – Anzeigen-Link</label>'
+      +'<input type="url" class="fc" id="uw-link-'+i+'" placeholder="https://www.kleinanzeigen.de/…"/></div>';
+  }).join("");
+}
+
+function uwStepNav(dir){
+  var d=document.getElementById("uw-diag");if(d)d.style.display="none";
+  if(dir>0){
+    if(uwStep===1&&uwSelectedItems.length===0){if(d){d.className="diag derr";d.textContent="Bitte mind. 1 Artikel auswählen.";d.style.display="block";}return;}
+    if(uwStep===2&&!uwPlattform){if(d){d.className="diag derr";d.textContent="Bitte Plattform auswählen.";d.style.display="block";}return;}
+  }
+  uwStep=Math.max(1,Math.min(uwTotalSteps,uwStep+dir));
+  _renderUWStep();
+}
+function _renderUWStep(){
+  for(var i=1;i<=uwTotalSteps;i++){var el=document.getElementById("uws-"+i);if(el)el.style.display=(i===uwStep?"block":"none");}
+  var pct=Math.round((uwStep/uwTotalSteps)*100);
+  var pb=document.getElementById("uw-prog");if(pb)pb.style.width=pct+"%";
+  var sl=document.getElementById("uw-step-lbl");if(sl)sl.textContent="Schritt "+uwStep+" von "+uwTotalSteps;
+  var bb=document.getElementById("uw-back-btn");if(bb)bb.disabled=(uwStep===1);
+  var nb=document.getElementById("uw-next-btn");if(nb)nb.style.display=(uwStep<uwTotalSteps?"inline-flex":"none");
+  var sb=document.getElementById("uw-save-btn");if(sb)sb.style.display=(uwStep===uwTotalSteps?"inline-flex":"none");
+  if(uwStep===2){_renderUWPriceList();}
+  if(uwStep===3){_renderUWLinkList();}
+}
+
+function triggerUWPhoto(){
+  var inp=document.createElement("input");inp.type="file";inp.accept="image/*";
+  inp.onchange=function(){if(this.files&&this.files[0])_processUWPhoto(this.files[0]);};
+  inp.click();
+}
+function _processUWPhoto(file){
+  var img=new Image(),url=URL.createObjectURL(file);
+  img.onload=function(){
+    URL.revokeObjectURL(url);
+    var MAX=800,w=img.width,h=img.height;
+    if(w>MAX||h>MAX){if(w>h){h=Math.round(h*(MAX/w));w=MAX;}else{w=Math.round(w*(MAX/h));h=MAX;}}
+    var canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;
+    canvas.getContext("2d").drawImage(img,0,0,w,h);
+    var b64=canvas.toDataURL("image/jpeg",0.72);
+    uwPhotos.push(b64);_renderUWPhotoThumbs();
+  };
+  img.src=url;
+}
+function _renderUWPhotoThumbs(){
+  var el=document.getElementById("uw-photo-thumbs");if(!el)return;
+  el.innerHTML=uwPhotos.map(function(b,i){
+    return'<div class="photo-thumb"><img src="'+esc(b)+'"/><button class="rm-thumb" onclick="uwPhotos.splice('+i+',1);_renderUWPhotoThumbs()">✕</button></div>';
+  }).join('')+('<div class="add-thumb" onclick="triggerUWPhoto()"><i class="bi bi-plus"></i></div>');
+}
+
+function saveUploadWizard(){
+  if(!uwSelectedItems.length){toast("Keine Artikel ausgewählt","err");return;}
+  var btn=document.getElementById("uw-save-btn");if(btn)btn.disabled=true;
+  var saved=0,total=uwSelectedItems.length;
+  uwSelectedItems.forEach(function(item,i){
+    var preis=(document.getElementById("uw-preis-"+i)||{value:""}).value;
+    var typ=(document.getElementById("uw-typ-"+i)||{value:"VB"}).value;
+    var link=(document.getElementById("uw-link-"+i)||{value:""}).value;
+    // Build update data
+    var d={type:item.type,rowIndex:item.rowIndex,status:"hochgeladen",
+           kaPreis:preis,kaPreisTyp:typ,
+           kaLinks:link?JSON.stringify([link]):JSON.stringify([]),
+           kaFotos:JSON.stringify(uwPhotos),
+           plattform:uwPlattform};
+    gasGet("updateKleinanzeigen",d,function(r){
+      if(r&&r.ok){
+        // Update local cache
+        for(var j=0;j<allItems.length;j++){
+          if(allItems[j].type===item.type&&allItems[j].rowIndex===item.rowIndex){
+            allItems[j].kleinanzeigen="hochgeladen";
+            allItems[j].kaPreis=preis;allItems[j].kaPreisTyp=typ;
+            allItems[j].kaLinks=link?[link]:[];
+            allItems[j].kaFotos=uwPhotos;
+            break;
+          }
+        }
+      }
+      saved++;
+      if(saved===total){
+        toast(total+" Artikel als hochgeladen markiert ✅","ok");
+        closeUploadWizard();
+        buildKAProgress();
+        renderList();
+        if(btn)btn.disabled=false;
+      }
+    },function(){saved++;if(saved===total&&btn)btn.disabled=false;});
+  });
+}
+
 
 window.addEventListener("load",function(){
   var no=document.getElementById("notif-overlay");if(no)no.addEventListener("click",function(e){if(e.target===this)closeNotifications();});
