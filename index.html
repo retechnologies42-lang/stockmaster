@@ -1008,7 +1008,7 @@ textarea.fc{resize:vertical;min-height:72px}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-var GAS_URL = "https://script.google.com/macros/s/AKfycbw1tp1zfb7PHeoaIxfaPUlxNLTkYPwAbnQoQQVu30XsATi047lpQIrb50p4r8aB6A/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbxcC95xnMg_TLqPD6RJi6Epe_VM1u71Fo0hfifbFWoy9Iga_uTGYNYvyc5HtzwT0w/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -2130,15 +2130,20 @@ function filterUWItems(){
 function _renderUWItemList(items){
   var el=document.getElementById("uw-items");if(!el)return;
   if(!items.length){el.innerHTML='<div class="empty"><i class="bi bi-check-circle"></i><p>Alle Artikel bereits hochgeladen!</p></div>';return;}
-  el.innerHTML=items.map(function(item){
+  el.innerHTML=items.map(function(item,idx){
     var nm=item.name||item.spiel||item.modell||"–";
     var isSelected=uwSelectedItems.some(function(s){return s.rowIndex===item.rowIndex&&s.type===item.type;});
-    return'<div class="upload-item" onclick="toggleUWItem(this,\'"+item.type+"\',"+(item.rowIndex)+')">'
-      +'<div class="upload-item-check'+(isSelected?" checked":"")+'">'+(isSelected?'<i class="bi bi-check"></i>':"")+'</div>'
+    var chk=isSelected?'<div class="upload-item-check checked"><i class="bi bi-check"></i></div>':'<div class="upload-item-check"></div>';
+    return'<div class="upload-item" data-type="'+esc(item.type)+'" data-row="'+item.rowIndex+'" onclick="uwItemClick(this)">'+chk
       +'<div><div style="font-size:13px;font-weight:700;color:var(--text)">'+esc(nm)+'</div>'
       +'<div style="font-size:11px;color:var(--text3)">'+esc(item.datum||"")+' · '+esc(item.zustand||"")+'</div></div></div>';
   }).join("");
   _updateUWSelCount();
+}
+function uwItemClick(el){
+  var type=el.getAttribute("data-type");
+  var rowIndex=parseInt(el.getAttribute("data-row"));
+  toggleUWItem(el,type,rowIndex);
 }
 function toggleUWItem(el,type,rowIndex){
   var idx=uwSelectedItems.findIndex(function(s){return s.rowIndex===rowIndex&&s.type===type;});
