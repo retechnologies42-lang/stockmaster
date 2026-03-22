@@ -209,7 +209,35 @@ textarea.fc{resize:vertical;min-height:72px}
 .mini-bar-wrap{display:flex;align-items:flex-end;gap:3px;height:48px;margin-top:8px}
 .mini-bar{flex:1;border-radius:3px 3px 0 0;background:var(--blue);opacity:.7;transition:all .3s;min-width:6px}
 .mini-bar.today{opacity:1;background:var(--green)}
-/* Scanner overlay für Suche */
+/* Handel Cards */
+.handel-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:13px 14px;margin-bottom:9px;box-shadow:var(--shadow)}
+.handel-card:hover{border-color:var(--border2)}
+.hc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}
+.hc-name{font-size:14px;font-weight:700;color:var(--text)}
+.hc-meta{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+.status-badge{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.sb-vorgemerkt{background:rgba(163,113,247,.15);color:var(--purple)}
+.sb-aktiv{background:rgba(88,166,255,.15);color:var(--blue)}
+.sb-verkauft,.sb-bestellt,.sb-bezahlt{background:rgba(63,185,80,.15);color:var(--green)}
+.sb-versendet,.sb-unterwegs{background:rgba(227,179,65,.15);color:var(--yellow)}
+.sb-zugestellt,.sb-abgeschlossen{background:rgba(63,185,80,.25);color:var(--green)}
+.sb-storniert,.sb-problem{background:rgba(248,81,73,.15);color:var(--red)}
+.sb-angekommen{background:rgba(88,166,255,.2);color:var(--blue)}
+/* Lieferstatus indicator */
+.ls-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.ls-ausstehend{background:var(--text3)}
+.ls-inbearbeitung{background:var(--yellow)}
+.ls-versendet{background:var(--blue)}
+.ls-unterwegs{background:var(--orange)}
+.ls-zugestellt{background:var(--green)}
+.ls-problem{background:var(--red)}
+/* KA Items */
+.ka-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ka-item.ka-done{border-left:3px solid var(--green)}
+.ka-item.ka-todo{border-left:3px solid var(--red)}
+.ka-toggle{background:none;border:1.5px solid var(--border2);border-radius:var(--r-sm);padding:6px 12px;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;transition:all .15s}
+.ka-toggle.done{border-color:var(--green);color:var(--green);background:rgba(63,185,80,.1)}
+.ka-toggle.todo{border-color:var(--red);color:var(--red);background:rgba(248,81,73,.08)}
 .scan-overlay{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
 .scan-overlay.hidden{display:none}
 .scan-overlay-video{width:100%;max-width:400px;border-radius:var(--r);overflow:hidden;position:relative}
@@ -261,8 +289,8 @@ textarea.fc{resize:vertical;min-height:72px}
   <button class="bnav-btn" data-tab="scan-panel"><i class="bi bi-qr-code-scan"></i>Scanner</button>
   <button class="bnav-btn" data-tab="list-panel"><i class="bi bi-list-ul"></i>Lager</button>
   <button class="bnav-btn home-btn on" data-tab="home-panel"><div class="home-orb"><i class="bi bi-house-fill"></i></div><span>Home</span></button>
-  <button class="bnav-btn" data-tab="search-panel"><i class="bi bi-search"></i>Suche</button>
-  <button class="bnav-btn" data-tab="diag-panel"><i class="bi bi-tools"></i>Diagnose</button>
+  <button class="bnav-btn" data-tab="handel-panel"><i class="bi bi-arrow-left-right"></i>Handel</button>
+  <button class="bnav-btn" data-tab="ka-panel"><i class="bi bi-megaphone-fill"></i>KA</button>
 </nav>
 
 <!-- HOME -->
@@ -280,6 +308,10 @@ textarea.fc{resize:vertical;min-height:72px}
       <div class="stat-card sc-pc" onclick="goTabFn('list-panel','pc')"><div class="stat-num" id="st-pc">–</div><div class="stat-label">PCs & Laptops</div><i class="bi bi-laptop stat-icon"></i></div>
       <div class="stat-card sc-def" onclick="goTabFn('list-panel','defekt')"><div class="stat-num" id="st-def">–</div><div class="stat-label">Defekte</div><i class="bi bi-exclamation-triangle stat-icon"></i></div>
       <div class="stat-card sc-heu sc-total"><div class="stat-num" id="st-heu">–</div><div class="stat-label">Heute eingelagert</div><i class="bi bi-calendar-check stat-icon"></i></div>
+    </div>
+    <div class="stat-grid" style="grid-template-columns:1fr 1fr;margin-bottom:14px">
+      <div class="stat-card" onclick="goTabFn('handel-panel');setHandelTab('verkauf')" style="cursor:pointer"><div class="stat-num" id="st-vk" style="color:var(--green)">–</div><div class="stat-label">Verkäufe</div><i class="bi bi-cash-coin stat-icon"></i></div>
+      <div class="stat-card" onclick="goTabFn('handel-panel');setHandelTab('einkauf')" style="cursor:pointer"><div class="stat-num" id="st-ek" style="color:var(--blue)">–</div><div class="stat-label">Einkäufe</div><i class="bi bi-cart-check stat-icon"></i></div>
     </div>
     <span class="slabel">MEINE AKTIVITÄT</span>
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:14px;display:flex;gap:16px;flex-wrap:wrap">
@@ -319,12 +351,24 @@ textarea.fc{resize:vertical;min-height:72px}
 <!-- SCANNER / STEPPER -->
 <div class="panel" id="scan-panel">
   <div class="wrap">
-    <div class="card" id="cat-chooser">
-      <div class="card-head"><h2>📦 Kategorie wählen</h2></div>
+    <!-- Modus-Auswahl -->
+    <div class="card" id="mode-chooser">
+      <div class="card-head"><h2>🎯 Was möchtest du tun?</h2></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;padding:13px">
+        <button class="cat-btn cb-sw" onclick="setMode('einlagern')" style="grid-column:unset"><span class="ci" style="font-size:24px">📦</span><span style="font-size:12px">Einlagern</span></button>
+        <button class="cat-btn" onclick="setMode('verkauf')" style="border-color:var(--green);grid-column:unset"><span class="ci" style="font-size:24px">💸</span><span style="font-size:12px;color:var(--green)">Verkauf</span></button>
+        <button class="cat-btn" onclick="setMode('einkauf')" style="border-color:var(--blue);grid-column:unset"><span class="ci" style="font-size:24px">🛒</span><span style="font-size:12px;color:var(--blue)">Einkauf</span></button>
+      </div>
+    </div>
+
+    <div id="cat-chooser" style="display:none">
+      <div class="card">
+      <div class="card-head"><h2>📦 Kategorie wählen</h2><button class="btn btn-sm btn-outline-secondary" onclick="resetToMode()">✕</button></div>
       <div class="cat-grid">
         <button class="cat-btn cb-sw" onclick="selCat('spielwaren')"><span class="ci">🎮</span>Spielwaren</button>
         <button class="cat-btn cb-h"  onclick="selCat('handy')"><span class="ci">📱</span>Handy</button>
         <button class="cat-btn cb-pc" style="grid-column:1/-1" onclick="selCat('pc')"><span class="ci">💻</span>PC & Laptop</button>
+      </div>
       </div>
     </div>
     <div id="sw-sub" style="display:none">
@@ -368,6 +412,13 @@ textarea.fc{resize:vertical;min-height:72px}
             <div style="display:flex;gap:8px;margin-bottom:14px">
               <button class="btn btn-primary flex-fill" id="btn-cam-start" onclick="camStart()" style="font-weight:700"><i class="bi bi-camera-video-fill me-1"></i>Kamera starten</button>
               <button class="btn btn-outline-danger" id="btn-cam-stop" onclick="camStop()" style="display:none;font-weight:700"><i class="bi bi-stop-circle me-1"></i>Stopp</button>
+            </div>
+            <!-- Kamera-Vorauswahl immer sichtbar -->
+            <div id="cam-preselect-row" style="margin-bottom:10px">
+              <label class="fl">Kamera wählen</label>
+              <select id="cam-preselect" class="fc" style="font-size:13px;padding:9px 12px" onchange="onCamPreselect()">
+                <option value="">⏳ Lade Kameras…</option>
+              </select>
             </div>
             <label class="fl">Barcode manuell eingeben</label>
             <div class="d-flex gap-2 mb-2">
@@ -533,6 +584,166 @@ textarea.fc{resize:vertical;min-height:72px}
   </div>
 </div>
 
+<!-- HANDEL PANEL (Verkauf + Einkauf) -->
+<div class="panel" id="handel-panel">
+  <div class="wrap">
+    <!-- Tabs -->
+    <div class="lager-tabs" style="margin-bottom:14px">
+      <button class="ltab on" id="htab-vk" onclick="setHandelTab('verkauf')">💸 Verkauf</button>
+      <button class="ltab" id="htab-ek" onclick="setHandelTab('einkauf')">🛒 Einkauf</button>
+    </div>
+
+    <!-- VERKAUF SUB -->
+    <div id="handel-vk">
+      <div class="d-flex gap-2 mb-3 align-items-center">
+        <input type="text" id="vk-search" class="fc" placeholder="🔍 Kunde, Produkt, Scan-ID…" oninput="filterHandel('verkauf')"/>
+        <button class="btn btn-success fw-bold" onclick="openVerkaufForm(null)" style="white-space:nowrap"><i class="bi bi-plus-lg me-1"></i>Neu</button>
+        <button class="btn btn-outline-secondary" onclick="loadHandel()"><i class="bi bi-arrow-repeat"></i></button>
+      </div>
+      <div id="vk-body"><div class="empty"><i class="bi bi-inbox"></i><p>↻ laden</p></div></div>
+    </div>
+
+    <!-- EINKAUF SUB -->
+    <div id="handel-ek" style="display:none">
+      <div class="d-flex gap-2 mb-3 align-items-center">
+        <input type="text" id="ek-search" class="fc" placeholder="🔍 Kunde, Produkt, Zimmer…" oninput="filterHandel('einkauf')"/>
+        <button class="btn btn-primary fw-bold" onclick="openEinkaufForm(null)" style="white-space:nowrap"><i class="bi bi-plus-lg me-1"></i>Neu</button>
+        <button class="btn btn-outline-secondary" onclick="loadHandel()"><i class="bi bi-arrow-repeat"></i></button>
+      </div>
+      <div id="ek-body"><div class="empty"><i class="bi bi-inbox"></i><p>↻ laden</p></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- KLEINANZEIGEN PANEL -->
+<div class="panel" id="ka-panel">
+  <div class="wrap">
+    <div class="d-flex gap-2 mb-3 align-items-center">
+      <input type="text" id="ka-search" class="fc" placeholder="🔍 Artikel suchen…" oninput="filterKA()"/>
+      <button class="btn btn-outline-secondary" onclick="loadAll()"><i class="bi bi-arrow-repeat"></i></button>
+    </div>
+    <!-- KA Status Übersicht -->
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:13px 16px;margin-bottom:12px;display:flex;gap:20px;align-items:center">
+      <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--green)" id="ka-done-cnt">–</div><div style="font-size:11px;color:var(--text2)">Hochgeladen</div></div>
+      <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--red)" id="ka-todo-cnt">–</div><div style="font-size:11px;color:var(--text2)">Ausstehend</div></div>
+      <div style="flex:1;background:var(--border);border-radius:99px;height:8px;overflow:hidden"><div id="ka-prog-bar" style="height:100%;background:linear-gradient(90deg,var(--green),var(--blue));border-radius:99px;transition:width .5s ease;width:0%"></div></div>
+    </div>
+    <div id="ka-body"><div class="empty"><i class="bi bi-megaphone"></i><p>Lade Artikel…</p></div></div>
+  </div>
+</div>
+
+<!-- VERKAUF FORM MODAL -->
+<div class="moverlay" id="vk-modal">
+  <div class="msheet">
+    <div class="mhead"><h3 id="vk-modal-title">💸 Verkauf eintragen</h3><button class="btn btn-sm btn-outline-secondary" onclick="closeVKModal()"><i class="bi bi-x-lg"></i></button></div>
+    <div class="mbody">
+      <div class="diag" id="vk-diag"></div>
+      <div class="row g-2 mb-2">
+        <div class="col-6"><label class="fl">Produkt *</label><input type="text" id="vk-produkte" class="fc" placeholder="z.B. PS5 Slim"/></div>
+        <div class="col-6"><label class="fl">Scan-ID / Barcode</label><input type="text" id="vk-scanid" class="fc" placeholder="optional"/></div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-6"><label class="fl">Kunde</label><input type="text" id="vk-kunde" class="fc" placeholder="Name"/></div>
+        <div class="col-6"><label class="fl">Preis (€)</label><input type="number" id="vk-preis" class="fc" placeholder="0.00"/></div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-6"><label class="fl">Plattform</label>
+          <select id="vk-plattform" class="fc"><option>Kleinanzeigen</option><option>eBay</option><option>Facebook</option><option>Direkt</option><option>Sonstiges</option></select>
+        </div>
+        <div class="col-6"><label class="fl">Status</label>
+          <select id="vk-status" class="fc"><option>Vorgemerkt</option><option>Aktiv</option><option>Verkauft</option><option>Versendet</option><option>Abgeschlossen</option><option>Storniert</option></select>
+        </div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-6"><label class="fl">Bestellnr.</label><input type="text" id="vk-bestellnr" class="fc" placeholder="optional"/></div>
+        <div class="col-6"><label class="fl">Versand (€)</label><input type="number" id="vk-versand" class="fc" placeholder="0.00"/></div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-6"><label class="fl">Sendenummer</label><input type="text" id="vk-sende" class="fc" placeholder="z.B. 1234567890"/></div>
+        <div class="col-6"><label class="fl">Versanddienstleister</label>
+          <select id="vk-vdl" class="fc"><option value=""></option><option>DHL</option><option>Hermes</option><option>DPD</option><option>UPS</option><option>GLS</option><option>Selbstabholung</option></select>
+        </div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-4"><label class="fl">Geld erhalten?</label>
+          <select id="vk-geld" class="fc"><option value="">–</option><option>Ja</option><option>Nein</option></select>
+        </div>
+        <div class="col-4"><label class="fl">Schon bezahlt?</label>
+          <select id="vk-bezahlt" class="fc"><option value="">–</option><option>Ja</option><option>Nein</option></select>
+        </div>
+        <div class="col-4"><label class="fl">Abholung</label>
+          <select id="vk-abholung" class="fc"><option>NEIN</option><option>JA</option></select>
+        </div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-6"><label class="fl">Lieferstatus</label>
+          <select id="vk-lieferstatus" class="fc"><option>Ausstehend</option><option>In Bearbeitung</option><option>Versendet</option><option>Unterwegs</option><option>Zugestellt</option><option>Problem</option></select>
+        </div>
+        <div class="col-6"><label class="fl">Mitarbeiter</label><input type="text" id="vk-ma" class="fc"/></div>
+      </div>
+      <div class="mb-2"><label class="fl">Hinweise</label><textarea id="vk-hinweise" class="fc" rows="2" placeholder="Notizen…"></textarea></div>
+    </div>
+    <div class="mfoot">
+      <button class="btn btn-outline-danger btn-sm" id="vk-del-btn" onclick="deleteHandelEntry('verkauf')" style="display:none"><i class="bi bi-trash3 me-1"></i>Löschen</button>
+      <button class="btn btn-outline-secondary btn-sm" onclick="closeVKModal()">Abbrechen</button>
+      <button class="btn btn-success fw-bold" onclick="saveVKForm()"><i class="bi bi-cloud-upload-fill me-1"></i>Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- EINKAUF FORM MODAL -->
+<div class="moverlay" id="ek-modal">
+  <div class="msheet">
+    <div class="mhead"><h3 id="ek-modal-title">🛒 Einkauf eintragen</h3><button class="btn btn-sm btn-outline-secondary" onclick="closeEKModal()"><i class="bi bi-x-lg"></i></button></div>
+    <div class="mbody">
+      <div class="diag" id="ek-diag"></div>
+      <div class="row g-2 mb-2">
+        <div class="col-6"><label class="fl">Produkt *</label><input type="text" id="ek-produkte" class="fc" placeholder="z.B. iPhone 14"/></div>
+        <div class="col-6"><label class="fl">Scan-ID / Barcode</label><input type="text" id="ek-scanid" class="fc" placeholder="optional"/></div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-6"><label class="fl">Kunde / Verkäufer</label><input type="text" id="ek-kunde" class="fc" placeholder="Name"/></div>
+        <div class="col-6"><label class="fl">Preis (€)</label><input type="number" id="ek-preis" class="fc" placeholder="0.00"/></div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-6"><label class="fl">Plattform</label>
+          <select id="ek-plattform" class="fc"><option>Kleinanzeigen</option><option>eBay</option><option>Facebook</option><option>Direkt</option><option>Sonstiges</option></select>
+        </div>
+        <div class="col-6"><label class="fl">Status</label>
+          <select id="ek-status" class="fc"><option>Vorgemerkt</option><option>Bestellt</option><option>Bezahlt</option><option>Versendet</option><option>Angekommen</option><option>Abgeschlossen</option><option>Storniert</option></select>
+        </div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-6"><label class="fl">Sendenummer</label><input type="text" id="ek-sende" class="fc" placeholder="z.B. 1234567890"/></div>
+        <div class="col-6"><label class="fl">Versanddienstleister</label>
+          <select id="ek-vdl" class="fc"><option value=""></option><option>DHL</option><option>Hermes</option><option>DPD</option><option>UPS</option><option>GLS</option><option>Selbstabholung</option></select>
+        </div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-6"><label class="fl">Adresse</label><input type="text" id="ek-adresse" class="fc" placeholder="Lieferadresse"/></div>
+        <div class="col-6"><label class="fl">Zimmer</label><input type="text" id="ek-zimmer" class="fc" placeholder="z.B. Z12 (vom Paketlabel)"/></div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-6"><label class="fl">Abholung</label>
+          <select id="ek-abholung" class="fc"><option>NEIN</option><option>JA</option></select>
+        </div>
+        <div class="col-6"><label class="fl">Lieferstatus</label>
+          <select id="ek-lieferstatus" class="fc"><option>Ausstehend</option><option>In Bearbeitung</option><option>Versendet</option><option>Unterwegs</option><option>Zugestellt</option><option>Problem</option></select>
+        </div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-6"><label class="fl">Mitarbeiter</label><input type="text" id="ek-ma" class="fc"/></div>
+      </div>
+      <div class="mb-2"><label class="fl">Hinweise</label><textarea id="ek-hinweise" class="fc" rows="2" placeholder="Notizen…"></textarea></div>
+    </div>
+    <div class="mfoot">
+      <button class="btn btn-outline-danger btn-sm" id="ek-del-btn" onclick="deleteHandelEntry('einkauf')" style="display:none"><i class="bi bi-trash3 me-1"></i>Löschen</button>
+      <button class="btn btn-outline-secondary btn-sm" onclick="closeEKModal()">Abbrechen</button>
+      <button class="btn btn-primary fw-bold" onclick="saveEKForm()"><i class="bi bi-cloud-upload-fill me-1"></i>Speichern</button>
+    </div>
+  </div>
+</div>
+
 <!-- NOTIFICATIONS -->
 <div class="notif-overlay" id="notif-overlay">
   <div class="notif-panel">
@@ -597,12 +808,13 @@ textarea.fc{resize:vertical;min-height:72px}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-var GAS_URL = "https://script.google.com/macros/s/AKfycbzDJY7Eh9S2xhdHoSpy71lN_bcWE7gYI3UNTSG8X1Xlv-1tPP4VA7n5kpJqJSdcfg/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbwk7nbq40fHE2pxX6EWMu0EubpR5UsGEiIgera7HrMUyqIy7ebRdKhGJfx1amOLKg/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
 var camStream=null, camAnimFrame=null, camRunning=false, camDevices=[];
 var firstCamDeviceId=null; // FIX: speichert DeviceId von Kamera 0
+var scanMode="einlagern"; // "einlagern" | "verkauf" | "einkauf"
 var curCat="", curType="";
 var stepCur=1, stepTotal=5;
 var probChoice=null, probType=null;
@@ -671,15 +883,15 @@ function setGreeting(){var h=new Date().getHours(),g,emoji;if(h>=5&&h<10){g="GUT
 function updateMyStats(){if(!emp)return;var today=new Date().toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"});var total=0,todayCount=0,defekte=0;allItems.forEach(function(item){if((item.mitarbeiter||"").toLowerCase()===emp.toLowerCase()){total++;if(item.datum&&item.datum.startsWith(today.split(".")[0]+"."+today.split(".")[1]))todayCount++;}if(item.type==="defekt"&&(item.mitarbeiter||"").toLowerCase()===emp.toLowerCase())defekte++;});var t=document.getElementById("my-total");if(t)t.textContent=total;var td=document.getElementById("my-today");if(td)td.textContent=todayCount;var df=document.getElementById("my-defekte");if(df)df.textContent=defekte;var nf=document.getElementById("my-notifs");if(nf)nf.textContent=notifications.length;}
 
 // ── TABS ─────────────────────────────────────────────────────────
-document.querySelectorAll(".bnav-btn").forEach(function(b){b.addEventListener("click",function(){document.querySelectorAll(".bnav-btn").forEach(function(x){x.classList.remove("on");});document.querySelectorAll(".panel").forEach(function(x){x.classList.remove("on");});b.classList.add("on");var p=document.getElementById(b.dataset.tab);if(p)p.classList.add("on");if(b.dataset.tab==="home-panel"){setGreeting();loadStats();}if(b.dataset.tab==="list-panel"&&allItems.length===0)loadAll();if(b.dataset.tab==="search-panel"){initSearch();if(allItems.length===0){loadAll();setTimeout(function(){if(allItems.length>0)renderSearchResults(allItems);},2500);}else{renderSearchResults(allItems);}}});});
+document.querySelectorAll(".bnav-btn").forEach(function(b){b.addEventListener("click",function(){document.querySelectorAll(".bnav-btn").forEach(function(x){x.classList.remove("on");});document.querySelectorAll(".panel").forEach(function(x){x.classList.remove("on");});b.classList.add("on");var p=document.getElementById(b.dataset.tab);if(p)p.classList.add("on");if(b.dataset.tab==="home-panel"){setGreeting();loadStats();}if(b.dataset.tab==="list-panel"&&allItems.length===0)loadAll();if(b.dataset.tab==="search-panel"){initSearch();if(allItems.length===0){loadAll();setTimeout(function(){if(allItems.length>0)renderSearchResults(allItems);},2500);}else{renderSearchResults(allItems);}}if(b.dataset.tab==="handel-panel"){loadHandel();}if(b.dataset.tab==="ka-panel"){renderKAPanel();}});});
 function goTabFn(id,lfMode){document.querySelectorAll(".bnav-btn").forEach(function(b){b.classList.toggle("on",b.dataset.tab===id);});document.querySelectorAll(".panel").forEach(function(p){p.classList.toggle("on",p.id===id);});if(lfMode){lf=lfMode;renderList();}if(id==="list-panel"&&allItems.length===0)loadAll();if(id==="home-panel"){setGreeting();loadStats();}}
 
 // ── STATS ─────────────────────────────────────────────────────────
-function loadStats(){gasGet("getStats",{},function(r){if(!r||!r.ok)return;var s=r.stats||{};document.getElementById("st-sw").textContent=(s.konsolen||0)+(s.spiele||0);document.getElementById("st-h").textContent=s.handys||0;document.getElementById("st-pc").textContent=s.pcs||0;document.getElementById("st-def").textContent=s.defekte||0;document.getElementById("st-heu").textContent=s.heute||0;},function(){});}
+function loadStats(){gasGet("getStats",{},function(r){if(!r||!r.ok)return;var s=r.stats||{};document.getElementById("st-sw").textContent=(s.konsolen||0)+(s.spiele||0);document.getElementById("st-h").textContent=s.handys||0;document.getElementById("st-pc").textContent=s.pcs||0;document.getElementById("st-def").textContent=s.defekte||0;document.getElementById("st-heu").textContent=s.heute||0;var ve=document.getElementById("st-vk");if(ve)ve.textContent=s.verkauf||0;var ee=document.getElementById("st-ek");if(ee)ee.textContent=s.einkauf||0;},function(){});}
 
 // ── KATEGORIE ─────────────────────────────────────────────────────
-function selCat(cat){curCat=cat;isEditMode=false;editingItem=null;document.getElementById("cat-chooser").style.display="none";document.getElementById("sw-sub").style.display="none";document.getElementById("main-stepper").style.display="none";if(cat==="spielwaren"){document.getElementById("sw-sub").style.display="block";}else{startStepper(cat);}}
-function resetFlow(){stopCam();document.getElementById("cat-chooser").style.display="block";document.getElementById("sw-sub").style.display="none";document.getElementById("main-stepper").style.display="none";isEditMode=false;editingItem=null;resetStepperState();}
+function selCat(cat){curCat=cat;isEditMode=false;editingItem=null;document.getElementById("mode-chooser").style.display="none";document.getElementById("cat-chooser").style.display="none";document.getElementById("sw-sub").style.display="none";document.getElementById("main-stepper").style.display="none";if(cat==="spielwaren"){document.getElementById("sw-sub").style.display="block";}else{startStepper(cat);}}
+function resetFlow(){stopCam();document.getElementById("mode-chooser").style.display="block";document.getElementById("cat-chooser").style.display="none";document.getElementById("sw-sub").style.display="none";document.getElementById("main-stepper").style.display="none";isEditMode=false;editingItem=null;resetStepperState();}
 
 // ── STEPPER ───────────────────────────────────────────────────────
 function startStepper(type, prefillItem){
@@ -771,6 +983,9 @@ function camStart(){
   startBtn.disabled=true;startBtn.innerHTML='<span class="spin"></span>&nbsp;Starte…';
   document.getElementById("scan-err").style.display="none";
 
+  // Check cam-preselect first (visible dropdown)
+  var preselEl=document.getElementById("cam-preselect");
+  if(preselEl&&preselEl.value&&!firstCamDeviceId){firstCamDeviceId=preselEl.value;}
   // FIX: Wenn wir schon die DeviceId von Kamera 0 kennen, direkt verwenden
   // Sonst erst Geräteliste holen, Kamera 0 auswählen, dann starten
   if(firstCamDeviceId){
@@ -917,10 +1132,16 @@ var lfArr=["all","spielwaren","handy","pc","defekt"],lfLabels={"all":"Gesamtes L
 function setLF(m){lf=m;var tabs=document.querySelectorAll(".ltab");var idx=lfArr.indexOf(m);tabs.forEach(function(t,i){t.classList.toggle("on",i===idx);});var hdr=document.getElementById("lager-category-header"),lbl=document.getElementById("lager-cat-label");if(hdr&&lbl){if(m==="all"){hdr.style.display="none";}else{hdr.style.display="block";lbl.textContent=lfLabels[m]||m;}}renderList();}
 
 function mkCard(item){
-  var isV=String(item.verfuegbarkeit||"").indexOf("Nicht")===-1&&String(item.verfuegbarkeit||"").length>0;
-  // Fix 7: "Verfügbar" → "Hochgeladen?" (auf Kleinanzeigen)
-  var avc=isV?"av-v":"av-n",avi=isV?"bi-check-circle-fill":"bi-x-circle-fill";
-  var avLabel=isV?"✓ Bei Kleinanzeigen":"✗ Noch nicht hochgeladen";
+  // Fix 7: Kleinanzeigen Status
+  var kaStatus=item.kleinanzeigen||"";
+  var kaIsDone=kaStatus.toLowerCase().includes("hochgeladen")||kaStatus==="ja";
+  var avLabel=kaIsDone?"✓ Bei Kleinanzeigen":"✗ Noch nicht hochgeladen";
+  var avc=kaIsDone?"av-v":"av-n", avi=kaIsDone?"bi-check-circle-fill":"bi-x-circle-fill";
+  // Kategorien Badge
+  var katBadge="";
+  if(item.kategorien&&String(item.kategorien).includes("|")){
+    katBadge='<span class="ic-badge" style="background:rgba(248,81,73,.15);color:var(--red);margin-left:4px">🔧 Defekt</span>';
+  }
   var nm=item.name||item.spiel||item.modell||item.geraet||"–";
   var tmap={konsole:["ib-k","🕹️ Konsole"],spiel:["ib-sp","💿 Spiel"],handy:["ib-h","📱 Handy"],pc:["ib-pc","💻 PC/Laptop"],defekt:["ib-def","⚠️ Defekt"]};
   var tm=tmap[item.type]||["","–"];
@@ -947,12 +1168,12 @@ function mkCard(item){
   if(item.type!=="defekt"){actions+='<button class="btn btn-outline-primary btn-sm" onclick="openEditStepper('+rIdx+')"><i class="bi bi-pencil-fill me-1"></i>Bearbeiten</button><button class="btn btn-outline-danger btn-sm" onclick="confirmDelete('+rIdx+')"><i class="bi bi-trash3"></i></button>';}
   else{actions+='<button class="btn btn-outline-danger btn-sm" onclick="confirmDeleteDefekt('+rIdx+')"><i class="bi bi-trash3 me-1"></i>Löschen</button>';}
   actions+='</div>';
-  return '<div class="ic"><div class="ic-top"><div class="ic-name">'+esc(nm)+'</div><span class="ic-badge '+tm[0]+'">'+tm[1]+'</span></div><div class="chips">'+chips+(item.type!=="defekt"?'<span class="av-badge '+avc+'"><i class="bi '+avi+' me-1"></i>'+avLabel+'</span>':'')+' </div>'+(note?'<div style="font-size:12px;color:var(--text2);margin-bottom:4px"><i class="bi bi-chat-text me-1"></i>'+esc(note)+'</div>':"")+fotosHtml+actions+'</div>';
+  return '<div class="ic"><div class="ic-top"><div class="ic-name">'+esc(nm)+'</div><div style="display:flex;gap:4px;align-items:center"><span class="ic-badge '+tm[0]+'">'+tm[1]+'</span>'+katBadge+'</div></div><div class="chips">'+chips+(item.type!=="defekt"?'<span class="av-badge '+avc+'"><i class="bi '+avi+' me-1"></i>'+avLabel+'</span>':'')+' </div>'+(note?'<div style="font-size:12px;color:var(--text2);margin-bottom:4px"><i class="bi bi-chat-text me-1"></i>'+esc(note)+'</div>':"")+fotosHtml+actions+'</div>';
 }
 
 function openLightbox(itemIdx,fotoIdx){var item=cardRegistry[itemIdx];if(!item||!item.fotos||!item.fotos[fotoIdx])return;var lb=document.createElement("div");lb.className="lightbox";lb.innerHTML='<img src="'+esc(item.fotos[fotoIdx])+'" alt="Foto"/>';lb.onclick=function(){lb.remove();};document.body.appendChild(lb);}
 
-function openEditStepper(rIdx){var item=cardRegistry[rIdx];if(!item)return;document.querySelectorAll(".bnav-btn").forEach(function(b){b.classList.toggle("on",b.dataset.tab==="scan-panel");});document.querySelectorAll(".panel").forEach(function(p){p.classList.toggle("on",p.id==="scan-panel");});document.getElementById("cat-chooser").style.display="none";document.getElementById("sw-sub").style.display="none";curCat=item.type==="konsole"||item.type==="spiel"?"spielwaren":item.type;startStepper(item.type,item);}
+function openEditStepper(rIdx){var item=cardRegistry[rIdx];if(!item)return;document.querySelectorAll(".bnav-btn").forEach(function(b){b.classList.toggle("on",b.dataset.tab==="scan-panel");});document.querySelectorAll(".panel").forEach(function(p){p.classList.toggle("on",p.id==="scan-panel");});document.getElementById("mode-chooser").style.display="none";document.getElementById("cat-chooser").style.display="none";document.getElementById("sw-sub").style.display="none";curCat=item.type==="konsole"||item.type==="spiel"?"spielwaren":item.type;startStepper(item.type,item);}
 
 function confirmDelete(rIdx){var item=cardRegistry[rIdx];if(!item)return;var nm=item.name||item.spiel||item.modell||"?";document.getElementById("del-modal-text").textContent='"'+nm+'" wirklich löschen?';document.getElementById("del-modal-confirm").onclick=function(){closeDelModal();doDelete(item);};document.getElementById("del-modal").classList.add("open");}
 function confirmDeleteDefekt(rIdx){var item=cardRegistry[rIdx];if(!item)return;document.getElementById("del-modal-text").textContent='"'+(item.geraet||"?")+'" wirklich löschen?';document.getElementById("del-modal-confirm").onclick=function(){closeDelModal();doDeleteDefekt(item);};document.getElementById("del-modal").classList.add("open");}
@@ -1000,14 +1221,311 @@ function removeNotif(id){notifications=notifications.filter(function(n){return n
 function clearAllNotifications(){if(!confirm("Alle Benachrichtigungen löschen?"))return;notifications=[];saveNotifications();renderNotifList();updateNotifBadge();}
 function checkLongStorageItems(){if(!allItems||allItems.length===0)return;var now=new Date(),threshold=30;allItems.forEach(function(item){if(!item.datum)return;var parts=item.datum.split(".");if(parts.length<3)return;var d=new Date(parts[2].split(" ")[0],parts[1]-1,parts[0]);if(isNaN(d))return;var days=Math.floor((now-d)/(1000*60*60*24));if(days>=threshold){var nm=item.name||item.spiel||item.modell||item.geraet||"Unbekannt";var already=notifications.find(function(n){return n.body&&n.body.indexOf(nm)>-1&&n.title.indexOf("Lager")>-1;});if(!already)addNotification("⏳ Lange im Lager",'"'+nm+'" lagert seit '+days+' Tagen.',"warn");}});}
 
+// ================================================================
+// SCAN MODE
+// ================================================================
+function setMode(mode){
+  scanMode=mode;
+  document.getElementById("mode-chooser").style.display="none";
+  if(mode==="einlagern"){
+    document.getElementById("cat-chooser").style.display="block";
+  } else {
+    // Direkt Barcode-Scanner für Verkauf/Einkauf
+    _openHandelScan(mode);
+  }
+}
+function resetToMode(){
+  stopCam();
+  document.getElementById("mode-chooser").style.display="block";
+  document.getElementById("cat-chooser").style.display="none";
+  document.getElementById("sw-sub").style.display="none";
+  document.getElementById("main-stepper").style.display="none";
+  isEditMode=false;editingItem=null;
+  resetStepperState();
+}
+
+// Öffnet Scan direkt für Verkauf/Einkauf
+function _openHandelScan(mode){
+  var el=document.getElementById("handel-scan-wrap");
+  if(!el){
+    var wrap=document.createElement("div");
+    wrap.id="handel-scan-wrap";
+    wrap.innerHTML='<div class="card"><div class="card-head"><h2>'+(mode==="verkauf"?"💸 Verkauf":"🛒 Einkauf")+'</h2><button class="btn btn-sm btn-outline-secondary" onclick="resetToMode()">✕</button></div><div class="card-body"><p style="font-size:13px;color:var(--text2);margin-bottom:12px">Barcode scannen oder direkt eingeben:</p><div class="d-flex gap-2 mb-3"><input type="text" id="handel-scan-input" class="fc" placeholder="Barcode / Scan-ID (optional)"/></div><div class="d-flex gap-2"><button class="btn btn-outline-secondary flex-fill" onclick="openHandelFormFromScan(\''+mode+'\',\'\')">Ohne Barcode</button><button class="btn '+(mode==="verkauf"?"btn-success":"btn-primary")+' flex-fill" onclick="openHandelFormFromScan(\''+mode+'\',document.getElementById(\'handel-scan-input\').value)">Weiter</button></div></div></div>';
+    document.getElementById("scan-panel").querySelector(".wrap").appendChild(wrap);
+  } else {
+    el.style.display="block";
+    el.querySelector("h2").textContent=(mode==="verkauf"?"💸 Verkauf":"🛒 Einkauf");
+  }
+}
+function openHandelFormFromScan(mode, scanId){
+  var el=document.getElementById("handel-scan-wrap");if(el)el.style.display="none";
+  document.getElementById("mode-chooser").style.display="block";
+  // Switch to handel panel and open form
+  goTabFn("handel-panel");
+  setHandelTab(mode==="verkauf"?"verkauf":"einkauf");
+  if(mode==="verkauf"){openVerkaufForm(null,scanId||"");}
+  else{openEinkaufForm(null,scanId||"");}
+}
+
+// ================================================================
+// CAMERA PRESELECT – sichtbar vor dem Starten
+// ================================================================
+function initCamPreselect(){
+  var sel=document.getElementById("cam-preselect");if(!sel)return;
+  navigator.mediaDevices.enumerateDevices().then(function(devices){
+    var vids=devices.filter(function(d){return d.kind==="videoinput";});
+    sel.innerHTML="";
+    if(vids.length===0){sel.innerHTML='<option value="">Keine Kamera gefunden</option>';return;}
+    vids.forEach(function(d,i){
+      var opt=document.createElement("option");
+      opt.value=d.deviceId;
+      var lbl=d.label||("Kamera "+(i+1));
+      var back=/back|rear|environment|rück/i.test(lbl);
+      opt.textContent=(back?"🔙 ":"🤳 ")+lbl;
+      if(i===0||back)opt.selected=true;
+      sel.appendChild(opt);
+    });
+    // Set firstCamDeviceId to selected
+    if(!firstCamDeviceId&&sel.value)firstCamDeviceId=sel.value;
+  }).catch(function(){
+    var sel2=document.getElementById("cam-preselect");
+    if(sel2)sel2.innerHTML='<option value="">Bitte Kamerazugriff erlauben</option>';
+  });
+}
+function onCamPreselect(){
+  var sel=document.getElementById("cam-preselect");
+  if(sel&&sel.value){firstCamDeviceId=sel.value;}
+}
+
+// ================================================================
+// HANDEL: VERKAUF + EINKAUF
+// ================================================================
+var allVerkauf=[], allEinkauf=[], currentHandelTab="verkauf";
+var editVerkaufItem=null, editEinkaufItem=null;
+
+function setHandelTab(tab){
+  currentHandelTab=tab;
+  document.getElementById("htab-vk").className="ltab"+(tab==="verkauf"?" on":"");
+  document.getElementById("htab-ek").className="ltab"+(tab==="einkauf"?" on":"");
+  document.getElementById("handel-vk").style.display=tab==="verkauf"?"block":"none";
+  document.getElementById("handel-ek").style.display=tab==="einkauf"?"block":"none";
+}
+
+function loadHandel(){
+  gasGet("getAllVerkauf",{},function(r){if(r&&r.ok){allVerkauf=r.data||[];renderVerkaufList();}},function(){});
+  gasGet("getAllEinkauf",{},function(r){if(r&&r.ok){allEinkauf=r.data||[];renderEinkaufList();}},function(){});
+}
+
+function filterHandel(type){
+  if(type==="verkauf")renderVerkaufList();
+  else renderEinkaufList();
+}
+
+function renderVerkaufList(){
+  var q=(document.getElementById("vk-search")||{value:""}).value.toLowerCase();
+  var items=q?allVerkauf.filter(function(r){return(r.kunde||"").toLowerCase().includes(q)||(r.produkte||"").toLowerCase().includes(q)||(r.scanId||"").toLowerCase().includes(q)||(r.sendenummer||"").toLowerCase().includes(q);}):allVerkauf;
+  var el=document.getElementById("vk-body");
+  if(!items.length){el.innerHTML='<div class="empty"><i class="bi bi-cash-coin"></i><p>Keine Verkäufe gefunden</p></div>';return;}
+  el.innerHTML=items.map(function(v,i){return mkHandelCard(v,"verkauf",i);}).join("");
+}
+
+function renderEinkaufList(){
+  var q=(document.getElementById("ek-search")||{value:""}).value.toLowerCase();
+  var items=q?allEinkauf.filter(function(r){return(r.kunde||"").toLowerCase().includes(q)||(r.produkte||"").toLowerCase().includes(q)||(r.scanId||"").toLowerCase().includes(q)||(r.zimmer||"").toLowerCase().includes(q);}):allEinkauf;
+  var el=document.getElementById("ek-body");
+  if(!items.length){el.innerHTML='<div class="empty"><i class="bi bi-cart"></i><p>Keine Einkäufe gefunden</p></div>';return;}
+  el.innerHTML=items.map(function(v,i){return mkHandelCard(v,"einkauf",i);}).join("");
+}
+
+function mkHandelCard(item,type,idx){
+  var nm=item.produkte||"–";
+  var statusCls="sb-"+((item.status||"").toLowerCase().replace(/\s+/g,"").replace(/ä/g,"ae").replace(/ü/g,"ue").replace(/ö/g,"oe"));
+  var lsDot=getLsDot(item.lieferstatus||"");
+  var isVk=(type==="verkauf");
+  var chips='<span class="chip"><i class="bi bi-calendar3"></i>&nbsp;<b>'+esc(item.datum||"")+'</b></span>';
+  chips+='<span class="chip"><i class="bi bi-person"></i>&nbsp;<b>'+esc(item.kunde||"–")+'</b></span>';
+  if(item.preis)chips+='<span class="chip"><i class="bi bi-currency-euro"></i>&nbsp;<b>'+esc(item.preis)+'€</b></span>';
+  if(item.plattform)chips+='<span class="chip"><i class="bi bi-shop"></i>&nbsp;<b>'+esc(item.plattform)+'</b></span>';
+  if(isVk&&item.bestellnr)chips+='<span class="chip"><i class="bi bi-hash"></i>&nbsp;<b>'+esc(item.bestellnr)+'</b></span>';
+  if(!isVk&&item.zimmer)chips+='<span class="chip" style="color:var(--yellow)"><i class="bi bi-door-open"></i>&nbsp;<b>Zimmer: '+esc(item.zimmer)+'</b></span>';
+  if(item.mitarbeiter)chips+='<span class="chip"><i class="bi bi-person-badge"></i>&nbsp;<b>'+esc(item.mitarbeiter)+'</b></span>';
+  // Sendenummer mit Lieferstatus
+  var sendeHtml="";
+  if(item.sendenummer){
+    var trackUrl=getTrackingUrl(item.versanddienstleister,item.sendenummer);
+    sendeHtml='<div style="display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12px;color:var(--text2)">'+lsDot+'<span>'+esc(item.lieferstatus||"Ausstehend")+'</span>'+
+    (trackUrl?'<a href="'+trackUrl+'" target="_blank" style="color:var(--blue);margin-left:4px"><i class="bi bi-box-arrow-up-right"></i> '+esc(item.sendenummer)+'</a>':'<span style="color:var(--text3)"> – '+esc(item.sendenummer)+'</span>')+'</div>';
+  } else {
+    sendeHtml='<div style="display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12px;color:var(--text3)">'+lsDot+' '+esc(item.lieferstatus||"Ausstehend")+'</div>';
+  }
+  return'<div class="handel-card"><div class="hc-top"><div class="hc-name">'+esc(nm)+'</div><span class="status-badge '+statusCls+'">'+esc(item.status||"–")+'</span></div><div class="hc-meta">'+chips+'</div>'+sendeHtml+'<div class="ic-actions" style="margin-top:8px"><button class="btn btn-outline-primary btn-sm" onclick="openHandelEdit(\''+type+'\','+idx+')"><i class="bi bi-pencil-fill me-1"></i>Bearbeiten</button></div></div>';
+}
+
+function getLsDot(ls){
+  var c="ls-ausstehend";
+  var l=(ls||"").toLowerCase();
+  if(l.includes("bearbeit"))c="ls-inbearbeitung";
+  else if(l.includes("versend"))c="ls-versendet";
+  else if(l.includes("unterweg"))c="ls-unterwegs";
+  else if(l.includes("zugestell"))c="ls-zugestellt";
+  else if(l.includes("problem"))c="ls-problem";
+  return'<span class="ls-dot '+c+'"></span>';
+}
+
+function getTrackingUrl(vdl,nr){
+  var v=(vdl||"").toLowerCase();
+  if(v.includes("dhl"))return"https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode="+encodeURIComponent(nr);
+  if(v.includes("hermes"))return"https://www.myhermes.de/empfangen/sendungsverfolgung/sendungsinformation/#"+encodeURIComponent(nr);
+  if(v.includes("dpd"))return"https://tracking.dpd.de/status/de_DE/parcel/"+encodeURIComponent(nr);
+  if(v.includes("ups"))return"https://www.ups.com/track?tracknum="+encodeURIComponent(nr);
+  if(v.includes("gls"))return"https://gls-group.eu/track/"+encodeURIComponent(nr);
+  return"";
+}
+
+function openHandelEdit(type,idx){
+  if(type==="verkauf"){openVerkaufForm(allVerkauf[idx]);}
+  else{openEinkaufForm(allEinkauf[idx]);}
+}
+
+// VERKAUF FORM
+function openVerkaufForm(item, prefillScanId){
+  editVerkaufItem=item||null;
+  var title=document.getElementById("vk-modal-title");
+  if(title)title.textContent=item?"✏️ Verkauf bearbeiten":"💸 Verkauf eintragen";
+  var delBtn=document.getElementById("vk-del-btn");if(delBtn)delBtn.style.display=item?"inline-flex":"none";
+  // Fill form
+  sv2("vk-produkte",item?item.produkte:"");
+  sv2("vk-scanid",item?item.scanId:(prefillScanId||""));
+  sv2("vk-kunde",item?item.kunde:"");
+  sv2("vk-preis",item?item.preis:"");
+  sv2("vk-plattform",item?item.plattform:"Kleinanzeigen");
+  sv2("vk-status",item?item.status:"Vorgemerkt");
+  sv2("vk-bestellnr",item?item.bestellnr:"");
+  sv2("vk-versand",item?item.versand:"");
+  sv2("vk-sende",item?item.sendenummer:"");
+  sv2("vk-vdl",item?item.versanddienstleister:"");
+  sv2("vk-geld",item?item.geldErhalten:"");
+  sv2("vk-bezahlt",item?item.schonBezahlt:"");
+  sv2("vk-abholung",item?item.abholung:"NEIN");
+  sv2("vk-lieferstatus",item?item.lieferstatus:"Ausstehend");
+  sv2("vk-ma",item?item.mitarbeiter:emp);
+  sv2("vk-hinweise",item?item.hinweise:"");
+  var d=document.getElementById("vk-diag");if(d)d.style.display="none";
+  document.getElementById("vk-modal").classList.add("open");
+}
+function closeVKModal(){document.getElementById("vk-modal").classList.remove("open");editVerkaufItem=null;}
+function saveVKForm(){
+  var produkte=gv("vk-produkte").trim();
+  if(!produkte){var d=document.getElementById("vk-diag");d.className="diag derr";d.textContent="Produkt ist Pflichtfeld.";d.style.display="block";return;}
+  var data={produkte:produkte,scanId:gv("vk-scanid"),kunde:gv("vk-kunde"),preis:gv("vk-preis"),plattform:gv("vk-plattform"),status:gv("vk-status"),bestellnr:gv("vk-bestellnr"),versand:gv("vk-versand"),sendenummer:gv("vk-sende"),versanddienstleister:gv("vk-vdl"),geldErhalten:gv("vk-geld"),schonBezahlt:gv("vk-bezahlt"),abholung:gv("vk-abholung"),lieferstatus:gv("vk-lieferstatus"),mitarbeiter:gv("vk-ma")||emp,hinweise:gv("vk-hinweise")};
+  if(editVerkaufItem){data.rowIndex=editVerkaufItem.rowIndex;gasPost("updateVerkauf",data,function(r){if(r&&r.ok){toast(r.msg,"ok");closeVKModal();loadHandel();}else{var d=document.getElementById("vk-diag");d.className="diag derr";d.textContent=r?r.fehler:"Fehler";d.style.display="block";}},function(e){toast("Fehler: "+e,"err")});}
+  else{gasPost("saveVerkauf",data,function(r){if(r&&r.ok){toast(r.msg,"ok");closeVKModal();loadHandel();addNotification("💸 Verkauf",r.msg,"info");}else{var d=document.getElementById("vk-diag");d.className="diag derr";d.textContent=r?r.fehler:"Fehler";d.style.display="block";}},function(e){toast("Fehler: "+e,"err")});}
+}
+
+// EINKAUF FORM
+function openEinkaufForm(item, prefillScanId){
+  editEinkaufItem=item||null;
+  var title=document.getElementById("ek-modal-title");
+  if(title)title.textContent=item?"✏️ Einkauf bearbeiten":"🛒 Einkauf eintragen";
+  var delBtn=document.getElementById("ek-del-btn");if(delBtn)delBtn.style.display=item?"inline-flex":"none";
+  sv2("ek-produkte",item?item.produkte:"");
+  sv2("ek-scanid",item?item.scanId:(prefillScanId||""));
+  sv2("ek-kunde",item?item.kunde:"");
+  sv2("ek-preis",item?item.preis:"");
+  sv2("ek-plattform",item?item.plattform:"Kleinanzeigen");
+  sv2("ek-status",item?item.status:"Vorgemerkt");
+  sv2("ek-sende",item?item.sendenummer:"");
+  sv2("ek-vdl",item?item.versanddienstleister:"");
+  sv2("ek-adresse",item?item.adresse:"");
+  sv2("ek-zimmer",item?item.zimmer:"");
+  sv2("ek-abholung",item?item.abholung:"NEIN");
+  sv2("ek-lieferstatus",item?item.lieferstatus:"Ausstehend");
+  sv2("ek-ma",item?item.mitarbeiter:emp);
+  sv2("ek-hinweise",item?item.hinweise:"");
+  var d=document.getElementById("ek-diag");if(d)d.style.display="none";
+  document.getElementById("ek-modal").classList.add("open");
+}
+function closeEKModal(){document.getElementById("ek-modal").classList.remove("open");editEinkaufItem=null;}
+function saveEKForm(){
+  var produkte=gv("ek-produkte").trim();
+  if(!produkte){var d=document.getElementById("ek-diag");d.className="diag derr";d.textContent="Produkt ist Pflichtfeld.";d.style.display="block";return;}
+  var data={produkte:produkte,scanId:gv("ek-scanid"),kunde:gv("ek-kunde"),preis:gv("ek-preis"),plattform:gv("ek-plattform"),status:gv("ek-status"),sendenummer:gv("ek-sende"),versanddienstleister:gv("ek-vdl"),adresse:gv("ek-adresse"),zimmer:gv("ek-zimmer"),abholung:gv("ek-abholung"),lieferstatus:gv("ek-lieferstatus"),mitarbeiter:gv("ek-ma")||emp,hinweise:gv("ek-hinweise")};
+  if(editEinkaufItem){data.rowIndex=editEinkaufItem.rowIndex;gasPost("updateEinkauf",data,function(r){if(r&&r.ok){toast(r.msg,"ok");closeEKModal();loadHandel();}else{var d=document.getElementById("ek-diag");d.className="diag derr";d.textContent=r?r.fehler:"Fehler";d.style.display="block";}},function(e){toast("Fehler: "+e,"err")});}
+  else{gasPost("saveEinkauf",data,function(r){if(r&&r.ok){toast(r.msg,"ok");closeEKModal();loadHandel();addNotification("🛒 Einkauf",r.msg,"info");}else{var d=document.getElementById("ek-diag");d.className="diag derr";d.textContent=r?r.fehler:"Fehler";d.style.display="block";}},function(e){toast("Fehler: "+e,"err")});}
+}
+
+function deleteHandelEntry(type){
+  var item=(type==="verkauf")?editVerkaufItem:editEinkaufItem;
+  if(!item||!confirm("Wirklich löschen?"))return;
+  gasGet("delete"+(type==="verkauf"?"Verkauf":"Einkauf"),{rowIndex:item.rowIndex},function(r){
+    if(r&&r.ok){toast(r.msg,"ok");if(type==="verkauf"){closeVKModal();}else{closeEKModal();}loadHandel();}
+    else{toast("Fehler: "+(r?r.fehler:"?"),"err");}
+  },function(e){toast("Fehler: "+e,"err");});
+}
+
+// Helper: set value safely
+function sv2(id,val){var el=document.getElementById(id);if(!el)return;el.value=String(val===null||val===undefined?"":val);}
+
+// ================================================================
+// KLEINANZEIGEN PANEL
+// ================================================================
+function renderKAPanel(){
+  if(!allItems.length){loadAll();setTimeout(function(){_buildKAPanel();},2000);}
+  else{_buildKAPanel();}
+}
+function _buildKAPanel(){
+  var relevant=allItems.filter(function(i){return i.type!=="defekt";});
+  var done=relevant.filter(function(i){return(i.kleinanzeigen||"").toLowerCase().includes("hochgeladen")||i.kleinanzeigen==="ja";}).length;
+  var todo=relevant.length-done;
+  var pct=relevant.length>0?Math.round((done/relevant.length)*100):0;
+  var dc=document.getElementById("ka-done-cnt");if(dc)dc.textContent=done;
+  var tc=document.getElementById("ka-todo-cnt");if(tc)tc.textContent=todo;
+  var bar=document.getElementById("ka-prog-bar");if(bar)bar.style.width=pct+"%";
+
+  // Filter
+  var q=(document.getElementById("ka-search")||{value:""}).value.toLowerCase();
+  var filtered=q?relevant.filter(function(i){var nm=i.name||i.spiel||i.modell||"";return nm.toLowerCase().includes(q)||(i.scanId||"").toLowerCase().includes(q);}):relevant;
+
+  var el=document.getElementById("ka-body");
+  if(!filtered.length){el.innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Keine Artikel</p></div>';return;}
+  el.innerHTML=filtered.map(function(item){
+    var nm=item.name||item.spiel||item.modell||"–";
+    var isDone=(item.kleinanzeigen||"").toLowerCase().includes("hochgeladen")||item.kleinanzeigen==="ja";
+    var kaClass=isDone?"ka-done":"ka-todo";
+    var tgClass=isDone?"done":"todo";
+    var tgTxt=isDone?"✓ Hochgeladen":"✗ Nicht hochgeladen";
+    var typ=item.type;var ri=item.rowIndex;
+    return'<div class="ka-item '+kaClass+'" id="ka-'+typ+'-'+ri+'">'+
+      '<div><div style="font-size:13px;font-weight:700;color:var(--text)">'+esc(nm)+'</div>'+
+      '<div style="font-size:11px;color:var(--text3);margin-top:2px">'+esc(item.datum||"")+'  ·  '+esc(item.mitarbeiter||"")+'</div></div>'+
+      '<button class="ka-toggle '+tgClass+'" onclick="toggleKA(\''+typ+'\','+ri+','+(!isDone)+')" data-type="'+typ+'" data-row="'+ri+'">'+tgTxt+'</button></div>';
+  }).join("");
+}
+function filterKA(){_buildKAPanel();}
+
+function toggleKA(type,rowIndex,setDone){
+  var status=setDone?"hochgeladen":"nicht hochgeladen";
+  gasGet("updateKleinanzeigen",{type:type,rowIndex:rowIndex,status:status},function(r){
+    if(r&&r.ok){
+      // Update local cache
+      for(var i=0;i<allItems.length;i++){if(allItems[i].type===type&&allItems[i].rowIndex===rowIndex){allItems[i].kleinanzeigen=status;break;}}
+      _buildKAPanel();
+      buildKAProgress();
+      toast(setDone?"✅ Als hochgeladen markiert":"Als ausstehend markiert",setDone?"ok":"inf",2000);
+    }else{toast("Fehler: "+(r?r.fehler:"?"),"err");}
+  },function(e){toast("Fehler: "+e,"err");});
+}
+
 window.addEventListener("load",function(){
   var no=document.getElementById("notif-overlay");if(no)no.addEventListener("click",function(e){if(e.target===this)closeNotifications();});
   var dm=document.getElementById("del-modal");if(dm)dm.addEventListener("click",function(e){if(e.target===this)closeDelModal();});
   var am=document.getElementById("acc-modal");if(am)am.addEventListener("click",function(e){if(e.target===this)closeAccModal();});
+  var vm=document.getElementById("vk-modal");if(vm)vm.addEventListener("click",function(e){if(e.target===this)closeVKModal();});
+  var em=document.getElementById("ek-modal");if(em)em.addEventListener("click",function(e){if(e.target===this)closeEKModal();});
   initEmp();initSearch();loadNotifications();
-  // Smart notifications beim Start prüfen
+  // Init camera preselect after short delay (needs permissions)
+  setTimeout(initCamPreselect, 500);
   setTimeout(runSmartNotifications, 3000);
-  // Täglich um Mitternacht nochmal
   setInterval(runSmartNotifications, 24*60*60*1000);
 });
 
