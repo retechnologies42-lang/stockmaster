@@ -639,14 +639,21 @@ textarea.fc{resize:vertical;min-height:72px}
     <div class="mbody">
       <div class="diag" id="vk-diag"></div>
       <div class="row g-2 mb-2">
-        <div class="col-6"><label class="fl">Produkt *</label><input type="text" id="vk-produkte" class="fc" placeholder="z.B. PS5 Slim"/></div>
-        <div class="col-6"><label class="fl">Scan-ID / Barcode</label><input type="text" id="vk-scanid" class="fc" placeholder="optional"/></div>
+        <div class="col-12"><label class="fl">Produkt *</label>
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+            <input type="text" id="vk-produkte" class="fc" placeholder="z.B. PS5 Slim" style="flex:1"/>
+            <button type="button" onclick="openVKProductPicker()" class="btn btn-outline-primary btn-sm" style="white-space:nowrap"><i class="bi bi-box-seam me-1"></i>Aus Lager</button>
+            <button type="button" onclick="openVKScanner()" class="btn btn-outline-secondary btn-sm"><i class="bi bi-upc-scan"></i></button>
+          </div>
+          <div id="vk-product-info" style="display:none;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);padding:8px 11px;font-size:12px;color:var(--text2)"></div>
+        </div>
       </div>
       <div class="row g-2 mb-2">
-        <div class="col-6"><label class="fl">Kunde</label><input type="text" id="vk-kunde" class="fc" placeholder="Name"/></div>
+        <div class="col-6"><label class="fl">Scan-ID (auto)</label><input type="text" id="vk-scanid" class="fc" placeholder="wird auto befüllt" readonly style="opacity:.7"/></div>
         <div class="col-6"><label class="fl">Preis (€)</label><input type="number" id="vk-preis" class="fc" placeholder="0.00"/></div>
       </div>
       <div class="row g-2 mb-2">
+        <div class="col-6"><label class="fl">Kunde</label><input type="text" id="vk-kunde" class="fc" placeholder="Name"/></div>
         <div class="col-6"><label class="fl">Plattform</label>
           <select id="vk-plattform" class="fc"><option>Kleinanzeigen</option><option>eBay</option><option>Facebook</option><option>Direkt</option><option>Sonstiges</option></select>
         </div>
@@ -655,31 +662,46 @@ textarea.fc{resize:vertical;min-height:72px}
         </div>
       </div>
       <div class="row g-2 mb-2">
-        <div class="col-6"><label class="fl">Bestellnr.</label><input type="text" id="vk-bestellnr" class="fc" placeholder="optional"/></div>
+        <div class="col-6"><label class="fl">Angebots-Nr. / Referenz</label><input type="text" id="vk-bestellnr" class="fc" placeholder="z.B. KA-Angebotsnr." /></div>
         <div class="col-6"><label class="fl">Versand (€)</label><input type="number" id="vk-versand" class="fc" placeholder="0.00"/></div>
       </div>
       <div class="row g-2 mb-2">
-        <div class="col-6"><label class="fl">Sendenummer</label><input type="text" id="vk-sende" class="fc" placeholder="z.B. 1234567890"/></div>
-        <div class="col-6"><label class="fl">Versanddienstleister</label>
-          <select id="vk-vdl" class="fc"><option value=""></option><option>DHL</option><option>Hermes</option><option>DPD</option><option>UPS</option><option>GLS</option><option>Selbstabholung</option></select>
-        </div>
-      </div>
-      <div class="row g-2 mb-2">
-        <div class="col-4"><label class="fl">Geld erhalten?</label>
+        <div class="col-6"><label class="fl">Geld erhalten?</label>
           <select id="vk-geld" class="fc"><option value="">–</option><option>Ja</option><option>Nein</option></select>
         </div>
-        <div class="col-4"><label class="fl">Schon bezahlt?</label>
-          <select id="vk-bezahlt" class="fc"><option value="">–</option><option>Ja</option><option>Nein</option></select>
-        </div>
-        <div class="col-4"><label class="fl">Abholung</label>
-          <select id="vk-abholung" class="fc"><option>NEIN</option><option>JA</option></select>
+        <div class="col-6"><label class="fl">Bezahlt mit</label>
+          <select id="vk-bezahlt" class="fc"><option value="">–</option><option>PayPal</option><option>Überweisung</option><option>Bar</option><option>Klarna</option><option>Kreditkarte</option><option>Ausstehend</option></select>
         </div>
       </div>
       <div class="row g-2 mb-2">
-        <div class="col-6"><label class="fl">Lieferstatus</label>
-          <select id="vk-lieferstatus" class="fc"><option>Ausstehend</option><option>In Bearbeitung</option><option>Versendet</option><option>Unterwegs</option><option>Zugestellt</option><option>Problem</option></select>
+        <div class="col-6"><label class="fl">Abholung</label>
+          <select id="vk-abholung" class="fc"><option>NEIN</option><option>JA</option></select>
         </div>
         <div class="col-6"><label class="fl">Mitarbeiter</label><input type="text" id="vk-ma" class="fc"/></div>
+      </div>
+      <!-- Lieferstatus – dynamisch: Sendenummer erscheint bei Versendet -->
+      <div class="mb-2">
+        <label class="fl">Lieferstatus</label>
+        <select id="vk-lieferstatus" class="fc" onchange="onVKLieferstatusChange()">
+          <option>In Bearbeitung</option>
+          <option>Versendet</option>
+          <option>Unterwegs</option>
+          <option>Zugestellt</option>
+          <option>Problem</option>
+          <option>Ausstehend</option>
+        </select>
+      </div>
+      <!-- Sendenummer + VDL: erscheint automatisch wenn Versendet/Unterwegs/Zugestellt -->
+      <div id="vk-sende-wrap" style="display:none">
+        <div class="row g-2 mb-2">
+          <div class="col-7"><label class="fl">Sendenummer</label><input type="text" id="vk-sende" class="fc" placeholder="z.B. 1234567890" oninput="onVKSendeInput()"/></div>
+          <div class="col-5"><label class="fl">Versanddienstleister</label>
+            <select id="vk-vdl" class="fc"><option value=""></option><option>DHL</option><option>Hermes</option><option>DPD</option><option>UPS</option><option>GLS</option><option>Selbstabholung</option></select>
+          </div>
+        </div>
+        <div id="vk-track-link" style="display:none;margin-bottom:8px">
+          <a id="vk-track-a" href="#" target="_blank" class="btn btn-outline-info btn-sm w-100"><i class="bi bi-box-arrow-up-right me-1"></i>Sendung verfolgen</a>
+        </div>
       </div>
       <div class="mb-2"><label class="fl">Hinweise</label><textarea id="vk-hinweise" class="fc" rows="2" placeholder="Notizen…"></textarea></div>
     </div>
@@ -808,7 +830,7 @@ textarea.fc{resize:vertical;min-height:72px}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-var GAS_URL = "https://script.google.com/macros/s/AKfycbwk7nbq40fHE2pxX6EWMu0EubpR5UsGEiIgera7HrMUyqIy7ebRdKhGJfx1amOLKg/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbwEFRccCy2YD8_OoV1XLdqUU5WKoqm3PX4W_tEa4mo8lauJCTrSzHwNCxwPhirXNQ/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -1410,10 +1432,145 @@ function openVerkaufForm(item, prefillScanId){
   sv2("vk-lieferstatus",item?item.lieferstatus:"Ausstehend");
   sv2("vk-ma",item?item.mitarbeiter:emp);
   sv2("vk-hinweise",item?item.hinweise:"");
+  // Fix 4: lieferstatus dynamic init
+  sv2("vk-lieferstatus",item?item.lieferstatus:"In Bearbeitung");
+  sv2("vk-sende",item?item.sendenummer:"");
+  sv2("vk-vdl",item?item.versanddienstleister:"");
+  // Clear product info
+  var pi=document.getElementById("vk-product-info");if(pi){pi.style.display="none";pi.textContent="";}
+  if(item&&item.scanId){document.getElementById("vk-scanid").removeAttribute("readonly");}
+  else{document.getElementById("vk-scanid").setAttribute("readonly","");}
+  onVKLieferstatusChange();
   var d=document.getElementById("vk-diag");if(d)d.style.display="none";
   document.getElementById("vk-modal").classList.add("open");
 }
 function closeVKModal(){document.getElementById("vk-modal").classList.remove("open");editVerkaufItem=null;}
+
+// Fix 4: Lieferstatus dynamisch – Sendenummer-Feld erscheint bei Versendet+
+function onVKLieferstatusChange(){
+  var ls=gv("vk-lieferstatus");
+  var needSende=["Versendet","Unterwegs","Zugestellt"].indexOf(ls)>-1;
+  var wrap=document.getElementById("vk-sende-wrap");
+  if(wrap)wrap.style.display=needSende?"block":"none";
+  if(needSende)onVKSendeInput();
+}
+function onVKSendeInput(){
+  var nr=gv("vk-sende").trim();
+  var vdl=gv("vk-vdl");
+  var trackDiv=document.getElementById("vk-track-link");
+  var trackA=document.getElementById("vk-track-a");
+  if(!nr||!trackDiv||!trackA){if(trackDiv)trackDiv.style.display="none";return;}
+  var url=getTrackingUrl(vdl,nr);
+  if(url){trackA.href=url;trackDiv.style.display="block";}
+  else{trackDiv.style.display="none";}
+}
+
+// Fix 1: Produkt aus Lager wählen
+var vkPickerActive=false;
+function openVKProductPicker(){
+  // Build picker overlay
+  var items=allItems.filter(function(i){return i.type!=="defekt"&&i.type!=="verkauf";});
+  var overlay=document.createElement("div");
+  overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9999;display:flex;flex-direction:column;padding:16px;overflow:hidden";
+  overlay.id="vk-picker-overlay";
+  overlay.innerHTML='<div style="background:var(--bg2);border-radius:var(--r);overflow:hidden;flex:1;display:flex;flex-direction:column;max-height:90vh">'
+    +'<div style="padding:13px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
+    +'<span style="font-size:14px;font-weight:700;color:var(--text)">📦 Produkt aus Lager wählen</span>'
+    +'<button onclick="document.getElementById(\'vk-picker-overlay\').remove()" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer">✕</button></div>'
+    +'<div style="padding:10px 14px;border-bottom:1px solid var(--border)"><input type="text" id="vk-picker-search" class="fc" placeholder="Suchen…" oninput="filterVKPicker()" style="font-size:13px"/></div>'
+    +'<div id="vk-picker-list" style="overflow-y:auto;flex:1;padding:8px"></div>'
+    +'</div>';
+  document.body.appendChild(overlay);
+  // Render items
+  window._vkPickerItems=items;
+  renderVKPickerList(items);
+}
+function renderVKPickerList(items){
+  var el=document.getElementById("vk-picker-list"); if(!el)return;
+  if(!items.length){el.innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Keine Artikel</p></div>';return;}
+  el.innerHTML=items.map(function(item,i){
+    var nm=item.name||item.spiel||item.modell||"–";
+    var sub=[item.datum,item.mitarbeiter,item.zustand].filter(Boolean).join(" · ");
+    return'<div onclick="selectVKProduct('+i+')" style="padding:10px 13px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s" onmouseover="this.style.background=\'var(--bg3)\'" onmouseout="this.style.background=\'\'">'+
+      '<div style="font-size:13px;font-weight:700;color:var(--text)">'+esc(nm)+'</div>'+
+      '<div style="font-size:11px;color:var(--text3)">'+esc(sub)+'  ·  ID: '+esc(item.scanId||"–")+'</div></div>';
+  }).join("");
+}
+function filterVKPicker(){
+  var q=(document.getElementById("vk-picker-search")||{value:""}).value.toLowerCase();
+  var filtered=q?(window._vkPickerItems||[]).filter(function(i){var nm=i.name||i.spiel||i.modell||"";return nm.toLowerCase().includes(q)||(i.scanId||"").toLowerCase().includes(q);}):window._vkPickerItems||[];
+  renderVKPickerList(filtered);
+}
+function selectVKProduct(idx){
+  var item=(window._vkPickerItems||[])[idx]; if(!item)return;
+  var nm=item.name||item.spiel||item.modell||"";
+  sv2("vk-produkte",nm);
+  // scanId is editable now
+  var scanEl=document.getElementById("vk-scanid");
+  if(scanEl){scanEl.removeAttribute("readonly");scanEl.value=item.scanId||"";}
+  var pi=document.getElementById("vk-product-info");
+  if(pi){
+    var info=[item.datum,item.mitarbeiter,"Zustand: "+(item.zustand||"–")].filter(Boolean).join(" · ");
+    pi.textContent="✓ Aus Lager: "+info; pi.style.display="block";
+  }
+  var ol=document.getElementById("vk-picker-overlay");if(ol)ol.remove();
+}
+
+// Fix 1: Barcode Scanner für Verkauf
+var vkScanStream=null, vkScanRunning=false, vkScanFrame=null;
+function openVKScanner(){
+  var overlay=document.createElement("div");
+  overlay.id="vk-scan-overlay";
+  overlay.className="scan-overlay";
+  overlay.innerHTML='<div class="scan-overlay-video"><video id="vk-scan-video" autoplay playsinline muted></video><canvas id="vk-scan-canvas" style="display:none"></canvas><div class="scan-overlay-frame"><div></div></div><div style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);color:#fff;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:600">Produkt scannen</div></div><div style="margin-top:16px;text-align:center"><p style="color:var(--text2);font-size:13px;margin-bottom:12px">Barcode wird automatisch erkannt</p><button class="btn btn-outline-light" onclick="closeVKScanner()"><i class="bi bi-x-circle me-1"></i>Abbrechen</button></div>';
+  document.body.appendChild(overlay);
+  var video=document.getElementById("vk-scan-video");
+  var constraints={video:firstCamDeviceId?{deviceId:{exact:firstCamDeviceId}}:{facingMode:{ideal:"environment"}}};
+  navigator.mediaDevices.getUserMedia(constraints).then(function(stream){
+    vkScanStream=stream;vkScanRunning=true;
+    video.srcObject=stream;
+    video.onloadedmetadata=function(){video.play().then(function(){_vkScanLoop();});};
+  }).catch(function(err){toast("Kamera: "+String(err),"err");closeVKScanner();});
+}
+function closeVKScanner(){
+  vkScanRunning=false;
+  if(vkScanFrame){cancelAnimationFrame(vkScanFrame);vkScanFrame=null;}
+  if(vkScanStream){vkScanStream.getTracks().forEach(function(t){t.stop();});vkScanStream=null;}
+  var ol=document.getElementById("vk-scan-overlay");if(ol)ol.remove();
+}
+function _vkScanLoop(){
+  if(!vkScanRunning)return;
+  var video=document.getElementById("vk-scan-video"),canvas=document.getElementById("vk-scan-canvas");
+  if(!video||video.readyState<2){vkScanFrame=requestAnimationFrame(_vkScanLoop);return;}
+  canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+  canvas.getContext("2d").drawImage(video,0,0,canvas.width,canvas.height);
+  var reader=getZxingReader();var detected=null;
+  if(reader){try{var res=reader.decodeFromCanvas(canvas);if(res&&res.getText())detected=res.getText().trim();}catch(e){}}
+  if(detected){
+    closeVKScanner();
+    // Suche in Lager nach dieser Scan-ID
+    var found=allItems.filter(function(i){return i.type!=="defekt"&&String(i.scanId||"")===detected;});
+    if(found.length>0){
+      // Produkt direkt befüllen
+      var item=found[0];
+      var nm=item.name||item.spiel||item.modell||"";
+      sv2("vk-produkte",nm);
+      var scanEl=document.getElementById("vk-scanid");if(scanEl){scanEl.removeAttribute("readonly");scanEl.value=detected;}
+      var pi=document.getElementById("vk-product-info");
+      if(pi){pi.textContent="✓ Gefunden: "+nm+" (Scan-ID: "+detected+")";pi.style.display="block";}
+      toast("✓ Produkt gefunden: "+nm,"ok");
+    } else {
+      // Scan-ID nicht im Lager – trotzdem eintragen
+      var scanEl2=document.getElementById("vk-scanid");if(scanEl2){scanEl2.removeAttribute("readonly");scanEl2.value=detected;}
+      var pi2=document.getElementById("vk-product-info");
+      if(pi2){pi2.textContent="⚠️ Scan-ID "+detected+" nicht im Lager gefunden – bitte Produkt manuell eingeben.";pi2.style.display="block";}
+      toast("Scan-ID erkannt: "+detected,"inf");
+    }
+    try{if(navigator.vibrate)navigator.vibrate([80]);}catch(e){}
+    return;
+  }
+  if(vkScanRunning)vkScanFrame=requestAnimationFrame(_vkScanLoop);
+}
 function saveVKForm(){
   var produkte=gv("vk-produkte").trim();
   if(!produkte){var d=document.getElementById("vk-diag");d.className="diag derr";d.textContent="Produkt ist Pflichtfeld.";d.style.display="block";return;}
