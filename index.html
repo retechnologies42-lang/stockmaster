@@ -301,8 +301,8 @@ textarea.fc{resize:vertical;min-height:72px}
   </div>
   <div class="emp-form">
     <label class="fl mb-2">E-MAIL ODER NAME</label>
-    <input type="text" id="emp-in" class="fc mb-3" placeholder="E-Mail oder Anzeigename" style="font-size:16px;padding:13px 15px" autocomplete="email"/>
-    <label class="fl mb-2">PASSWORT</label>
+    <input type="text" id="emp-in" class="fc mb-3" placeholder="E-Mail oder Name" style="font-size:16px;padding:13px 15px" autocomplete="name"/>
+    <label class="fl mb-2">ZUGANGSPASSWORT</label>
     <div style="position:relative;margin-bottom:10px">
       <input type="password" id="pw-in" class="fc" placeholder="Passwort eingeben…" style="font-size:16px;padding:13px 44px 13px 15px" autocomplete="current-password"/>
       <button type="button" onclick="togglePwVis()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text2);cursor:pointer;font-size:17px" id="pw-eye"><i class="bi bi-eye"></i></button>
@@ -1199,7 +1199,7 @@ textarea.fc{resize:vertical;min-height:72px}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-var GAS_URL = "https://script.google.com/macros/s/AKfycbzAN478RWUCDC0S3trJeUTar948I7XKNYvCiPRxWKM2zbdh2tJiIln2JuXwPxCpWA/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbyZDjA2vFbKpHHpuY2NiRTG1g4Z7YHrMNZNVDkRwGmAkxFp-rIcOxAgD4BErHJ5yg/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -2870,3 +2870,185 @@ function doLogin(){
     function(e){setBL(btn,false);showLoginErr("⚠️ Verbindungsfehler: "+String(e));}
   );
 }
+
+// ── FEATURE: FOTO-ANLEITUNG je Kategorie (Fix 4) ──────────────────
+var FOTO_GUIDES={
+  konsole:[
+    "Vorderseite der Konsole (Gesamtbild)",
+    "Beschädigte Stelle aus nächster Nähe",
+    "Anschlüsse / Ports (HDMI, USB etc.)",
+    "Seriennummer-Aufkleber (Unterseite)"
+  ],
+  handy:[
+    "Display gerade von vorne (Kratzer sichtbar?)",
+    "Rückseite (Kamera-Bereich, Gehäuse)",
+    "Seiten / Rahmen (Dellen, Kratzer)",
+    "Lade-Port aus nächster Nähe"
+  ],
+  pc:[
+    "Gesamtbild des Geräts (Vorderseite)",
+    "Beschädigte Stelle aus nächster Nähe",
+    "Alle Anschlüsse / I/O-Ports",
+    "Seriennummer-Aufkleber"
+  ],
+  defekt:[
+    "Gesamtbild des defekten Geräts",
+    "Defekte Stelle aus nächster Nähe",
+    "Zweite Perspektive des Defekts"
+  ]
+};
+
+function showPhotoGuide(type){
+  var box=document.getElementById("photo-guide-box");if(!box)return;
+  var guide=FOTO_GUIDES[type]||FOTO_GUIDES.defekt;
+  box.innerHTML='<div class="photo-guide-title"><i class="bi bi-camera-fill" style="font-size:14px"></i>Foto-Anleitung für '+type.charAt(0).toUpperCase()+type.slice(1)+'</div>'+
+    guide.map(function(g,i){return'<div class="photo-guide-item"><div class="photo-guide-num">'+(i+1)+'</div><span>'+esc(g)+'</span></div>';}).join("");
+}
+
+// ── FEATURE: PREISVORSCHLAG (Fix 8a) ──────────────────────────────
+var PREISE={
+  konsole:{Neuwertig:[180,250],Sehrg:[120,180],"Sehr gut":[120,180],Gut:[80,130],Akzeptabel:[40,80],Defekt:[10,30]},
+  spiel:{Neuwertig:[25,45],"Sehr gut":[15,25],Gut:[8,15],Akzeptabel:[3,8],Defekt:[1,3]},
+  handy:{Neuwertig:[200,400],"Sehr gut":[120,200],Gut:[70,120],Akzeptabel:[30,70],Defekt:[10,30]},
+  pc:{Neuwertig:[400,800],"Sehr gut":[250,400],Gut:[150,250],Akzeptabel:[80,150],Defekt:[20,60]}
+};
+
+function updatePriceSuggest(){
+  var box=document.getElementById("price-suggest-box"),val=document.getElementById("price-suggest-val");
+  if(!box||!val)return;
+  var zustand=gv("f-zustand")||"";
+  var cat=curType;
+  var table=PREISE[cat];
+  if(!table||!zustand){box.style.display="none";return;}
+  var range=table[zustand]||null;
+  if(!range){box.style.display="none";return;}
+  val.textContent=range[0]+"€ – "+range[1]+"€";
+  box.style.display="flex";
+}
+
+// ── FEATURE: WÖCHENTLICHER MINI-CHART (Fix 9) ─────────────────────
+function buildWeekChart(){
+  var chartEl=document.getElementById("week-chart"),labelEl=document.getElementById("week-labels");
+  var totalEl=document.getElementById("chart-total");
+  if(!chartEl||!allItems.length)return;
+  var days=["Mo","Di","Mi","Do","Fr","Sa","So"];
+  var counts=[];
+  var now=new Date();
+  var todayIdx=(now.getDay()+6)%7; // 0=Mo
+  for(var i=6;i>=0;i--){
+    var d=new Date(now);d.setDate(d.getDate()-i);
+    var ds=d.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"});
+    var cnt=allItems.filter(function(item){return item.datum&&item.datum.startsWith(ds.split(".")[0]+"."+ds.split(".")[1]);}).length;
+    counts.push({cnt:cnt,day:days[(d.getDay()+6)%7],isToday:i===0});
+  }
+  var maxCnt=Math.max.apply(null,counts.map(function(c){return c.cnt;}));
+  chartEl.innerHTML=counts.map(function(c){
+    var h=maxCnt>0?Math.max(4,Math.round((c.cnt/maxCnt)*44)):4;
+    return'<div class="mini-bar'+(c.isToday?" today":"")+(maxCnt===0?" ":" ")+'" style="height:'+h+'px" title="'+c.cnt+' Artikel"></div>';
+  }).join("");
+  labelEl.innerHTML=counts.map(function(c){
+    return'<span style="flex:1;font-size:9px;color:'+(c.isToday?'var(--green)':'var(--text3)')+';text-align:center;font-weight:'+(c.isToday?'700':'400')+'">'+c.day+'</span>';
+  }).join("");
+  var total7=counts.reduce(function(s,c){return s+c.cnt;},0);
+  if(totalEl)totalEl.textContent=total7+" diese Woche";
+}
+
+// ── FEATURE: KLEINANZEIGEN FORTSCHRITT (Fix 9) ────────────────────
+function buildKAProgress(){
+  var bar=document.getElementById("kl-bar"),pct=document.getElementById("kl-pct");
+  var done=document.getElementById("kl-done"),todo=document.getElementById("kl-todo");
+  if(!bar||!allItems.length)return;
+  var relevant=allItems.filter(function(i){return i.type!=="defekt";});
+  var hochgeladen=relevant.filter(function(i){return String(i.verfuegbarkeit||"").indexOf("Nicht")===-1&&String(i.verfuegbarkeit||"").length>0;}).length;
+  var total=relevant.length;
+  var p=total>0?Math.round((hochgeladen/total)*100):0;
+  bar.style.width=p+"%";
+  if(pct)pct.textContent=p+"% hochgeladen";
+  if(done)done.textContent=hochgeladen+" hochgeladen";
+  if(todo)todo.textContent=(total-hochgeladen)+" ausstehend";
+}
+
+// ── FEATURE: SEARCH SCANNER (Fix 6) ───────────────────────────────
+var searchScanStream=null,searchScanRunning=false,searchScanFrame=null;
+
+function openSearchScanner(){
+  var overlay=document.getElementById("search-scan-overlay");
+  overlay.classList.remove("hidden");
+  var video=document.getElementById("search-scan-video");
+  var constraints={video:firstCamDeviceId?{deviceId:{exact:firstCamDeviceId}}:{facingMode:{ideal:"environment"}}};
+  navigator.mediaDevices.getUserMedia(constraints).then(function(stream){
+    searchScanStream=stream;searchScanRunning=true;
+    video.srcObject=stream;
+    video.onloadedmetadata=function(){video.play().then(function(){searchScanLoopStart();});};
+  }).catch(function(err){
+    toast("Kamera: "+String(err),"err");
+    closeSearchScanner();
+  });
+}
+
+function closeSearchScanner(){
+  searchScanRunning=false;
+  if(searchScanFrame){cancelAnimationFrame(searchScanFrame);searchScanFrame=null;}
+  if(searchScanStream){searchScanStream.getTracks().forEach(function(t){t.stop();});searchScanStream=null;}
+  var video=document.getElementById("search-scan-video");if(video)video.srcObject=null;
+  document.getElementById("search-scan-overlay").classList.add("hidden");
+}
+
+function searchScanLoopStart(){
+  var video=document.getElementById("search-scan-video"),canvas=document.getElementById("search-scan-canvas");
+  if(!searchScanRunning)return;
+  if(!video||video.readyState<2){searchScanFrame=requestAnimationFrame(searchScanLoopStart);return;}
+  canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+  var ctx=canvas.getContext("2d");ctx.drawImage(video,0,0,canvas.width,canvas.height);
+  var reader=getZxingReader();var detected=null;
+  if(reader){try{var res=reader.decodeFromCanvas(canvas);if(res&&res.getText())detected=res.getText().trim();}catch(e){}}
+  if(detected){
+    closeSearchScanner();
+    document.getElementById("s-bc-in").value=detected;
+    doSearch();
+    toast("✓ Barcode: "+detected,"ok",2500);
+    try{if(navigator.vibrate)navigator.vibrate([80]);}catch(e){}
+    return;
+  }
+  if(searchScanRunning)searchScanFrame=requestAnimationFrame(searchScanLoopStart);
+}
+
+// ── FEATURE: SMARTE BENACHRICHTIGUNGEN (Fix 5) ────────────────────
+function runSmartNotifications(){
+  if(!allItems||allItems.length===0)return;
+  var now=new Date();
+  var nichtHochgeladen=allItems.filter(function(i){return i.type!=="defekt"&&(String(i.verfuegbarkeit||"").indexOf("Nicht")>-1||String(i.verfuegbarkeit||"").length===0);}).length;
+  // Wenn 10+ Artikel noch nicht bei Kleinanzeigen
+  if(nichtHochgeladen>=10){
+    var already=notifications.find(function(n){return n.title.indexOf("Kleinanzeigen")>-1;});
+    if(!already){addNotification("📢 Kleinanzeigen ausstehend",nichtHochgeladen+" Artikel noch nicht bei Kleinanzeigen hochgeladen.","warn");}
+  }
+  // Wöchentliche Zusammenfassung (Samstag)
+  if(now.getDay()===6){
+    var woche=allItems.filter(function(i){
+      if(!i.datum)return false;
+      var parts=i.datum.split(".");if(parts.length<3)return false;
+      var d=new Date(parts[2].split(" ")[0],parts[1]-1,parts[0]);
+      return(now-d)<7*24*60*60*1000;
+    }).length;
+    var alreadyW=notifications.find(function(n){return n.title.indexOf("Woche")>-1&&n.time&&n.time.indexOf(now.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"}))>-1;});
+    if(!alreadyW&&woche>0){addNotification("📊 Wochenrückblick","Diese Woche wurden "+woche+" Artikel eingelagert. Weiter so!","info");}
+  }
+  // Defekte ohne Bearbeitung
+  var alteDefekte=allItems.filter(function(i){
+    if(i.type!=="defekt")return false;
+    if(!i.datum)return false;
+    var parts=i.datum.split(".");if(parts.length<3)return false;
+    var d=new Date(parts[2].split(" ")[0],parts[1]-1,parts[0]);
+    return(now-d)>14*24*60*60*1000;
+  }).length;
+  if(alteDefekte>0){
+    var alreadyD=notifications.find(function(n){return n.title.indexOf("Defekte")>-1&&n.title.indexOf("Bearbeitung")>-1;});
+    if(!alreadyD){addNotification("🔧 Defekte ohne Bearbeitung",alteDefekte+" defekte Geräte warten seit über 14 Tagen auf Bearbeitung.","alert");}
+  }
+}
+</script>
+<input type="file" id="f-photo-cam"     accept="image/*" capture="environment" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0"/>
+<input type="file" id="f-photo-gallery" accept="image/*"                       style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0"/>
+</body>
+</html>
