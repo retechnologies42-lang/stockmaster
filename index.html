@@ -288,6 +288,22 @@ textarea.fc{resize:vertical;min-height:72px}
 .marge-val{font-size:22px;font-weight:800}
 .marge-pos .marge-val{color:var(--green)}
 .marge-neg .marge-val{color:var(--red)}
+/* Analyse */
+.an-table{width:100%;border-collapse:collapse;font-size:12px}
+.an-table th{background:var(--bg3);color:var(--text2);font-weight:700;padding:7px 10px;text-align:left;font-size:11px;letter-spacing:.5px;white-space:nowrap;position:sticky;top:0}
+.an-table td{padding:7px 10px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
+.an-table tr:last-child td{border-bottom:none}
+.an-pos{color:var(--green);font-weight:700}
+.an-neg{color:var(--red);font-weight:700}
+.an-bar{height:100%;border-radius:3px 3px 0 0;min-width:18px;transition:height .3s}
+.china-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:11px 13px;margin-bottom:8px;cursor:pointer}
+.china-item:hover{border-color:var(--border2)}
+/* Multi-select item */
+.vkm-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s}
+.vkm-item:hover{background:var(--bg3)}
+.vkm-item.selected{background:rgba(88,166,255,.08)}
+.vkm-check{width:20px;height:20px;border-radius:5px;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.vkm-item.selected .vkm-check{background:var(--blue);border-color:var(--blue);color:#fff;font-size:12px}
 </style>
 </head>
 <body>
@@ -334,7 +350,7 @@ textarea.fc{resize:vertical;min-height:72px}
   <button class="bnav-btn" data-tab="list-panel"><i class="bi bi-list-ul"></i>Lager</button>
   <button class="bnav-btn home-btn on" data-tab="home-panel"><div class="home-orb"><i class="bi bi-house-fill"></i></div><span>Home</span></button>
   <button class="bnav-btn" data-tab="handel-panel"><i class="bi bi-arrow-left-right"></i>Handel</button>
-  <button class="bnav-btn" data-tab="ka-panel"><i class="bi bi-megaphone-fill"></i>KA</button>
+  <button class="bnav-btn" data-tab="analyse-panel"><i class="bi bi-graph-up-arrow"></i>Analyse</button>
 </nav>
 
 <!-- HOME -->
@@ -400,6 +416,7 @@ textarea.fc{resize:vertical;min-height:72px}
       <button class="quick-btn" onclick="goTabFn('scan-panel');selCat('pc')"><div class="quick-icon" style="background:rgba(88,166,255,.15)">💻</div><div><div class="quick-text">PC / Laptop</div><div class="quick-sub">Computer</div></div></button>
       <button class="quick-btn" onclick="goTabFn('list-panel','defekt')"><div class="quick-icon" style="background:rgba(248,81,73,.15)">🔧</div><div><div class="quick-text">Defekte</div><div class="quick-sub">Alle Mängel</div></div></button>
       <button class="quick-btn" onclick="openAccModal()"><div class="quick-icon" style="background:rgba(163,113,247,.15)">👥</div><div><div class="quick-text">Mitarbeiter</div><div class="quick-sub">Accounts verwalten</div></div></button>
+      <button class="quick-btn" onclick="goTabFn('analyse-panel');setAnalyseTab('guv')" style="grid-column:1/-1"><div class="quick-icon" style="background:rgba(88,166,255,.15)">📊</div><div><div class="quick-text">Analyse & Buchhaltung</div><div class="quick-sub">Gewinn · Verlust · GuV · China</div></div></button>
     </div>
   </div>
 </div>
@@ -473,9 +490,12 @@ textarea.fc{resize:vertical;min-height:72px}
             <!-- Kamera-Vorauswahl immer sichtbar -->
             <div id="cam-preselect-row" style="margin-bottom:10px">
               <label class="fl">Kamera wählen</label>
-              <select id="cam-preselect" class="fc" style="font-size:13px;padding:9px 12px" onchange="onCamPreselect()">
-                <option value="">⏳ Lade Kameras…</option>
-              </select>
+              <div style="display:flex;gap:6px">
+                <select id="cam-preselect" class="fc" style="font-size:13px;padding:9px 12px;flex:1" onchange="onCamPreselect()">
+                  <option value="">– Kamera wählen –</option>
+                </select>
+                <button class="btn btn-outline-secondary btn-sm" onclick="refreshCamList()" title="Kameras laden"><i class="bi bi-arrow-repeat"></i></button>
+              </div>
             </div>
             <label class="fl">Barcode manuell eingeben</label>
             <div class="d-flex gap-2 mb-2">
@@ -687,20 +707,123 @@ textarea.fc{resize:vertical;min-height:72px}
   </div>
 </div>
 
-<!-- KLEINANZEIGEN PANEL -->
-<div class="panel" id="ka-panel">
+<!-- ANALYSE PANEL -->
+<div class="panel" id="analyse-panel">
   <div class="wrap">
-    <div class="d-flex gap-2 mb-3 align-items-center">
-      <input type="text" id="ka-search" class="fc" placeholder="🔍 Artikel suchen…" oninput="filterKA()"/>
-      <button class="btn btn-outline-secondary" onclick="loadAll()"><i class="bi bi-arrow-repeat"></i></button>
+
+    <!-- KPI Row -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px">
+      <div class="stat-card" style="cursor:pointer;background:var(--bg2)" onclick="renderAnalysePanel()">
+        <div class="stat-num" id="an-gewinn" style="color:var(--green)">–</div>
+        <div class="stat-label">Gesamtgewinn</div>
+        <i class="bi bi-graph-up-arrow stat-icon" style="color:var(--green)"></i>
+      </div>
+      <div class="stat-card" style="background:var(--bg2)">
+        <div class="stat-num" id="an-verlust" style="color:var(--red)">–</div>
+        <div class="stat-label">Verluste</div>
+        <i class="bi bi-graph-down-arrow stat-icon" style="color:var(--red)"></i>
+      </div>
+      <div class="stat-card" style="background:var(--bg2)">
+        <div class="stat-num" id="an-umsatz" style="color:var(--blue)">–</div>
+        <div class="stat-label">Umsatz</div>
+        <i class="bi bi-currency-euro stat-icon"></i>
+      </div>
+      <div class="stat-card" style="background:var(--bg2)">
+        <div class="stat-num" id="an-marge-avg" style="color:var(--yellow)">–</div>
+        <div class="stat-label">Ø Marge</div>
+        <i class="bi bi-percent stat-icon"></i>
+      </div>
     </div>
-    <!-- KA Status Übersicht -->
-    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:13px 16px;margin-bottom:12px;display:flex;gap:20px;align-items:center">
-      <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--green)" id="ka-done-cnt">–</div><div style="font-size:11px;color:var(--text2)">Hochgeladen</div></div>
-      <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--red)" id="ka-todo-cnt">–</div><div style="font-size:11px;color:var(--text2)">Ausstehend</div></div>
-      <div style="flex:1;background:var(--border);border-radius:99px;height:8px;overflow:hidden"><div id="ka-prog-bar" style="height:100%;background:linear-gradient(90deg,var(--green),var(--blue));border-radius:99px;transition:width .5s ease;width:0%"></div></div>
+
+    <!-- Tabs -->
+    <div class="lager-tabs" style="margin-bottom:14px">
+      <button class="ltab on" id="atab-guv"   onclick="setAnalyseTab('guv')">GuV</button>
+      <button class="ltab"    id="atab-china" onclick="setAnalyseTab('china')">🇨🇳 China</button>
+      <button class="ltab"    id="atab-ka"    onclick="setAnalyseTab('ka')">📢 KA</button>
+      <button class="ltab"    id="atab-rt"    onclick="setAnalyseTab('rt')">⚠️ Retouren</button>
     </div>
-    <div id="ka-body"><div class="empty"><i class="bi bi-megaphone"></i><p>Lade Artikel…</p></div></div>
+
+    <!-- GuV Tab -->
+    <div id="an-guv">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span class="slabel" style="margin:0">GEWINN & VERLUST</span>
+        <div style="display:flex;gap:6px">
+          <select id="an-filter-month" class="fc" style="font-size:12px;padding:5px 8px;width:auto" onchange="renderAnalysePanel()">
+            <option value="all">Gesamt</option>
+            <option value="thismonth">Dieser Monat</option>
+            <option value="lastmonth">Letzter Monat</option>
+          </select>
+          <button class="btn btn-outline-secondary btn-sm" onclick="renderAnalysePanel()"><i class="bi bi-arrow-repeat"></i></button>
+        </div>
+      </div>
+
+      <!-- Gewinn Bar Chart -->
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:13px 14px;margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:10px">MONATLICHE ENTWICKLUNG</div>
+        <div id="an-chart-bars" style="display:flex;align-items:flex-end;gap:4px;height:80px;overflow:hidden"></div>
+        <div id="an-chart-labels" style="display:flex;gap:4px;margin-top:4px"></div>
+      </div>
+
+      <!-- Verkauf Tabelle -->
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:12px">
+        <div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:11px;font-weight:700;color:var(--text2)">TOP VERKÄUFE – MARGE</div>
+        <div id="an-vk-table" style="overflow-x:auto;max-height:300px;overflow-y:auto"></div>
+      </div>
+
+      <!-- Potenzielle Verluste -->
+      <div style="background:rgba(248,81,73,.06);border:1px solid rgba(248,81,73,.2);border-radius:var(--r);padding:13px 14px;margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:8px">⚠️ VERLUSTANALYSE</div>
+        <div id="an-verlust-detail"></div>
+      </div>
+    </div>
+
+    <!-- China Import Tab -->
+    <div id="an-china" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span class="slabel" style="margin:0">CHINA-IMPORTE</span>
+        <button class="btn btn-primary btn-sm" onclick="openChinaForm()"><i class="bi bi-plus-lg me-1"></i>Import erfassen</button>
+      </div>
+      <!-- China KPIs -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px;text-align:center">
+          <div style="font-size:18px;font-weight:800;color:var(--blue)" id="cn-total-cost">–</div>
+          <div style="font-size:10px;color:var(--text3)">Gesamtkosten</div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px;text-align:center">
+          <div style="font-size:18px;font-weight:800;color:var(--yellow)" id="cn-total-zoll">–</div>
+          <div style="font-size:10px;color:var(--text3)">Zoll gesamt</div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px;text-align:center">
+          <div style="font-size:18px;font-weight:800;color:var(--orange)" id="cn-total-fracht">–</div>
+          <div style="font-size:10px;color:var(--text3)">Frachtkosten</div>
+        </div>
+      </div>
+      <div id="an-china-list"></div>
+    </div>
+
+    <!-- KA Status Tab -->
+    <div id="an-ka" style="display:none">
+      <div class="d-flex gap-2 mb-3 align-items-center">
+        <input type="text" id="ka-search" class="fc" placeholder="🔍 Artikel suchen…" oninput="filterKA()"/>
+        <button class="btn btn-outline-secondary" onclick="loadAll();renderKAPanel();"><i class="bi bi-arrow-repeat"></i></button>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:13px 16px;margin-bottom:12px;display:flex;gap:20px;align-items:center">
+        <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--green)" id="ka-done-cnt">–</div><div style="font-size:11px;color:var(--text2)">Hochgeladen</div></div>
+        <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--red)" id="ka-todo-cnt">–</div><div style="font-size:11px;color:var(--text2)">Ausstehend</div></div>
+        <div style="flex:1;background:var(--border);border-radius:99px;height:8px;overflow:hidden"><div id="ka-prog-bar" style="height:100%;background:linear-gradient(90deg,var(--green),var(--blue));border-radius:99px;transition:width .5s ease;width:0%"></div></div>
+      </div>
+      <div id="ka-body"></div>
+    </div>
+
+    <!-- Retouren Tab -->
+    <div id="an-rt" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span class="slabel" style="margin:0">REKLAMATIONEN</span>
+        <button class="btn btn-outline-danger btn-sm" onclick="openRTModal(null)"><i class="bi bi-plus-lg me-1"></i>Neue Reklamation</button>
+      </div>
+      <div id="an-rt-list"></div>
+    </div>
+
   </div>
 </div>
 
@@ -729,9 +852,12 @@ textarea.fc{resize:vertical;min-height:72px}
         <div class="step-sub">Aus dem Lager auswählen oder Barcode scannen.</div>
         <div style="display:flex;gap:6px;margin-bottom:8px">
           <input type="text" id="vk-produkte" class="fc" placeholder="Produktname…" style="flex:1"/>
-          <button type="button" onclick="openVKProductPicker()" class="btn btn-outline-primary btn-sm"><i class="bi bi-box-seam"></i></button>
-          <button type="button" onclick="openVKScanner()" class="btn btn-outline-secondary btn-sm"><i class="bi bi-upc-scan"></i></button>
+          <button type="button" onclick="openVKMultiSelect()" class="btn btn-outline-success btn-sm" title="Mehrere Artikel wählen"><i class="bi bi-collection"></i></button>
+          <button type="button" onclick="openVKProductPicker()" class="btn btn-outline-primary btn-sm" title="Aus Lager"><i class="bi bi-box-seam"></i></button>
+          <button type="button" onclick="openVKScanner()" class="btn btn-outline-secondary btn-sm" title="Scannen"><i class="bi bi-upc-scan"></i></button>
         </div>
+        <!-- Selected multi items -->
+        <div id="vk-multi-chips" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px"></div>
         <div id="vk-product-info" style="display:none;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);padding:8px 11px;font-size:12px;color:var(--text2);margin-bottom:8px"></div>
         <input type="hidden" id="vk-scanid"/>
         <div class="row g-2">
@@ -996,6 +1122,61 @@ textarea.fc{resize:vertical;min-height:72px}
   </div>
 </div>
 
+
+<!-- CHINA IMPORT MODAL -->
+<div class="moverlay" id="china-modal">
+  <div class="msheet">
+    <div class="mhead"><h3>🇨🇳 China-Import erfassen</h3><button class="btn btn-sm btn-outline-secondary" onclick="closeChinaModal()"><i class="bi bi-x-lg"></i></button></div>
+    <div class="mbody">
+      <div class="diag" id="china-diag"></div>
+      <div class="row g-2 mb-2">
+        <div class="col-8"><label class="fl">Beschreibung *</label><input type="text" id="cn-desc" class="fc" placeholder="z.B. 50x iPhone Hüllen"/></div>
+        <div class="col-4"><label class="fl">Anzahl</label><input type="number" id="cn-qty" class="fc" placeholder="50"/></div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-4"><label class="fl">Warenwert (€)</label><input type="number" id="cn-wert" class="fc" placeholder="0.00" oninput="calcChinaCosts()"/></div>
+        <div class="col-4"><label class="fl">Frachtkosten (€)</label><input type="number" id="cn-fracht" class="fc" placeholder="0.00" oninput="calcChinaCosts()"/></div>
+        <div class="col-4"><label class="fl">Zoll (€)</label><input type="number" id="cn-zoll" class="fc" placeholder="0.00" oninput="calcChinaCosts()"/></div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-6"><label class="fl">Lieferant / Plattform</label><input type="text" id="cn-supplier" class="fc" placeholder="z.B. Alibaba, 1688"/></div>
+        <div class="col-6"><label class="fl">Status</label>
+          <select id="cn-status" class="fc"><option>Bestellt</option><option>Unterwegs</option><option>Angekommen</option><option>Eingelagert</option></select>
+        </div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-6"><label class="fl">Bestelldatum</label><input type="date" id="cn-date" class="fc"/></div>
+        <div class="col-6"><label class="fl">Tracking-Nr.</label><input type="text" id="cn-track" class="fc" placeholder="optional"/></div>
+      </div>
+      <div id="cn-cost-summary" style="display:none;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);padding:10px 13px;margin-top:8px;font-size:13px">
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Gesamtkosten:</span><span style="font-weight:700;color:var(--text)" id="cn-total-preview">–</span></div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px"><span style="color:var(--text2)">Kosten/Stück:</span><span style="font-weight:700;color:var(--yellow)" id="cn-per-item">–</span></div>
+      </div>
+      <div class="mb-2 mt-2"><label class="fl">Hinweise</label><textarea id="cn-notes" class="fc" rows="2"></textarea></div>
+    </div>
+    <div class="mfoot">
+      <button class="btn btn-outline-danger btn-sm" id="cn-del-btn" style="display:none" onclick="deleteChinaEntry()"><i class="bi bi-trash3"></i></button>
+      <button class="btn btn-outline-secondary btn-sm" onclick="closeChinaModal()">Abbrechen</button>
+      <button class="btn btn-primary fw-bold" onclick="saveChinaEntry()"><i class="bi bi-cloud-upload-fill me-1"></i>Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- MULTI-SELECT VERKAUF OVERLAY -->
+<div class="moverlay" id="vk-multi-overlay">
+  <div class="msheet" style="max-height:80vh;display:flex;flex-direction:column">
+    <div class="mhead"><h3>📦 Artikel für Verkauf wählen</h3><button class="btn btn-sm btn-outline-secondary" onclick="closeVKMulti()"><i class="bi bi-x-lg"></i></button></div>
+    <div style="padding:10px 14px;border-bottom:1px solid var(--border)">
+      <input type="text" id="vkm-search" class="fc" placeholder="🔍 Suchen…" oninput="filterVKMulti()"/>
+    </div>
+    <div id="vkm-list" style="overflow-y:auto;flex:1;padding:8px"></div>
+    <div style="padding:12px 14px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:13px;color:var(--text2)"><span id="vkm-cnt">0</span> ausgewählt · EK: <span id="vkm-ek-total" style="color:var(--yellow)">0€</span></span>
+      <button class="btn btn-success fw-bold" onclick="applyVKMulti()"><i class="bi bi-check-lg me-1"></i>Übernehmen</button>
+    </div>
+  </div>
+</div>
+
 <!-- NOTIFICATIONS -->
 <!-- PROFIL OVERLAY -->
 <div class="detail-overlay" id="profil-overlay">
@@ -1010,7 +1191,8 @@ textarea.fc{resize:vertical;min-height:72px}
       <div style="font-size:12px;color:var(--text3)">Mitarbeiter</div>
     </div>
     <!-- Stats -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:20px" id="profil-stats-grid">
+    <div style="font-size:10px;color:var(--text3);text-align:center;margin-bottom:6px">📅 Gesamt seit Account-Erstellung</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px" id="profil-stats-grid">
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;text-align:center">
         <div style="font-size:22px;font-weight:800;color:var(--blue)" id="ps-eingelagert">–</div>
         <div style="font-size:10px;color:var(--text3)">Eingelagert</div>
@@ -1022,6 +1204,17 @@ textarea.fc{resize:vertical;min-height:72px}
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;text-align:center">
         <div style="font-size:22px;font-weight:800;color:var(--red)" id="ps-retouren">–</div>
         <div style="font-size:10px;color:var(--text3)">Retouren</div>
+      </div>
+    </div>
+    <!-- 7-day stats -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px">
+      <div style="background:var(--bg2);border:1px solid rgba(88,166,255,.2);border-radius:var(--r-sm);padding:12px;text-align:center">
+        <div style="font-size:20px;font-weight:800;color:var(--blue)" id="ps-7d-eingelagert">–</div>
+        <div style="font-size:10px;color:var(--text3)">Eingelagert (7 Tage)</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid rgba(63,185,80,.2);border-radius:var(--r-sm);padding:12px;text-align:center">
+        <div style="font-size:20px;font-weight:800;color:var(--green)" id="ps-7d-verkauft">–</div>
+        <div style="font-size:10px;color:var(--text3)">Verkäufe (7 Tage)</div>
       </div>
     </div>
     <!-- Aktivitätslog -->
@@ -1152,31 +1345,57 @@ textarea.fc{resize:vertical;min-height:72px}
 <!-- ACCOUNT MODAL -->
 <div class="moverlay" id="acc-modal">
   <div class="msheet">
-    <div class="mhead"><h3>👥 Mitarbeiter-Accounts</h3><button class="btn btn-sm btn-outline-secondary" onclick="closeAccModal()"><i class="bi bi-x-lg"></i></button></div>
-    <div class="mbody">
-      <div class="diag" id="acc-diag"></div>
-      <!-- Bestehende Accounts -->
-      <div id="acc-list" style="margin-bottom:14px"></div>
-      <!-- Neuen Account einladen (Owner only) -->
-      <div style="border-top:1px solid var(--border);padding-top:14px">
-        <span class="slabel">NEUEN MITARBEITER EINLADEN</span>
-        <div class="mb-2"><label class="fl">Name *</label><input type="text" id="acc-name-in" class="fc" placeholder="Vorname Nachname"/></div>
-        <div class="mb-2"><label class="fl">E-Mail *</label><input type="email" id="acc-email-in" class="fc" placeholder="mitarbeiter@email.de"/></div>
-        <div class="mb-3"><label class="fl">Rolle</label>
-          <select id="acc-rolle-in" class="fc">
-            <option value="mitarbeiter">Mitarbeiter</option>
-            <option value="senior">Senior Mitarbeiter</option>
-            <option value="owner">Inhaber</option>
-          </select>
+    <div class="mhead"><h3>👥 Team & Accounts</h3><button class="btn btn-sm btn-outline-secondary" onclick="closeAccModal()"><i class="bi bi-x-lg"></i></button></div>
+    <div class="mbody" style="padding:0">
+
+      <!-- Tabs inside modal -->
+      <div style="display:flex;border-bottom:1px solid var(--border)">
+        <button id="acctab-team" onclick="setAccTab('team')" style="flex:1;padding:11px 6px;border:none;background:var(--bg3);font-family:var(--font);font-size:12px;font-weight:700;color:var(--blue);cursor:pointer;border-bottom:2px solid var(--blue)">👥 Team</button>
+        <button id="acctab-invite" onclick="setAccTab('invite')" style="flex:1;padding:11px 6px;border:none;background:none;font-family:var(--font);font-size:12px;font-weight:700;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent" class="owner-only-inline">➕ Einladen</button>
+        <button id="acctab-reports" onclick="setAccTab('reports')" style="flex:1;padding:11px 6px;border:none;background:none;font-family:var(--font);font-size:12px;font-weight:700;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent">📊 Berichte</button>
+      </div>
+
+      <div style="padding:14px">
+        <div class="diag" id="acc-diag"></div>
+
+        <!-- TEAM TAB -->
+        <div id="accpanel-team">
+          <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text3);margin-bottom:10px">AKTIVE MITARBEITER</div>
+          <div id="acc-list">
+            <div style="text-align:center;padding:20px;color:var(--text3);font-size:13px"><span class="spin-b"></span> Lade…</div>
+          </div>
         </div>
-        <button class="btn btn-primary w-100 fw-bold" onclick="sendInvite()"><i class="bi bi-envelope-fill me-2"></i>Einladung per E-Mail senden</button>
-        <div style="margin-top:10px;padding:10px 12px;background:var(--bg3);border-radius:var(--r-sm);font-size:11px;color:var(--text3)">
-          💡 Der Mitarbeiter erhält eine E-Mail mit Aktivierungslink. Kein Passwort nötig.
+
+        <!-- INVITE TAB (owner only) -->
+        <div id="accpanel-invite" style="display:none">
+          <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text3);margin-bottom:12px">NEUEN MITARBEITER PER E-MAIL EINLADEN</div>
+          <div class="mb-2"><label class="fl">Name *</label><input type="text" id="acc-name-in" class="fc" placeholder="Vorname Nachname" autocomplete="off"/></div>
+          <div class="mb-2"><label class="fl">E-Mail *</label><input type="email" id="acc-email-in" class="fc" placeholder="mitarbeiter@email.de"/></div>
+          <div class="mb-3"><label class="fl">Rolle</label>
+            <select id="acc-rolle-in" class="fc">
+              <option value="mitarbeiter">Mitarbeiter</option>
+              <option value="senior">Senior Mitarbeiter</option>
+              <option value="owner">Inhaber</option>
+            </select>
+          </div>
+          <button class="btn btn-primary w-100 fw-bold mb-2" onclick="sendInvite()"><i class="bi bi-envelope-fill me-2"></i>Einladung senden</button>
+          <div style="background:var(--bg3);border-radius:var(--r-sm);padding:10px 12px;font-size:11px;color:var(--text3);line-height:1.6">
+            Der Mitarbeiter erhält eine E-Mail mit Aktivierungslink. Er legt dort sein Passwort fest und stimmt der Haftungsklausel zu.
+          </div>
         </div>
-        <!-- PDF Export Button -->
-        <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
-          <span class="slabel">BERICHTE</span>
-          <button class="btn btn-outline-secondary w-100" onclick="triggerPDFExport()"><i class="bi bi-file-pdf-fill me-2" style="color:var(--red)"></i>Monatsbericht jetzt senden</button>
+
+        <!-- REPORTS TAB -->
+        <div id="accpanel-reports" style="display:none">
+          <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text3);margin-bottom:12px">BUCHHALTUNG & BERICHTE</div>
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:13px;margin-bottom:10px">
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">📄 Monatsbericht</div>
+            <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Verkauf + Einkauf als PDF an ReTechnologies42@gmail.com</div>
+            <button class="btn btn-outline-secondary w-100 btn-sm" onclick="triggerPDFExport()"><i class="bi bi-file-pdf-fill me-2" style="color:var(--red)"></i>Jetzt senden</button>
+          </div>
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:13px">
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">🔔 Automatischer Versand</div>
+            <div style="font-size:12px;color:var(--text2)">Jeden 1. des Monats automatisch (GAS-Trigger muss einmalig eingerichtet sein)</div>
+          </div>
         </div>
       </div>
     </div>
@@ -1199,7 +1418,7 @@ textarea.fc{resize:vertical;min-height:72px}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-var GAS_URL = "https://script.google.com/macros/s/AKfycbyZDjA2vFbKpHHpuY2NiRTG1g4Z7YHrMNZNVDkRwGmAkxFp-rIcOxAgD4BErHJ5yg/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbyw4Qx0tWyZl2W2bczzud_Izh4Q4VVZbN5A8rlD3Y8GyLw9UPeR0dOOncfqeMCG_w/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -1286,7 +1505,7 @@ function setGreeting(){var h=new Date().getHours(),g,emoji;if(h>=5&&h<10){g="GUT
 function updateMyStats(){if(!emp)return;var today=new Date().toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"});var total=0,todayCount=0,defekte=0;allItems.forEach(function(item){if((item.mitarbeiter||"").toLowerCase()===emp.toLowerCase()){total++;if(item.datum&&item.datum.startsWith(today.split(".")[0]+"."+today.split(".")[1]))todayCount++;}if(item.type==="defekt"&&(item.mitarbeiter||"").toLowerCase()===emp.toLowerCase())defekte++;});var t=document.getElementById("my-total");if(t)t.textContent=total;var td=document.getElementById("my-today");if(td)td.textContent=todayCount;var df=document.getElementById("my-defekte");if(df)df.textContent=defekte;var nf=document.getElementById("my-notifs");if(nf)nf.textContent=notifications.length;}
 
 // ── TABS ─────────────────────────────────────────────────────────
-document.querySelectorAll(".bnav-btn").forEach(function(b){b.addEventListener("click",function(){document.querySelectorAll(".bnav-btn").forEach(function(x){x.classList.remove("on");});document.querySelectorAll(".panel").forEach(function(x){x.classList.remove("on");});b.classList.add("on");var p=document.getElementById(b.dataset.tab);if(p)p.classList.add("on");if(b.dataset.tab==="home-panel"){setGreeting();loadStats();}if(b.dataset.tab==="list-panel"&&allItems.length===0)loadAll();if(b.dataset.tab==="search-panel"){initSearch();if(allItems.length===0){loadAll();setTimeout(function(){if(allItems.length>0)renderSearchResults(allItems);},2500);}else{renderSearchResults(allItems);}}if(b.dataset.tab==="handel-panel"){loadHandel();}if(b.dataset.tab==="ka-panel"){renderKAPanel();}});});
+document.querySelectorAll(".bnav-btn").forEach(function(b){b.addEventListener("click",function(){document.querySelectorAll(".bnav-btn").forEach(function(x){x.classList.remove("on");});document.querySelectorAll(".panel").forEach(function(x){x.classList.remove("on");});b.classList.add("on");var p=document.getElementById(b.dataset.tab);if(p)p.classList.add("on");if(b.dataset.tab==="home-panel"){setGreeting();loadStats();}if(b.dataset.tab==="list-panel"&&allItems.length===0)loadAll();if(b.dataset.tab==="search-panel"){initSearch();if(allItems.length===0){loadAll();setTimeout(function(){if(allItems.length>0)renderSearchResults(allItems);},2500);}else{renderSearchResults(allItems);}}if(b.dataset.tab==="handel-panel"){loadHandel();}if(b.dataset.tab==="analyse-panel"){renderAnalysePanel();}});});
 function goTabFn(id,lfMode){document.querySelectorAll(".bnav-btn").forEach(function(b){b.classList.toggle("on",b.dataset.tab===id);});document.querySelectorAll(".panel").forEach(function(p){p.classList.toggle("on",p.id===id);});if(lfMode){lf=lfMode;renderList();}if(id==="list-panel"&&allItems.length===0)loadAll();if(id==="home-panel"){setGreeting();loadStats();}}
 
 // ── STATS ─────────────────────────────────────────────────────────
@@ -1647,6 +1866,8 @@ function resetToMode(){
   document.getElementById("cat-chooser").style.display="none";
   document.getElementById("sw-sub").style.display="none";
   document.getElementById("main-stepper").style.display="none";
+  // Hide handel scan wrap
+  var hw=document.getElementById("handel-scan-wrap");if(hw)hw.style.display="none";
   isEditMode=false;editingItem=null;
   resetStepperState();
 }
@@ -2535,6 +2756,13 @@ function openProfilFor(name) {
   var pe = document.getElementById("ps-eingelagert"); if(pe) pe.textContent = stat ? (stat.eingelagert||0) : "–";
   var pv = document.getElementById("ps-verkauft"); if(pv) pv.textContent = stat ? (stat.verkauft||0) : "–";
   var pr = document.getElementById("ps-retouren"); if(pr) pr.textContent = stat ? (stat.retouren||0) : "–";
+  // 7-day stats
+  var sevenAgo=new Date();sevenAgo.setDate(sevenAgo.getDate()-7);
+  var ein7=0,vk7=0;
+  allItems.forEach(function(item){if((item.mitarbeiter||"").toLowerCase()!==name.toLowerCase())return;if(!item.datum)return;var pts=item.datum.split(".");if(pts.length<3)return;var dd=new Date(pts[2].split(" ")[0],pts[1]-1,pts[0]);if(dd>=sevenAgo)ein7++;});
+  (allVerkauf||[]).forEach(function(v){if((v.mitarbeiter||"").toLowerCase()!==name.toLowerCase())return;if(!v.datum)return;var pts=v.datum.split(".");if(pts.length<3)return;var dd=new Date(pts[2].split(" ")[0],pts[1]-1,pts[0]);if(dd>=sevenAgo)vk7++;});
+  var p7e=document.getElementById("ps-7d-eingelagert");if(p7e)p7e.textContent=ein7;
+  var p7v=document.getElementById("ps-7d-verkauft");if(p7v)p7v.textContent=vk7;
   // Load activity log
   var logEl = document.getElementById("profil-log");
   if (logEl) logEl.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center;padding:8px"><span class="spin-b"></span> Lade…</div>';
@@ -2600,24 +2828,49 @@ function saveRTForm() {
 // GLOBAL CAMERA PICKER
 // ================================================================
 function initGlobalCamList() {
-  navigator.mediaDevices.enumerateDevices().then(function(devices) {
+  _fillCamSelects();
+}
+
+function refreshCamList() {
+  // Request camera permission first (needed to get labels)
+  navigator.mediaDevices.getUserMedia({video:true}).then(function(stream){
+    stream.getTracks().forEach(function(t){t.stop();});
+    _fillCamSelects();
+  }).catch(function(){_fillCamSelects();});
+}
+
+function _fillCamSelects() {
+  if(!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+  navigator.mediaDevices.enumerateDevices().then(function(devices){
     var vids = devices.filter(function(d){return d.kind==="videoinput";});
-    var sel = document.getElementById("global-cam-select");
-    var pre = document.getElementById("cam-preselect");
-    [sel, pre].forEach(function(el) {
-      if (!el) return;
-      el.innerHTML = "";
-      if (!vids.length) { el.innerHTML = '<option value="">Keine Kamera</option>'; return; }
-      vids.forEach(function(d,i) {
+    var targets = [
+      document.getElementById("cam-preselect"),
+      document.getElementById("global-cam-select")
+    ];
+    targets.forEach(function(sel){
+      if(!sel) return;
+      var prev = sel.value;
+      sel.innerHTML = "";
+      if(!vids.length){
+        sel.innerHTML='<option value="">Keine Kamera gefunden</option>';
+        return;
+      }
+      vids.forEach(function(d,i){
         var opt = document.createElement("option");
         opt.value = d.deviceId;
-        var lbl = d.label || ("Kamera " + (i+1));
+        var lbl = d.label || ("Kamera "+(i+1));
         var back = /back|rear|environment|rück/i.test(lbl);
-        opt.textContent = (back ? "🔙 " : "🤳 ") + lbl;
-        if (i===0 || back) opt.selected = true;
-        el.appendChild(opt);
+        opt.textContent = (back?"🔙 ":"🤳 ")+lbl;
+        if(d.deviceId===prev) opt.selected=true;
+        sel.appendChild(opt);
       });
-      if (!firstCamDeviceId && el.value) firstCamDeviceId = el.value;
+      // Auto-select back camera if nothing was previously selected
+      if(!prev){
+        var backOpt = Array.from(sel.options).find(function(o){return /back|rear|environment|rück/i.test(o.textContent);});
+        if(backOpt) backOpt.selected=true;
+        else if(sel.options.length>0) sel.options[0].selected=true;
+      }
+      if(sel.value && !firstCamDeviceId) firstCamDeviceId=sel.value;
     });
   }).catch(function(){});
 }
@@ -2678,8 +2931,26 @@ function calcAndShowMarge() {
 // PHASE 2: ACCOUNT SYSTEM
 // ================================================================
 function openAccModal(){
+  setAccTab("team");
   loadServerAccounts();
   document.getElementById("acc-modal").classList.add("open");
+  // Show/hide invite tab based on role
+  var inviteTab = document.getElementById("acctab-invite");
+  if(inviteTab) inviteTab.style.display = empRolle==="owner" ? "block" : "none";
+}
+
+function setAccTab(tab){
+  ["team","invite","reports"].forEach(function(t){
+    var btn = document.getElementById("acctab-"+t);
+    var panel = document.getElementById("accpanel-"+t);
+    var isActive = t===tab;
+    if(btn){
+      btn.style.background = isActive?"var(--bg3)":"none";
+      btn.style.color = isActive?"var(--blue)":"var(--text3)";
+      btn.style.borderBottom = isActive?"2px solid var(--blue)":"2px solid transparent";
+    }
+    if(panel) panel.style.display = isActive?"block":"none";
+  });
 }
 // closeAccModal replaced by Phase 2 version
 
@@ -2690,6 +2961,7 @@ function loadServerAccounts(){
   },function(){});
 }
 
+function renderAccList(accs){renderServerAccounts(accs);}
 function renderServerAccounts(accs){
   var list=document.getElementById("acc-list");
   if(!accs.length){list.innerHTML='<div style="font-size:12px;color:var(--text3);text-align:center;padding:10px">Noch keine Accounts angelegt.</div>';return;}
@@ -3047,6 +3319,29 @@ function runSmartNotifications(){
     if(!alreadyD){addNotification("🔧 Defekte ohne Bearbeitung",alteDefekte+" defekte Geräte warten seit über 14 Tagen auf Bearbeitung.","alert");}
   }
 }
+
+// ================================================================
+// CHINA ENTRIES - localStorage persistence
+// ================================================================
+function loadChinaEntries(){
+  try{var s=localStorage.getItem("smp_china");if(s)chinaEntries=JSON.parse(s)||[];}catch(e){}
+}
+
+window.addEventListener("load",function(){
+  var no=document.getElementById("notif-overlay");if(no)no.addEventListener("click",function(e){if(e.target===this)closeNotifications();});
+  var dm=document.getElementById("del-modal");if(dm)dm.addEventListener("click",function(e){if(e.target===this)closeDelModal();});
+  var am=document.getElementById("acc-modal");if(am)am.addEventListener("click",function(e){if(e.target===this)closeAccModal();});
+  var vm2=document.getElementById("vk-modal");if(vm2)vm2.addEventListener("click",function(e){if(e.target===this)closeVKModal();});
+  var em=document.getElementById("ek-modal");if(em)em.addEventListener("click",function(e){if(e.target===this)closeEKModal();});
+  var rt=document.getElementById("rt-modal");if(rt)rt.addEventListener("click",function(e){if(e.target===this)closeRTModal();});
+  var cm=document.getElementById("china-modal");if(cm)cm.addEventListener("click",function(e){if(e.target===this)closeChinaModal();});
+  var vmo=document.getElementById("vk-multi-overlay");if(vmo)vmo.addEventListener("click",function(e){if(e.target===this)closeVKMulti();});
+  initEmp();initSearch();loadNotifications();loadChinaEntries();
+  setTimeout(initGlobalCamList,300);
+  setTimeout(runSmartNotifications,3000);
+  setInterval(runSmartNotifications,24*60*60*1000);
+});
+
 </script>
 <input type="file" id="f-photo-cam"     accept="image/*" capture="environment" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0"/>
 <input type="file" id="f-photo-gallery" accept="image/*"                       style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0"/>
