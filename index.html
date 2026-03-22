@@ -1008,7 +1008,7 @@ textarea.fc{resize:vertical;min-height:72px}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-var GAS_URL = "https://script.google.com/macros/s/AKfycbwSXqWi2PYQAzdEvjwNSHdgeqVsYNJPHM-B-XhWkQda2O8oEJu0oCykjY4loHXYCQ/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbw1tp1zfb7PHeoaIxfaPUlxNLTkYPwAbnQoQQVu30XsATi047lpQIrb50p4r8aB6A/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -1492,10 +1492,6 @@ function initCamPreselect(){
     if(sel2)sel2.innerHTML='<option value="">Bitte Kamerazugriff erlauben</option>';
   });
 }
-function onCamPreselect(){
-  var sel=document.getElementById("cam-preselect");
-  if(sel&&sel.value){firstCamDeviceId=sel.value;}
-}
 
 // ================================================================
 // HANDEL: VERKAUF + EINKAUF
@@ -1588,40 +1584,7 @@ function openHandelEdit(type,idx){
 }
 
 // VERKAUF FORM
-function openVerkaufForm(item, prefillScanId){
-  editVerkaufItem=item||null;
-  var title=document.getElementById("vk-modal-title");
-  if(title)title.textContent=item?"✏️ Verkauf bearbeiten":"💸 Verkauf eintragen";
-  var delBtn=document.getElementById("vk-del-btn");if(delBtn)delBtn.style.display=item?"inline-flex":"none";
-  // Fill form
-  sv2("vk-produkte",item?item.produkte:"");
-  sv2("vk-scanid",item?item.scanId:(prefillScanId||""));
-  sv2("vk-kunde",item?item.kunde:"");
-  sv2("vk-preis",item?item.preis:"");
-  sv2("vk-plattform",item?item.plattform:"Kleinanzeigen");
-  sv2("vk-status",item?item.status:"Vorgemerkt");
-  sv2("vk-bestellnr",item?item.bestellnr:"");
-  sv2("vk-versand",item?item.versand:"");
-  sv2("vk-sende",item?item.sendenummer:"");
-  sv2("vk-vdl",item?item.versanddienstleister:"");
-  sv2("vk-geld",item?item.geldErhalten:"");
-  sv2("vk-bezahlt",item?item.schonBezahlt:"");
-  sv2("vk-abholung",item?item.abholung:"NEIN");
-  sv2("vk-lieferstatus",item?item.lieferstatus:"Ausstehend");
-  sv2("vk-ma",item?item.mitarbeiter:emp);
-  sv2("vk-hinweise",item?item.hinweise:"");
-  // Fix 4: lieferstatus dynamic init
-  sv2("vk-lieferstatus",item?item.lieferstatus:"In Bearbeitung");
-  sv2("vk-sende",item?item.sendenummer:"");
-  sv2("vk-vdl",item?item.versanddienstleister:"");
-  // Clear product info
-  var pi=document.getElementById("vk-product-info");if(pi){pi.style.display="none";pi.textContent="";}
-  if(item&&item.scanId){document.getElementById("vk-scanid").removeAttribute("readonly");}
-  else{document.getElementById("vk-scanid").setAttribute("readonly","");}
-  onVKLieferstatusChange();
-  var d=document.getElementById("vk-diag");if(d)d.style.display="none";
-  document.getElementById("vk-modal").classList.add("open");
-}
+
 function closeVKModal(){document.getElementById("vk-modal").classList.remove("open");editVerkaufItem=null;}
 
 // Fix 4: Lieferstatus dynamisch – Sendenummer-Feld erscheint bei Versendet+
