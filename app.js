@@ -1,1894 +1,3190 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
-<meta http-equiv="Permissions-Policy" content="camera=*"/>
-<title>StockMaster Pro</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"/>
-<script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.4/umd/index.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
-<style>
-/* ═══════════════════════════════════════════════════════
-   STOCKMASTER PRO  ·  v4.0
-   Aesthetic: High-Contrast Warehouse Terminal
-   Font: Bebas Neue (display) + Manrope (body) + Space Mono (data)
-   Palette: Chalk-white on carbon-black with neon accents
-   Reference: Bloomberg Terminal × Figma Dark × Raycast
-═══════════════════════════════════════════════════════ */
-:root{
-  /* Core surfaces — true blacks */
-  --b0:#000000;
-  --b1:#0a0a0a;
-  --b2:#111111;
-  --b3:#1a1a1a;
-  --b4:#222222;
-  --b5:#2d2d2d;
+var GAS_URL = "https://script.google.com/macros/s/AKfycbxt8GfGWKLeeWs1OPMc3rJOmWwsCL3BHYFePag-kUPes5PJV6L7y5nNycHycGQf/exec";
 
-  /* Borders */
-  --e1:#1e1e1e;
-  --e2:#2a2a2a;
-  --e3:#383838;
+// ── STATE ─────────────────────────────────────────────────────────
+var emp="", allItems=[], lf="all", cardRegistry=[];
+var camStream=null, camAnimFrame=null, camRunning=false, camDevices=[];
+var firstCamDeviceId=null; // FIX: speichert DeviceId von Kamera 0
+var scanMode="einlagern"; // "einlagern" | "verkauf" | "einkauf"
+var curCat="", curType="";
+var stepCur=1, stepTotal=5;
+var probChoice=null, probType=null;
+var photos=[];
+var editingItem=null, isEditMode=false;
+var testRowNum=-1, timerInterval=null;
+var SNAMES={konsole:["Barcode","Name","Details","Mängel","Mitarbeiter"],spiel:["Barcode","Titel","Details","Mängel","Mitarbeiter"],handy:["Barcode","Modell","Details","Mängel","Mitarbeiter"],pc:["Barcode","Modell","Details","Mängel","Mitarbeiter"]};
 
-  /* Text */
-  --w1:#ffffff;
-  --w2:#c8c8c8;
-  --w3:#707070;
-  --w4:#383838;
-
-  /* Accent — single electric green like terminals */
-  --acc:#00ff88;
-  --acc-d:rgba(0,255,136,.08);
-  --acc-b:rgba(0,255,136,.2);
-
-  /* Status colors — muted but readable */
-  --col-g:#00ff88;
-  --col-r:#ff3b3b;
-  --col-y:#ffcc00;
-  --col-b:#4d9fff;
-  --col-p:#b57bff;
-  --col-t:#00d4d4;
-
-  /* Backward compat */
-  --bg:var(--b1);--bg1:var(--b1);--bg2:var(--b2);--bg3:var(--b3);--bg4:var(--b4);
-  --border:var(--e1);--border2:var(--e2);--border3:var(--e3);
-  --text:var(--w1);--text2:var(--w2);--text3:var(--w3);
-  --blue:var(--col-b);--blue-d:rgba(77,159,255,.08);--blue-g:rgba(77,159,255,.08);
-  --green:var(--col-g);--mint:var(--col-g);--mint-d:rgba(0,255,136,.08);
-  --red:var(--col-r);--rose:var(--col-r);--red-d:rgba(255,59,59,.08);--rose-d:rgba(255,59,59,.08);
-  --amber:var(--col-y);--yellow:var(--col-y);--orange:var(--col-y);--amber-d:rgba(255,204,0,.08);
-  --purple:var(--col-p);--violet:var(--col-p);--violet-d:rgba(181,123,255,.08);
-  --teal:var(--col-t);--sky:var(--col-b);--sky-d:rgba(77,159,255,.08);--sky-b:rgba(77,159,255,.2);
-  --ink:var(--b0);--ink1:var(--b1);--ink2:var(--b2);--ink3:var(--b3);
-  --line:var(--e1);--line2:var(--e2);--line3:var(--e3);
-  --t1:var(--w1);--t2:var(--w2);--t3:var(--w3);
-  --c-sw:var(--col-y);--c-h:var(--col-g);--c-pc:var(--col-b);--c-def:var(--col-r);
-
-  --font:'Manrope',system-ui,sans-serif;
-  --fh:'Bebas Neue','Manrope',sans-serif;
-  --fm:'Space Mono',monospace;
-  --mono:'Space Mono',monospace;
-  --r:6px;--r-sm:4px;--r-lg:10px;--r-xl:14px;
-  --shadow:0 2px 12px rgba(0,0,0,.8);
-  --shadow-lg:0 8px 40px rgba(0,0,0,.9);
+// ================================================================
+// API CALLS
+// GET  → kleine Requests ohne Fotos (login, stats, laden, löschen)
+// POST → save/update mit Fotos (Base64 zu groß für URL)
+// ================================================================
+function gasGet(action, data, onSuccess, onError) {
+  var params = Object.assign({action: action}, data || {});
+  var urlParams = [];
+  for (var k in params) {
+    var v = params[k];
+    if (v !== null && v !== undefined && typeof v === "object") v = JSON.stringify(v);
+    urlParams.push(encodeURIComponent(k) + "=" + encodeURIComponent(String(v == null ? "" : v)));
+  }
+  fetch(GAS_URL + "?" + urlParams.join("&"), {method:"GET"})
+    .then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})
+    .then(function(result){if(onSuccess)onSuccess(result);})
+    .catch(function(e){if(onError)onError(String(e));else toast("Fehler: "+e,"err");});
 }
 
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{-webkit-tap-highlight-color:transparent}
-body{
-  background:var(--b0);color:var(--w1);
-  font-family:'Manrope',system-ui,sans-serif;
-  font-size:14px;line-height:1.5;
-  min-height:100vh;overflow-x:hidden;
-  -webkit-font-smoothing:antialiased;
-}
-::-webkit-scrollbar{width:2px;height:2px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--e3);border-radius:2px}
-
-/* ── TOPBAR ─────────────────────────────────────── */
-.topbar{
-  position:sticky;top:0;z-index:60;
-  height:50px;padding:0 14px;
-  background:rgba(0,0,0,.95);
-  backdrop-filter:blur(20px);
-  border-bottom:1px solid var(--e1);
-  display:flex;align-items:center;justify-content:space-between;
-}
-.brand{display:flex;align-items:center;gap:10px}
-.brand-icon{
-  width:28px;height:28px;border-radius:5px;
-  background:var(--acc);
-  display:flex;align-items:center;justify-content:center;
-  font-size:13px;
-  box-shadow:0 0 12px rgba(0,255,136,.3);
-}
-.brand-name{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;color:var(--w1);line-height:1}
-.brand-version{font-family:'Space Mono',monospace;font-size:9px;color:var(--w4);letter-spacing:1px;margin-top:-1px}
-.topbar-right{display:flex;align-items:center;gap:8px}
-.emp-chip{
-  display:flex;align-items:center;gap:7px;
-  background:transparent;border:1px solid var(--e2);
-  border-radius:4px;padding:5px 10px 5px 7px;
-  cursor:pointer;transition:all .12s;
-  font-size:12px;font-weight:600;color:var(--w3);
-  font-family:'Manrope',sans-serif;
-}
-.emp-chip:hover{border-color:var(--e3);color:var(--w1)}
-.notif-btn{
-  width:30px;height:30px;border-radius:4px;
-  background:transparent;border:1px solid var(--e2);
-  display:flex;align-items:center;justify-content:center;
-  cursor:pointer;transition:all .12s;color:var(--w4);font-size:15px;position:relative;
-}
-.notif-btn:hover{border-color:var(--acc);color:var(--acc)}
-.notif-badge{
-  position:absolute;top:-4px;right:-4px;
-  background:var(--col-r);color:#fff;
-  border-radius:3px;min-width:15px;height:15px;
-  font-size:8px;font-weight:700;font-family:'Space Mono',monospace;
-  display:none;align-items:center;justify-content:center;
-  border:1.5px solid var(--b0);padding:0 2px;
+function gasPost(action, data, onSuccess, onError) {
+  var payload = Object.assign({action: action}, data || {});
+  fetch(GAS_URL, {
+    method: "POST",
+    headers: {"Content-Type": "text/plain"},
+    body: JSON.stringify(payload)
+  })
+  .then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})
+  .then(function(result){if(onSuccess)onSuccess(result);})
+  .catch(function(e){if(onError)onError(String(e));else toast("Fehler: "+e,"err");});
 }
 
-/* ── BOTTOM NAV ─────────────────────────────────── */
-.bottom-nav{
-  position:fixed;bottom:0;left:0;right:0;
-  height:56px;
-  background:rgba(0,0,0,.97);
-  border-top:1px solid var(--e1);
-  display:flex;align-items:stretch;z-index:60;
-}
-.bnav-btn{
-  flex:1;border:none;background:none;
-  color:var(--w4);
-  font-family:'Manrope',sans-serif;font-size:9px;font-weight:600;
-  cursor:pointer;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
-  transition:color .12s;letter-spacing:.8px;text-transform:uppercase;
-}
-.bnav-btn i{font-size:17px}
-.bnav-btn.on{color:var(--acc)}
-.home-btn{position:relative;padding-top:0;justify-content:flex-end;padding-bottom:5px}
-.home-orb{
-  width:40px;height:40px;border-radius:50%;
-  background:var(--acc);
-  display:flex;align-items:center;justify-content:center;
-  margin-top:-12px;
-  box-shadow:0 0 0 3px var(--b0),0 0 20px rgba(0,255,136,.4);
-  transition:all .2s;
-}
-.home-orb i{font-size:18px;color:#000}
-.home-btn span{font-size:9px;font-weight:600;color:var(--w4);margin-top:3px;letter-spacing:.8px;text-transform:uppercase}
-.home-btn.on span{color:var(--acc)}
-.home-btn.on .home-orb{box-shadow:0 0 0 3px var(--b0),0 0 28px rgba(0,255,136,.6)}
-
-/* ── PANELS ─────────────────────────────────────── */
-.panel{display:none;padding-bottom:72px}.panel.on{display:block}
-.wrap{max-width:560px;margin:0 auto;padding:14px 12px}
-
-/* ── SECTION HEADER ─────────────────────────────── */
-.sec-head{
-  font-family:'Bebas Neue',sans-serif;
-  font-size:11px;letter-spacing:3px;color:var(--w4);
-  margin-bottom:10px;display:flex;align-items:center;gap:8px;
-  text-transform:uppercase;
-}
-.sec-head::after{content:"";flex:1;height:1px;background:var(--e1)}
-
-/* ── CARDS ──────────────────────────────────────── */
-.card{
-  background:var(--b2);border:1px solid var(--e1);
-  border-radius:var(--r-lg);overflow:hidden;margin-bottom:9px;
-}
-.card-head{
-  padding:10px 13px;border-bottom:1px solid var(--e1);
-  display:flex;align-items:center;justify-content:space-between;
-}
-.card-head h2{font-size:13px;font-weight:700;color:var(--w1);margin:0;letter-spacing:.3px}
-.card-body{padding:13px}
-
-/* ── FORM ───────────────────────────────────────── */
-.slabel{
-  font-size:9px;font-weight:700;letter-spacing:1.5px;
-  text-transform:uppercase;color:var(--w4);
-  margin-bottom:8px;display:block;font-family:'Space Mono',monospace;
-}
-.fl{font-size:11px;font-weight:600;color:var(--w3);display:block;margin-bottom:4px;letter-spacing:.2px}
-.fc{
-  background:var(--b1);border:1px solid var(--e2);
-  color:var(--w1);border-radius:var(--r);
-  padding:9px 12px;font-family:'Manrope',sans-serif;font-size:13px;
-  width:100%;transition:border-color .12s,box-shadow .12s;
-  outline:none;-webkit-appearance:none;
-}
-.fc:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(0,255,136,.1)}
-.fc::placeholder{color:var(--w4)}
-select.fc option{background:var(--b2)}
-textarea.fc{resize:vertical;min-height:66px}
-
-/* ── BUTTONS ────────────────────────────────────── */
-.btn{font-family:'Manrope',sans-serif!important;font-size:12px!important;font-weight:700!important;letter-spacing:.3px!important}
-.btn-sm{font-size:11px!important;padding:5px 10px!important}
-.btn-primary{background:var(--acc)!important;border-color:var(--acc)!important;color:#000!important}
-.btn-primary:hover{background:#00e67a!important;border-color:#00e67a!important}
-.btn-success{background:var(--acc)!important;border-color:var(--acc)!important;color:#000!important}
-.btn-success:hover{background:#00e67a!important}
-.btn-danger{background:var(--col-r)!important;border-color:var(--col-r)!important;color:#fff!important}
-.btn-outline-secondary{border-color:var(--e2)!important;color:var(--w3)!important;background:transparent!important}
-.btn-outline-secondary:hover{background:var(--b3)!important;color:var(--w1)!important;border-color:var(--e3)!important}
-.btn-outline-primary{border-color:rgba(0,255,136,.3)!important;color:var(--acc)!important;background:transparent!important}
-.btn-outline-primary:hover{background:rgba(0,255,136,.06)!important}
-.btn-outline-danger{border-color:rgba(255,59,59,.3)!important;color:var(--col-r)!important;background:transparent!important}
-.btn-outline-danger:hover{background:rgba(255,59,59,.07)!important}
-.btn-outline-success{border-color:rgba(0,255,136,.3)!important;color:var(--acc)!important;background:transparent!important}
-.btn-outline-success:hover{background:rgba(0,255,136,.06)!important}
-
-/* ── CHOICE BUTTONS ─────────────────────────────── */
-.cbtn{
-  border:1px solid var(--e2);border-radius:var(--r);
-  background:var(--b1);padding:12px 8px;
-  font-family:'Manrope',sans-serif;font-weight:600;font-size:12px;
-  cursor:pointer;transition:all .12s;
-  text-align:center;display:flex;flex-direction:column;
-  align-items:center;gap:5px;color:var(--w3);
-}
-.cbtn .ci{font-size:20px}
-.cbtn:hover,.cbtn.sel{border-color:var(--acc);background:var(--acc-d);color:var(--acc)}
-.cbtn.sel-g,.cbtn.vk-sel{border-color:rgba(0,255,136,.3);background:rgba(0,255,136,.06);color:var(--acc)}
-.cbtn.sel-r{border-color:rgba(255,59,59,.3);background:rgba(255,59,59,.06);color:var(--col-r)}
-.cg2{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:4px}
-
-/* ── KPI STRIP ──────────────────────────────────── */
-.kpi-strip{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-.kpi-tile{
-  background:var(--b2);border:1px solid var(--e1);
-  border-radius:var(--r-lg);padding:13px 12px 10px;
-  position:relative;overflow:hidden;cursor:pointer;
-  transition:border-color .15s;
-}
-.kpi-tile:hover{border-color:var(--e2)}
-.kpi-tile::before{
-  content:"";position:absolute;bottom:0;left:0;right:0;height:2px;
-  background:var(--kpi-col,var(--e2));
-}
-.kpi-n{
-  font-family:'Bebas Neue',sans-serif;
-  font-size:36px;line-height:1;margin-bottom:2px;
-  color:var(--kpi-col,var(--w1));letter-spacing:1px;
-}
-.kpi-l{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--w4);font-family:'Space Mono',monospace}
-.kpi-ic{position:absolute;right:8px;top:8px;font-size:20px;opacity:.04}
-.kpi-wide{grid-column:1/-1}
-
-/* ── GREETING ───────────────────────────────────── */
-.greeting{
-  padding:16px 13px;margin-bottom:12px;
-  background:var(--b2);border:1px solid var(--e1);
-  border-radius:var(--r-lg);position:relative;overflow:hidden;
-}
-.greeting::before{
-  content:"";position:absolute;inset:0;
-  background:repeating-linear-gradient(90deg,transparent,transparent 40px,rgba(0,255,136,.015) 40px,rgba(0,255,136,.015) 41px),
-             repeating-linear-gradient(0deg,transparent,transparent 40px,rgba(0,255,136,.015) 40px,rgba(0,255,136,.015) 41px);
-  pointer-events:none;
-}
-.g-time{
-  font-family:'Space Mono',monospace;font-size:10px;
-  letter-spacing:2px;text-transform:uppercase;color:var(--acc);
-  margin-bottom:4px;
-}
-.g-name{
-  font-family:'Bebas Neue',sans-serif;
-  font-size:36px;letter-spacing:3px;color:var(--w1);line-height:1;margin-bottom:2px;
-}
-.g-sub{font-size:12px;color:var(--w3);font-weight:500}
-
-/* ── QUICK ACTION GRID ──────────────────────────── */
-.quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px}
-.quick-btn{
-  background:var(--b2);border:1px solid var(--e1);
-  border-radius:var(--r-lg);padding:13px 11px;
-  cursor:pointer;transition:all .15s;
-  display:flex;align-items:center;gap:10px;text-align:left;
-  font-family:'Manrope',sans-serif;
-}
-.quick-btn:hover{border-color:var(--acc);background:var(--acc-d)}
-.quick-icon{
-  width:36px;height:36px;border-radius:var(--r);
-  display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;
-  background:var(--b3);
-}
-.quick-btn:hover .quick-icon{background:rgba(0,255,136,.12)}
-.quick-text{font-size:12px;font-weight:700;color:var(--w1);line-height:1.2;letter-spacing:.1px}
-.quick-sub{font-size:10px;color:var(--w3);margin-top:1px}
-
-/* ── LAGER ITEMS ────────────────────────────────── */
-.ic{
-  background:var(--b2);border:1px solid var(--e1);
-  border-left:3px solid var(--e1);
-  border-radius:var(--r-lg);padding:11px 12px;
-  margin-bottom:7px;transition:all .12s;cursor:pointer;
-}
-.ic:hover{border-left-color:var(--acc);background:var(--b3)}
-.ic.type-konsole{border-left-color:var(--col-y)}
-.ic.type-spiel{border-left-color:var(--col-y)}
-.ic.type-handy{border-left-color:var(--col-g)}
-.ic.type-pc{border-left-color:var(--col-b)}
-.ic.type-defekt{border-left-color:var(--col-r)}
-.ic-top{display:flex;align-items:flex-start;justify-content:space-between;gap:7px;margin-bottom:6px}
-.ic-name{font-size:14px;font-weight:700;color:var(--w1);letter-spacing:-.1px}
-.ic-badge{
-  font-size:8px;font-weight:700;padding:2px 6px;border-radius:3px;
-  text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;
-  font-family:'Space Mono',monospace;
-}
-.ib-k,.ib-sp{background:rgba(255,204,0,.1);color:var(--col-y)}
-.ib-h{background:rgba(0,255,136,.1);color:var(--acc)}
-.ib-pc{background:rgba(77,159,255,.1);color:var(--col-b)}
-.ib-def{background:rgba(255,59,59,.1);color:var(--col-r)}
-
-/* ── CHIPS ──────────────────────────────────────── */
-.chips{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}
-.chip{
-  background:var(--b3);border:1px solid var(--e1);
-  border-radius:3px;padding:2px 6px;
-  font-size:10px;color:var(--w4);
-  display:flex;align-items:center;gap:3px;
-  font-family:'Space Mono',monospace;
-}
-.chip b{color:var(--w2);font-weight:400}
-.av-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:3px;font-size:9px;font-weight:700;font-family:'Space Mono',monospace;letter-spacing:.5px}
-.av-v{background:rgba(0,255,136,.1);color:var(--acc)}
-.av-n{background:rgba(255,59,59,.1);color:var(--col-r)}
-.ic-actions{display:flex;gap:5px;justify-content:flex-end;margin-top:5px}
-
-/* ── TABS ───────────────────────────────────────── */
-.lager-tabs{
-  display:flex;background:var(--b1);
-  border:1px solid var(--e1);border-radius:var(--r);
-  overflow:hidden;margin-bottom:12px;
-}
-.ltab{
-  flex:1;padding:8px 3px;border:none;background:none;
-  font-family:'Manrope',sans-serif;font-size:10px;font-weight:700;
-  color:var(--w4);cursor:pointer;transition:all .12s;text-align:center;
-  letter-spacing:.5px;text-transform:uppercase;
-}
-.ltab.on{background:var(--b3);color:var(--w1)}
-
-/* ── PROGRESS ───────────────────────────────────── */
-.prog-wrap{padding:11px 13px 0}
-.prog-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
-.prog-label{font-size:9px;font-weight:700;color:var(--w4);font-family:'Space Mono',monospace;letter-spacing:.5px;text-transform:uppercase}
-.prog-name{font-size:9px;font-weight:700;color:var(--acc);font-family:'Space Mono',monospace}
-.progress{height:1px;background:var(--e2);border-radius:99px;overflow:hidden}
-.progress-bar{height:100%;background:var(--acc);border-radius:99px;transition:width .4s cubic-bezier(.4,0,.2,1)}
-.step-dots{display:flex;gap:4px;justify-content:center;padding:7px 0 9px}
-.sdot{width:4px;height:4px;border-radius:50%;background:var(--e2);transition:all .3s}
-.sdot.done{background:var(--acc);opacity:.3}
-.sdot.act{width:12px;border-radius:2px;background:var(--acc)}
-
-/* ── STEPPER ────────────────────────────────────── */
-.step{display:none;animation:sIn .15s ease}.step.on{display:block}
-@keyframes sIn{from{opacity:0;transform:translateX(4px)}to{opacity:1;transform:translateX(0)}}
-.step-title{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;color:var(--w1);margin-bottom:2px}
-.step-sub{font-size:12px;color:var(--w3);margin-bottom:14px;font-weight:500}
-
-/* ── CAT GRID ───────────────────────────────────── */
-.cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px}
-.cat-btn{
-  border:1px solid var(--e2);border-radius:var(--r-lg);
-  background:var(--b1);padding:16px 8px;
-  font-family:'Bebas Neue',sans-serif;font-weight:400;font-size:16px;letter-spacing:1.5px;
-  cursor:pointer;transition:all .12s;
-  text-align:center;display:flex;flex-direction:column;
-  align-items:center;gap:7px;color:var(--w4);
-}
-.cat-btn .ci{font-size:28px}
-.cat-btn.cb-sw:hover,.cat-btn.cb-sw.sel{border-color:var(--col-y);background:rgba(255,204,0,.06);color:var(--col-y)}
-.cat-btn.cb-h:hover,.cat-btn.cb-h.sel{border-color:var(--acc);background:var(--acc-d);color:var(--acc)}
-.cat-btn.cb-pc:hover,.cat-btn.cb-pc.sel{border-color:var(--col-b);background:rgba(77,159,255,.06);color:var(--col-b)}
-
-/* ── AV ROW ─────────────────────────────────────── */
-.av-row{display:flex;border-radius:var(--r);overflow:hidden;border:1px solid var(--e2)}
-.av-btn{flex:1;padding:9px;background:var(--b1);border:none;font-family:'Manrope',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .12s;color:var(--w4);text-align:center}
-.av-btn.on-v{background:rgba(0,255,136,.08);color:var(--acc)}
-.av-btn.on-n{background:rgba(255,59,59,.07);color:var(--col-r)}
-
-/* ── PHOTO ZONE ─────────────────────────────────── */
-.photo-zone{border:1px dashed var(--e2);border-radius:var(--r);background:var(--b1);overflow:hidden}
-.pz-top{padding:16px;text-align:center;cursor:pointer;transition:background .12s}
-.pz-top:hover{background:var(--acc-d)}
-.pz-top i{font-size:24px;color:var(--w4);display:block;margin-bottom:5px;opacity:.5}
-.pz-top .pz-l{font-size:12px;font-weight:600;color:var(--w3)}
-.pz-top .pz-s{font-size:10px;color:var(--w4);margin-top:2px}
-.pz-btns{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--e1)}
-.pz-btn{padding:9px;background:none;border:none;font-family:'Manrope',sans-serif;font-size:12px;font-weight:600;color:var(--acc);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:background .12s}
-.pz-btn:first-child{border-right:1px solid var(--e1)}.pz-btn:hover{background:var(--acc-d)}
-.photo-main-preview{border-radius:var(--r);overflow:hidden;position:relative;margin-top:8px}
-.photo-main-preview img{width:100%;max-height:200px;object-fit:cover;display:block}
-.rm-main-photo{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.8);color:#fff;border:none;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:'Manrope',sans-serif;font-weight:600}
-.photo-thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
-.photo-thumb{width:60px;height:60px;border-radius:var(--r);overflow:hidden;position:relative;border:1px solid var(--e2)}
-.photo-thumb img{width:100%;height:100%;object-fit:cover;display:block}
-.rm-thumb{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.8);color:#fff;border:none;border-radius:3px;width:15px;height:15px;font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.add-thumb{width:60px;height:60px;border-radius:var(--r);border:1px dashed var(--e2);background:var(--b1);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--w4);font-size:20px;transition:all .12s}
-.add-thumb:hover{border-color:var(--acc);color:var(--acc);background:var(--acc-d)}
-
-/* ── CARD PHOTOS ────────────────────────────────── */
-.card-fotos{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
-.card-foto{width:54px;height:54px;border-radius:var(--r);overflow:hidden;border:1px solid var(--e1);cursor:pointer;transition:border-color .12s}
-.card-foto:hover{border-color:var(--acc)}
-.card-foto img{width:100%;height:100%;object-fit:cover;display:block}
-
-/* ── LIGHTBOX ───────────────────────────────────── */
-.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.97);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;cursor:pointer}
-.lightbox img{max-width:100%;max-height:90vh;border-radius:var(--r)}
-
-/* ── TOASTS ─────────────────────────────────────── */
-#toasts{position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;width:90%;max-width:320px}
-.tm{padding:9px 14px;border-radius:var(--r);font-size:12px;font-weight:700;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow-lg);animation:tIn .2s ease;pointer-events:none;font-family:'Space Mono',monospace;letter-spacing:.3px}
-@keyframes tIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
-.tok{background:#001a0d;border:1px solid var(--acc);color:var(--acc)}
-.terr{background:#1a0000;border:1px solid var(--col-r);color:var(--col-r)}
-.tinf{background:#00091a;border:1px solid var(--col-b);color:var(--col-b)}
-
-/* ── DIAGNOSTIC ─────────────────────────────────── */
-.diag{padding:8px 12px;border-radius:var(--r);font-size:12px;font-weight:600;margin-bottom:8px;display:none;line-height:1.5;font-family:'Space Mono',monospace;font-size:11px}
-.dok{background:rgba(0,255,136,.06);color:var(--acc);border:1px solid rgba(0,255,136,.2)}
-.derr{background:rgba(255,59,59,.06);color:var(--col-r);border:1px solid rgba(255,59,59,.2)}
-.dinf{background:rgba(77,159,255,.06);color:var(--col-b);border:1px solid rgba(77,159,255,.2)}
-
-/* ── MODALS ─────────────────────────────────────── */
-.moverlay{
-  position:fixed;inset:0;background:rgba(0,0,0,.8);
-  z-index:200;display:flex;align-items:flex-end;
-  padding:10px;opacity:0;pointer-events:none;
-  transition:opacity .2s;backdrop-filter:blur(4px);
-}
-.moverlay.open{opacity:1;pointer-events:all}
-.msheet{
-  background:var(--b2);border:1px solid var(--e2);
-  border-radius:var(--r-xl) var(--r-xl) var(--r-lg) var(--r-lg);
-  width:100%;max-width:520px;margin:0 auto;
-  max-height:88vh;overflow-y:auto;
-  box-shadow:var(--shadow-lg);
-  animation:sheetUp .2s cubic-bezier(.4,0,.2,1);
-}
-@keyframes sheetUp{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
-.mhead{
-  padding:12px 14px;border-bottom:1px solid var(--e1);
-  display:flex;align-items:center;justify-content:space-between;
-  position:sticky;top:0;background:var(--b2);z-index:1;
-}
-.mhead h3{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1.5px;color:var(--w1);margin:0}
-.mbody{padding:14px}
-.mfoot{
-  padding:10px 14px;border-top:1px solid var(--e1);
-  display:flex;gap:7px;justify-content:flex-end;
-  position:sticky;bottom:0;background:var(--b2);
+// Automatisch POST wenn Fotos enthalten, sonst GET
+function gasCall(action, data, onSuccess, onError) {
+  var hasFotos = data && Array.isArray(data.fotos) && data.fotos.length > 0;
+  if (hasFotos) {
+    gasPost(action, data, onSuccess, onError);
+  } else {
+    gasGet(action, data, onSuccess, onError);
+  }
 }
 
-/* ── SPINNERS ───────────────────────────────────── */
-.spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.1);border-top-color:var(--acc);border-radius:50%;animation:rot .6s linear infinite;display:inline-block;vertical-align:middle}
-.spin-b{width:13px;height:13px;border:2px solid var(--e2);border-top-color:var(--acc);border-radius:50%;animation:rot .6s linear infinite;display:inline-block;vertical-align:middle}
-@keyframes rot{to{transform:rotate(360deg)}}
-
-/* ── TIMER ──────────────────────────────────────── */
-.test-timer-box{background:rgba(181,123,255,.06);border:1px solid rgba(181,123,255,.2);border-radius:var(--r);padding:10px 12px;margin-top:8px;display:none}
-.test-timer-box.show{display:block}
-.timer-bar-wrap{background:var(--e2);border-radius:99px;height:3px;overflow:hidden;margin-top:6px}
-.timer-bar{height:100%;background:var(--col-p);border-radius:99px;transition:width .1s linear}
-
-/* ── EMPTY ──────────────────────────────────────── */
-.empty{text-align:center;padding:40px 16px}
-.empty i{font-size:36px;opacity:.1;display:block;margin-bottom:8px;color:var(--w1)}
-.empty p{font-size:11px;color:var(--w4);font-family:'Space Mono',monospace;letter-spacing:.5px}
-
-/* ── PHOTO GUIDE ────────────────────────────────── */
-.photo-guide{background:var(--b3);border:1px solid var(--e2);border-radius:var(--r);padding:11px 12px;margin-bottom:10px}
-.photo-guide-title{font-size:10px;font-weight:700;color:var(--acc);margin-bottom:6px;display:flex;align-items:center;gap:5px;font-family:'Space Mono',monospace;letter-spacing:.5px;text-transform:uppercase}
-.photo-guide-item{display:flex;align-items:flex-start;gap:6px;margin-bottom:4px;font-size:11px;color:var(--w3)}
-.photo-guide-num{width:15px;height:15px;background:var(--acc);color:#000;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0;font-family:'Space Mono',monospace}
-
-/* ── BADGES ─────────────────────────────────────── */
-.price-badge{background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.2);border-radius:var(--r);padding:9px 12px;margin-top:8px;display:flex;align-items:center;justify-content:space-between}
-.price-badge .pv{font-size:18px;font-weight:700;color:var(--acc);font-family:'Space Mono',monospace}
-.price-badge .pl{font-size:10px;color:var(--w4);font-family:'Space Mono',monospace}
-.marge-badge{padding:9px 12px;border-radius:var(--r);margin-top:8px;text-align:center}
-.marge-pos{background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.2)}
-.marge-neg{background:rgba(255,59,59,.06);border:1px solid rgba(255,59,59,.2)}
-.marge-val{font-size:20px;font-weight:700;font-family:'Space Mono',monospace}
-.marge-pos .marge-val{color:var(--acc)}
-.marge-neg .marge-val{color:var(--col-r)}
-
-/* ── ACCOUNTS ───────────────────────────────────── */
-.acc-item{background:var(--b3);border:1px solid var(--e1);border-radius:var(--r);padding:10px 12px;margin-bottom:7px;display:flex;align-items:center;justify-content:space-between}
-.acc-avatar{width:30px;height:30px;border-radius:50%;background:var(--b4);border:1px solid var(--acc);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--acc);flex-shrink:0;font-family:'Space Mono',monospace}
-
-/* ── NOTIFICATIONS ──────────────────────────────── */
-.notif-overlay{position:fixed;top:0;right:0;bottom:0;width:min(300px,100%);background:var(--b1);border-left:1px solid var(--e1);z-index:300;transform:translateX(100%);transition:transform .25s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column}
-.notif-overlay.open{transform:translateX(0)}
-.notif-panel{display:flex;flex-direction:column;height:100%}
-.notif-head{padding:12px 14px;border-bottom:1px solid var(--e1);display:flex;align-items:center;justify-content:space-between}
-.notif-head h3{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--w1);margin:0}
-.notif-list{flex:1;overflow-y:auto;padding:10px}
-.notif-item{background:var(--b3);border:1px solid var(--e1);border-left:3px solid var(--e3);border-radius:var(--r);padding:10px 12px;margin-bottom:7px;position:relative}
-.notif-item.alert{border-left-color:var(--col-r)}
-.notif-item.warn{border-left-color:var(--col-y)}
-.notif-item.info{border-left-color:var(--acc)}
-.notif-title{font-size:12px;font-weight:700;color:var(--w1);margin-bottom:2px}
-.notif-body{font-size:11px;color:var(--w3);line-height:1.5}
-.notif-time{font-size:9px;color:var(--w4);margin-top:4px;font-family:'Space Mono',monospace}
-.notif-rm{position:absolute;top:7px;right:7px;background:none;border:none;color:var(--w4);cursor:pointer;font-size:12px;padding:2px}
-.notif-empty{text-align:center;padding:40px 16px}
-.notif-empty i{font-size:32px;opacity:.1;display:block;margin-bottom:8px;color:var(--w1)}
-
-/* ── HANDEL CARDS ───────────────────────────────── */
-.handel-card{background:var(--b2);border:1px solid var(--e1);border-left:3px solid var(--e1);border-radius:var(--r-lg);padding:12px 13px;margin-bottom:7px;transition:border-color .12s}
-.handel-card:hover{border-left-color:var(--acc)}
-.hc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:7px;margin-bottom:6px}
-.hc-name{font-size:13px;font-weight:700;color:var(--w1)}
-.status-badge{padding:2px 6px;border-radius:3px;font-size:9px;font-weight:700;white-space:nowrap;font-family:'Space Mono',monospace;letter-spacing:.5px;text-transform:uppercase}
-.sb-vorgemerkt{background:rgba(181,123,255,.1);color:var(--col-p)}
-.sb-aktiv,.sb-bestellt{background:rgba(77,159,255,.1);color:var(--col-b)}
-.sb-bezahlt,.sb-verkauft,.sb-abgeschlossen{background:rgba(0,255,136,.1);color:var(--acc)}
-.sb-versendet,.sb-unterwegs,.sb-angekommen{background:rgba(255,204,0,.1);color:var(--col-y)}
-.sb-zugestellt{background:rgba(0,255,136,.1);color:var(--acc)}
-.sb-storniert,.sb-problem{background:rgba(255,59,59,.1);color:var(--col-r)}
-.ls-dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex-shrink:0}
-.ls-ausstehend{background:var(--w4)}
-.ls-inbearbeitung{background:var(--col-y)}
-.ls-versendet,.ls-unterwegs{background:var(--col-b)}
-.ls-zugestellt{background:var(--acc)}
-.ls-problem{background:var(--col-r)}
-
-/* ── KA ITEMS ───────────────────────────────────── */
-.ka-item{background:var(--b2);border:1px solid var(--e1);border-radius:var(--r-lg);padding:10px 12px;margin-bottom:7px;display:flex;align-items:center;justify-content:space-between;gap:8px}
-.ka-item.ka-done{border-left:3px solid var(--acc)}
-.ka-item.ka-todo{border-left:3px solid var(--e2)}
-.ka-toggle{background:none;border:1px solid var(--e2);border-radius:var(--r);padding:5px 10px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;cursor:pointer;transition:all .12s;color:var(--w4);text-transform:uppercase;letter-spacing:.5px}
-.ka-toggle.done{border-color:rgba(0,255,136,.3);color:var(--acc);background:rgba(0,255,136,.06)}
-
-/* ── ANALYSE ────────────────────────────────────── */
-.an-table{width:100%;border-collapse:collapse;font-size:11px;font-family:'Space Mono',monospace}
-.an-table th{background:var(--b3);color:var(--w4);font-weight:700;padding:6px 9px;text-align:left;font-size:8px;letter-spacing:1px;white-space:nowrap;position:sticky;top:0;text-transform:uppercase}
-.an-table td{padding:7px 9px;border-bottom:1px solid var(--e1);color:var(--w1);vertical-align:middle}
-.an-table tr:last-child td{border-bottom:none}
-.an-pos{color:var(--acc);font-weight:700}
-.an-neg{color:var(--col-r);font-weight:700}
-.an-bar{border-radius:3px 3px 0 0;min-width:14px;transition:height .3s}
-.china-item{background:var(--b2);border:1px solid var(--e1);border-radius:var(--r-lg);padding:11px 13px;margin-bottom:7px;cursor:pointer;transition:border-color .12s}
-.china-item:hover{border-color:var(--acc)}
-
-/* ── MULTI-SELECT ───────────────────────────────── */
-.vkm-item{display:flex;align-items:center;gap:9px;padding:9px 11px;border-bottom:1px solid var(--e1);cursor:pointer;transition:background .1s}
-.vkm-item:hover{background:var(--b3)}
-.vkm-item.selected{background:var(--acc-d)}
-.vkm-check{width:17px;height:17px;border-radius:3px;border:1px solid var(--e2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;font-family:'Space Mono',monospace}
-.vkm-item.selected .vkm-check{background:var(--acc);border-color:var(--acc);color:#000}
-
-/* ── UPLOAD ─────────────────────────────────────── */
-.upload-item{background:var(--b2);border:1px solid var(--e1);border-radius:var(--r);padding:10px 12px;margin-bottom:7px;display:flex;align-items:center;gap:9px}
-.upload-item-check{width:18px;height:18px;border-radius:4px;border:1px solid var(--e2);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer}
-.upload-item-check.checked{background:var(--acc);border-color:var(--acc);color:#000;font-size:10px}
-
-/* ── DETAIL OVERLAY ─────────────────────────────── */
-.detail-overlay{position:fixed;inset:0;background:var(--b0);z-index:300;overflow-y:auto;display:none}
-.detail-overlay.open{display:block}
-.detail-hero{width:100%;aspect-ratio:4/3;background:var(--b2);position:relative;overflow:hidden}
-.detail-hero img{width:100%;height:100%;object-fit:cover}
-.detail-hero-empty{display:flex;align-items:center;justify-content:center;background:var(--b2);color:var(--w4);font-size:44px;width:100%;aspect-ratio:4/3}
-.detail-photos{display:flex;gap:6px;padding:8px 12px;overflow-x:auto;background:var(--b1)}
-.detail-photo-thumb{width:50px;height:50px;border-radius:var(--r);overflow:hidden;flex-shrink:0;cursor:pointer;border:2px solid transparent}
-.detail-photo-thumb.active{border-color:var(--acc)}
-.detail-photo-thumb img{width:100%;height:100%;object-fit:cover}
-.detail-body{padding:14px 13px}
-.detail-title{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:var(--w1);margin-bottom:3px}
-.detail-price{font-size:22px;font-weight:700;color:var(--acc);margin-bottom:1px;font-family:'Space Mono',monospace}
-.detail-price-sub{font-size:10px;color:var(--w4);margin-bottom:12px;font-family:'Space Mono',monospace}
-.detail-spec{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--e1);font-size:12px}
-.detail-spec-key{color:var(--w4);font-weight:600}
-.detail-spec-val{color:var(--w1);font-weight:700;text-align:right;font-family:'Space Mono',monospace;font-size:11px}
-
-/* ── SCAN OVERLAY ───────────────────────────────── */
-.scan-overlay{position:fixed;inset:0;background:rgba(0,0,0,.97);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
-.scan-overlay.hidden{display:none}
-.scan-overlay-video{width:100%;max-width:360px;border-radius:var(--r-lg);overflow:hidden;position:relative}
-.scan-overlay-video video{width:100%;display:block;max-height:60vh;object-fit:cover}
-.scan-overlay-frame{position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center}
-.scan-overlay-frame div{width:65%;height:65%;border:2px solid var(--acc);border-radius:var(--r);box-shadow:0 0 0 2000px rgba(0,0,0,.5),0 0 20px rgba(0,255,136,.3)}
-
-/* ── LOG ────────────────────────────────────────── */
-.log-item{padding:6px 0;border-bottom:1px solid var(--e1);display:flex;gap:8px;align-items:flex-start}
-.log-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;margin-top:5px}
-.log-lager{background:var(--col-b)}
-.log-verkauf{background:var(--acc)}
-.log-einkauf{background:var(--col-y)}
-.log-retoure{background:var(--col-r)}
-.log-auth,.log-system,.log-info{background:var(--w4)}
-
-/* ── PERF ───────────────────────────────────────── */
-.perf-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--e1)}
-.perf-row:last-child{border-bottom:none}
-.perf-avatar{width:26px;height:26px;border-radius:50%;background:var(--b4);border:1px solid var(--acc);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--acc);flex-shrink:0;cursor:pointer;font-family:'Space Mono',monospace}
-.perf-bar-wrap{flex:1;background:var(--e1);border-radius:99px;height:2px;overflow:hidden}
-.perf-bar{height:100%;background:var(--acc);border-radius:99px;transition:width .4s}
-
-/* ── LOGIN ──────────────────────────────────────── */
-#emp-scr{position:fixed;inset:0;background:var(--b0);z-index:9000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
-#emp-scr::before{content:"";position:fixed;inset:0;background:repeating-linear-gradient(90deg,transparent,transparent 60px,rgba(0,255,136,.012) 60px,rgba(0,255,136,.012) 61px),repeating-linear-gradient(0deg,transparent,transparent 60px,rgba(0,255,136,.012) 60px,rgba(0,255,136,.012) 61px);pointer-events:none}
-#emp-scr.hidden{display:none}
-.emp-hero{text-align:center;margin-bottom:28px;position:relative}
-.ehi{font-size:40px;display:block;margin-bottom:8px}
-.emp-hero h1{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:6px;color:var(--w1);margin-bottom:2px}
-.emp-hero p{font-size:11px;color:var(--w4);font-family:'Space Mono',monospace;letter-spacing:1px}
-.emp-form{width:100%;max-width:320px;position:relative}
-#pw-err{background:rgba(255,59,59,.06);border:1px solid rgba(255,59,59,.2);border-radius:var(--r);padding:8px 11px;margin-bottom:8px;display:none}
-#pw-err-msg{font-size:11px;color:var(--col-r);font-family:'Space Mono',monospace}
-
-/* ── OWNER ONLY ─────────────────────────────────── */
-.owner-only{display:none}
-.owner-only-inline{display:none}
-
-/* ── OVERLAYS ───────────────────────────────────── */
-#mandatory-notif-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9990;flex-direction:column;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
-#global-cam-bar{display:none;position:fixed;top:50px;left:0;right:0;z-index:8000;background:rgba(0,0,0,.98);border-bottom:1px solid var(--e1);padding:7px 12px;align-items:center;gap:8px}
-</style>
-</head>
-<body>
-
-<div id="toasts"></div>
-
-<!-- LOGIN -->
-<div id="emp-scr">
-  <div class="emp-hero">
-    <span class="ehi">📦</span>
-    <h1>STOCKMASTER</h1>
-    <p>// WAREHOUSE MANAGEMENT SYSTEM</p>
-  </div>
-  <div class="emp-form">
-    <div id="pw-err"><span id="pw-err-msg"></span></div>
-    <label class="fl" style="font-family:'Space Mono',monospace;letter-spacing:1px">E-MAIL ODER NAME</label>
-    <input type="text" id="emp-in" class="fc mb-3" placeholder="identifikation eingeben" style="font-size:14px;padding:12px 14px" autocomplete="email"/>
-    <label class="fl" style="font-family:'Space Mono',monospace;letter-spacing:1px">PASSWORT</label>
-    <div style="position:relative;margin-bottom:12px">
-      <input type="password" id="pw-in" class="fc" placeholder="••••••••••••" style="font-size:14px;padding:12px 44px 12px 14px" autocomplete="current-password"/>
-      <button type="button" onclick="togglePwVis()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--w4);cursor:pointer;font-size:16px;padding:0" id="pw-eye"><i class="bi bi-eye"></i></button>
-    </div>
-    <button class="btn btn-primary w-100 fw-bold" id="btn-emp" style="padding:12px;font-size:13px;letter-spacing:2px">EINLOGGEN →</button>
-    <p style="text-align:center;font-size:9px;color:var(--w4);margin-top:12px;font-family:'Space Mono',monospace;letter-spacing:.5px">STOCKMASTER PRO · RETECHNOLOGIES42</p>
-  </div>
-</div>
-
-<!-- TOPBAR -->
-<header class="topbar">
-  <div class="brand">
-    <div class="brand-icon" style="color:#000;font-weight:900;font-size:12px">▣</div>
-    <div>
-      <div class="brand-name">STOCKMASTER</div>
-      <div class="brand-version">PRO // v4.0</div>
-    </div>
-  </div>
-  <div class="topbar-right">
-    <div class="notif-btn" onclick="openNotifications()">
-      <i class="bi bi-bell"></i>
-      <div class="notif-badge" id="notif-count-badge"></div>
-    </div>
-    <div class="emp-chip" onclick="openProfil()">
-      <i class="bi bi-person-fill" style="font-size:13px;color:var(--acc)"></i>
-      <span id="emp-name">–</span>
-    </div>
-  </div>
-</header>
-
-<!-- BOTTOM NAV -->
-<nav class="bottom-nav">
-  <button class="bnav-btn" data-tab="home-panel"><i class="bi bi-house-fill"></i>Home</button>
-  <button class="bnav-btn" data-tab="list-panel"><i class="bi bi-server"></i>Lager</button>
-  <button class="bnav-btn home-btn on" data-tab="scan-panel">
-    <div class="home-orb"><i class="bi bi-qr-code-scan"></i></div>
-    <span>Scan</span>
-  </button>
-  <button class="bnav-btn" data-tab="handel-panel"><i class="bi bi-arrow-left-right"></i>Handel</button>
-  <button class="bnav-btn" data-tab="analyse-panel"><i class="bi bi-bar-chart-fill"></i>Analyse</button>
-</nav>
-
-<!-- ═══════════════════ HOME PANEL ═══════════════════ -->
-<div class="panel on" id="home-panel">
-  <div class="wrap">
-
-    <!-- Greeting -->
-    <div class="greeting">
-      <div class="g-time" id="g-time">LOADING...</div>
-      <div class="g-name" id="g-name">–</div>
-      <div class="g-sub" id="g-sub">Bereit für heute?</div>
-    </div>
-
-    <!-- KPI Strip -->
-    <div class="kpi-strip">
-      <div class="kpi-tile" style="--kpi-col:var(--col-y)" onclick="goTabFn('list-panel','spielwaren')">
-        <i class="bi bi-controller kpi-ic"></i>
-        <div class="kpi-n" id="st-sw">–</div>
-        <div class="kpi-l">Spielwaren</div>
-      </div>
-      <div class="kpi-tile" style="--kpi-col:var(--col-g)" onclick="goTabFn('list-panel','handy')">
-        <i class="bi bi-phone kpi-ic"></i>
-        <div class="kpi-n" id="st-h">–</div>
-        <div class="kpi-l">Handys</div>
-      </div>
-      <div class="kpi-tile" style="--kpi-col:var(--col-b)" onclick="goTabFn('list-panel','pc')">
-        <i class="bi bi-laptop kpi-ic"></i>
-        <div class="kpi-n" id="st-pc">–</div>
-        <div class="kpi-l">PCs & Laptops</div>
-      </div>
-      <div class="kpi-tile" style="--kpi-col:var(--col-r)" onclick="goTabFn('list-panel','defekt')">
-        <i class="bi bi-tools kpi-ic"></i>
-        <div class="kpi-n" id="st-def">–</div>
-        <div class="kpi-l">Defekte</div>
-      </div>
-      <div class="kpi-tile kpi-wide" style="--kpi-col:var(--acc)">
-        <i class="bi bi-activity kpi-ic"></i>
-        <div style="display:flex;justify-content:space-between;align-items:flex-end">
-          <div><div class="kpi-n" id="st-heu" style="color:var(--col-p)">–</div><div class="kpi-l">Heute</div></div>
-          <div style="text-align:right"><div class="kpi-n" style="font-size:28px;color:var(--acc)" id="st-vk">–</div><div class="kpi-l">Verkäufe</div></div>
-          <div style="text-align:right"><div class="kpi-n" style="font-size:28px;color:var(--col-b)" id="st-ek">–</div><div class="kpi-l">Einkäufe</div></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- KA Progress -->
-    <div style="background:var(--b2);border:1px solid var(--e1);border-radius:var(--r-lg);padding:12px 13px;margin-bottom:12px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
-        <span style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--w4);font-family:'Space Mono',monospace">📢 KLEINANZEIGEN STATUS</span>
-        <span id="kl-pct" style="font-size:10px;font-weight:700;color:var(--acc);font-family:'Space Mono',monospace">–%</span>
-      </div>
-      <div style="background:var(--e1);border-radius:99px;height:2px;overflow:hidden">
-        <div id="kl-bar" style="height:100%;background:var(--acc);border-radius:99px;transition:width .6s ease;width:0%"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-top:5px">
-        <span id="kl-done" style="font-size:9px;color:var(--acc);font-family:'Space Mono',monospace">– hochgeladen</span>
-        <span id="kl-todo" style="font-size:9px;color:var(--col-r);font-family:'Space Mono',monospace">– ausstehend</span>
-      </div>
-    </div>
-
-    <!-- Quick Actions -->
-    <div class="sec-head">Schnellzugriff</div>
-    <div class="quick-grid">
-      <button class="quick-btn" onclick="goTabFn('scan-panel');setMode('einlagern')">
-        <div class="quick-icon"><i class="bi bi-box-arrow-in-down" style="color:var(--acc)"></i></div>
-        <div><div class="quick-text">Einlagern</div><div class="quick-sub">Neues Produkt</div></div>
-      </button>
-      <button class="quick-btn" onclick="goTabFn('handel-panel');setHandelTab('verkauf');openVerkaufForm(null)">
-        <div class="quick-icon"><i class="bi bi-cash-stack" style="color:var(--col-g)"></i></div>
-        <div><div class="quick-text">Verkauf</div><div class="quick-sub">Artikel verkaufen</div></div>
-      </button>
-      <button class="quick-btn" onclick="goTabFn('handel-panel');setHandelTab('einkauf');openEinkaufForm(null)">
-        <div class="quick-icon"><i class="bi bi-cart-plus" style="color:var(--col-y)"></i></div>
-        <div><div class="quick-text">Einkauf</div><div class="quick-sub">Ware ankaufen</div></div>
-      </button>
-      <button class="quick-btn" onclick="openRTModal(null)">
-        <div class="quick-icon"><i class="bi bi-arrow-return-left" style="color:var(--col-r)"></i></div>
-        <div><div class="quick-text">Reklamation</div><div class="quick-sub">Rückgabe</div></div>
-      </button>
-      <button class="quick-btn" onclick="goTabFn('analyse-panel');setAnalyseTab('ka')">
-        <div class="quick-icon"><i class="bi bi-megaphone" style="color:var(--col-t)"></i></div>
-        <div><div class="quick-text">KA Upload</div><div class="quick-sub">Hochladen</div></div>
-      </button>
-      <button class="quick-btn owner-only" onclick="openAccModal()">
-        <div class="quick-icon"><i class="bi bi-people" style="color:var(--col-p)"></i></div>
-        <div><div class="quick-text">Team</div><div class="quick-sub">Mitarbeiter</div></div>
-      </button>
-      <button class="quick-btn" style="grid-column:1/-1" onclick="goTabFn('analyse-panel');setAnalyseTab('guv')">
-        <div class="quick-icon"><i class="bi bi-graph-up" style="color:var(--col-b)"></i></div>
-        <div><div class="quick-text">Analyse & Buchhaltung</div><div class="quick-sub">GuV · Gewinn · Verlust · China-Import</div></div>
-      </button>
-    </div>
-
-    <!-- Team Performance -->
-    <div class="sec-head">Team heute</div>
-    <div style="background:var(--b2);border:1px solid var(--e1);border-radius:var(--r-lg);overflow:hidden;margin-bottom:12px">
-      <div style="padding:10px 13px;border-bottom:1px solid var(--e1);display:flex;align-items:center;justify-content:space-between">
-        <span style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--w4);font-family:'Space Mono',monospace;text-transform:uppercase">Performance</span>
-        <button onclick="loadMitarbeiterStats()" style="background:none;border:none;color:var(--acc);font-size:12px;cursor:pointer;font-family:'Space Mono',monospace">↻</button>
-      </div>
-      <div id="team-perf-body" style="padding:8px 13px">
-        <div style="font-size:10px;color:var(--w4);text-align:center;padding:10px;font-family:'Space Mono',monospace">↻ AKTUALISIEREN</div>
-      </div>
-    </div>
-
-    <!-- My Stats -->
-    <div style="background:var(--b2);border:1px solid var(--e1);border-radius:var(--r-lg);padding:13px;margin-bottom:12px;display:flex;gap:12px;flex-wrap:wrap">
-      <div style="flex:1;min-width:60px;text-align:center;cursor:pointer" onclick="goTabFn('list-panel','all')">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px;color:var(--col-b)" id="my-total">–</div>
-        <div style="font-size:9px;color:var(--w4);font-family:'Space Mono',monospace;letter-spacing:.5px;text-transform:uppercase">Gesamt</div>
-      </div>
-      <div style="flex:1;min-width:60px;text-align:center">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px;color:var(--acc)" id="my-today">–</div>
-        <div style="font-size:9px;color:var(--w4);font-family:'Space Mono',monospace;letter-spacing:.5px;text-transform:uppercase">Heute</div>
-      </div>
-      <div style="flex:1;min-width:60px;text-align:center;cursor:pointer" onclick="goTabFn('list-panel','defekt')">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px;color:var(--col-y)" id="my-defekte">–</div>
-        <div style="font-size:9px;color:var(--w4);font-family:'Space Mono',monospace;letter-spacing:.5px;text-transform:uppercase">Defekte</div>
-      </div>
-      <div style="flex:1;min-width:60px;text-align:center;cursor:pointer" onclick="openNotifications()">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px;color:var(--col-p)" id="my-notifs">–</div>
-        <div style="font-size:9px;color:var(--w4);font-family:'Space Mono',monospace;letter-spacing:.5px;text-transform:uppercase">Hinweise</div>
-      </div>
-    </div>
-
-  </div>
-</div>
-
-<!-- ═══════════════════ SCAN PANEL ═══════════════════ -->
-<div class="panel" id="scan-panel">
-  <div class="wrap">
-
-    <!-- Mode Chooser -->
-    <div id="mode-chooser">
-      <div style="background:var(--b2);border:1px solid var(--e1);border-radius:var(--r-lg);overflow:hidden">
-        <div style="padding:14px 13px;border-bottom:1px solid var(--e1)">
-          <div style="font-size:20px;font-weight:800;color:var(--w1);letter-spacing:1px">SCANNER</div>
-          <div style="font-size:11px;color:var(--w3);margin-top:2px">Aktion wählen</div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
-          <button onclick="setMode('einlagern')" style="padding:22px 8px;border:none;background:none;font-weight:700;font-size:12px;color:var(--w4);cursor:pointer;border-right:1px solid var(--e1);display:flex;flex-direction:column;align-items:center;gap:8px;letter-spacing:.5px;transition:all .12s" onmouseover="this.style.background='var(--b3)';this.style.color='var(--acc)'" onmouseout="this.style.background='none';this.style.color='var(--w4)'">
-            <span style="font-size:30px">📦</span><span>EINLAGERN</span>
-            <span style="font-size:9px;color:var(--w4);font-family:monospace">NEUES PRODUKT</span>
-          </button>
-          <button onclick="openEKCheck()" style="padding:22px 8px;border:none;background:none;font-weight:700;font-size:12px;color:var(--w4);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;letter-spacing:.5px;transition:all .12s" onmouseover="this.style.background='var(--b3)';this.style.color='var(--col-b)'" onmouseout="this.style.background='none';this.style.color='var(--w4)'">
-            <span style="font-size:30px">📋</span><span>EINKAUF CHECK</span>
-            <span style="font-size:9px;color:var(--w4);font-family:monospace">PAKET PRÜFEN</span>
-          </button>
-        </div>
-      </div>
-
-    <!-- EK Check Panel -->
-    <div id="ek-check-panel" style="display:none">
-      <div style="background:var(--b2);border:1px solid var(--e1);border-radius:var(--r-lg);overflow:hidden">
-        <div style="padding:11px 13px;border-bottom:1px solid var(--e1);display:flex;align-items:center;justify-content:space-between">
-          <div style="flex:1">
-            <div id="ek-check-header-title" style="font-size:16px;font-weight:800;letter-spacing:1px;color:var(--w1)">EINKAUF WÄHLEN</div>
-          </div>
-          <button onclick="closeEKCheck()" style="background:none;border:1px solid var(--e2);color:var(--w3);border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;font-family:monospace">✕ ZURÜCK</button>
-        </div>
-        <div style="padding:12px 13px">
-          <!-- Step 1: Select Einkauf -->
-          <div id="ek-check-step1">
-            <div style="font-size:11px;color:var(--w3);margin-bottom:10px">Welches Paket ist angekommen? Die Zimmer-Nummer steht auf dem Paket-Label.</div>
-            <div id="ek-check-einkauf-list"></div>
-          </div>
-          <!-- Step 2: Checklist + Einlagern -->
-          <div id="ek-check-step2" style="display:none">
-            <div id="ek-check-info" style="background:var(--b3);border:1px solid var(--e1);border-radius:var(--r);padding:10px 12px;margin-bottom:12px"></div>
-            <div class="slabel">ARTIKEL PRÜFEN & EINLAGERN</div>
-            <div style="font-size:11px;color:var(--w3);margin-bottom:10px">Artikel anklicken → einlagern → automatisch abhaken</div>
-            <div id="ek-check-items"></div>
-            <div id="ek-check-complete" style="display:none;margin-top:12px">
-              <div style="background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.2);border-radius:var(--r);padding:11px 13px;text-align:center;margin-bottom:10px">
-                <div style="font-size:16px;font-weight:800;color:var(--acc);letter-spacing:1px">✅ ALLE ARTIKEL EINGELAGERT!</div>
-                <div style="font-size:11px;color:var(--w3);margin-top:3px">Einkauf als abgeschlossen markieren?</div>
-              </div>
-              <button id="ek-check-complete-btn" class="btn btn-primary w-100 fw-bold" onclick="completeEKCheck()" style="letter-spacing:1px">EINKAUF ABSCHLIESSEN →</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Cat Chooser -->
-    <div id="cat-chooser" style="display:none">
-      <div style="background:var(--b2);border:1px solid var(--e1);border-radius:var(--r-lg);overflow:hidden">
-        <div class="card-head">
-          <h2>📦 KATEGORIE</h2>
-          <button class="btn btn-sm btn-outline-secondary" onclick="resetToMode()"><i class="bi bi-arrow-left"></i></button>
-        </div>
-        <div class="cat-grid">
-          <button class="cat-btn cb-sw" onclick="selCat('spielwaren')"><span class="ci">🎮</span>SPIELWAREN</button>
-          <button class="cat-btn cb-h" onclick="selCat('handy')"><span class="ci">📱</span>HANDY</button>
-          <button class="cat-btn cb-pc" style="grid-column:1/-1" onclick="selCat('pc')"><span class="ci">💻</span>PC & LAPTOP</button>
-          <button class="cat-btn" style="grid-column:1/-1;border-color:rgba(0,255,136,.3);color:var(--acc)" onclick="openUploadWizard()"><span class="ci" style="font-size:20px">📢</span>HOCHLADEN</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- SW Sub -->
-    <div id="sw-sub" style="display:none">
-      <div style="background:var(--b2);border:1px solid var(--e1);border-radius:var(--r-lg);overflow:hidden">
-        <div class="card-head">
-          <h2>🎮 SPIELWAREN</h2>
-          <button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('sw-sub').style.display='none';document.getElementById('cat-chooser').style.display='block'"><i class="bi bi-arrow-left"></i></button>
-        </div>
-        <div class="cat-grid">
-          <button class="cat-btn cb-sw" onclick="selCat('konsole')"><span class="ci">🕹️</span>KONSOLE</button>
-          <button class="cat-btn cb-sw" onclick="selCat('spiel')"><span class="ci">💿</span>SPIEL</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Main Stepper -->
-    <div id="main-stepper" style="display:none">
-      <div style="background:var(--b2);border:1px solid var(--e1);border-radius:var(--r-lg);overflow:hidden">
-        <div class="prog-wrap">
-          <div class="prog-meta">
-            <span class="prog-label" id="prog-label">STEP 1/5</span>
-            <span class="prog-name" id="prog-name">BARCODE</span>
-          </div>
-          <div class="progress"><div class="progress-bar" id="prog-bar" style="width:20%"></div></div>
-          <div class="step-dots" id="step-dots"></div>
-        </div>
-
-        <div style="padding:0 13px 13px">
-
-          <!-- Step 1: Barcode -->
-          <div class="step on" id="st-s1">
-            <div class="step-title">BARCODE</div>
-            <div class="step-sub">EAN scannen oder manuell eingeben.</div>
-            <div style="margin-bottom:10px">
-              <label class="fl">KAMERA WÄHLEN</label>
-              <div style="display:flex;gap:6px">
-                <select id="cam-preselect" class="fc" style="font-size:12px;padding:8px 12px;flex:1;font-family:'Space Mono',monospace" onchange="onCamPreselect()">
-                  <option value="">– Kamera wählen –</option>
-                </select>
-                <button class="btn btn-outline-secondary btn-sm" onclick="refreshCamList()"><i class="bi bi-arrow-repeat"></i></button>
-              </div>
-            </div>
-            <div style="display:flex;gap:7px;margin-bottom:12px">
-              <button class="btn btn-primary flex-fill fw-bold" id="btn-cam-start" onclick="camStart()"><i class="bi bi-camera-video me-1"></i>KAMERA</button>
-              <button class="btn btn-outline-danger" id="btn-cam-stop" onclick="camStop()" style="display:none"><i class="bi bi-stop-circle"></i></button>
-            </div>
-            <div id="cam-wrap" style="display:none;margin-bottom:10px;border-radius:var(--r-lg);overflow:hidden;position:relative;border:1px solid var(--acc)">
-              <video id="cam-video" autoplay playsinline muted style="width:100%;display:block;max-height:240px;object-fit:cover"></video>
-              <canvas id="cam-canvas" style="display:none"></canvas>
-              <div style="position:absolute;bottom:7px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:var(--acc);border-radius:20px;padding:4px 12px;font-size:10px;font-weight:700;white-space:nowrap;font-family:'Space Mono',monospace" id="cam-hint">BARCODE HALTEN</div>
-            </div>
-            <div id="cam-select-row" style="display:none;margin-bottom:10px">
-              <label class="fl">AKTIVE KAMERA</label>
-              <select id="cam-select" class="fc" style="font-size:12px;font-family:'Space Mono',monospace" onchange="camSwitchDevice()"></select>
-            </div>
-            <div id="scan-err" style="display:none;background:rgba(255,59,59,.06);border:1px solid rgba(255,59,59,.2);border-radius:var(--r);padding:8px 12px;margin-bottom:8px">
-              <div id="scan-err-msg" style="font-size:11px;color:var(--col-r);font-family:'Space Mono',monospace"></div>
-            </div>
-            <label class="fl">MANUELL</label>
-            <input type="text" id="f-scanid" class="fc mb-2" placeholder="barcode / ean-code" autocomplete="off" style="font-family:'Space Mono',monospace"/>
-            <div id="scan-ok" style="display:none;background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.2);border-radius:var(--r);padding:8px 12px;margin-bottom:4px">
-              <div style="font-size:11px;color:var(--acc);font-weight:700;font-family:'Space Mono',monospace">✓ ERKANNT: <span id="scan-ok-val"></span></div>
-            </div>
-            <div class="diag" id="s1-diag"></div>
-          </div>
-
-          <!-- Step 2: Name -->
-          <div class="step" id="st-s2">
-            <div class="step-title" id="s2-title">NAME</div>
-            <div class="step-sub" id="s2-sub">Vollständige Bezeichnung eingeben.</div>
-            <label class="fl" id="s2-lbl">NAME *</label>
-            <input type="text" id="f-name" class="fc mb-3" placeholder=""/>
-            <div id="s2-extra"></div>
-          </div>
-
-          <!-- Step 3: Details -->
-          <div class="step" id="st-s3">
-            <div class="step-title" id="s3-title">DETAILS</div>
-            <div id="s3-fields"></div>
-          </div>
-
-          <!-- Step 4: Mängel -->
-          <div class="step" id="st-s4">
-            <div class="step-title">MÄNGEL & FOTOS</div>
-            <div class="step-sub">Zustand und Fotos dokumentieren.</div>
-            <div class="cg2 mb-3">
-              <button class="cbtn" id="pb-nein" onclick="selProb('nein')"><span class="ci">✅</span>KEINE MÄNGEL</button>
-              <button class="cbtn" id="pb-ja" onclick="selProb('ja')"><span class="ci">⚠️</span>MÄNGEL</button>
-            </div>
-            <div id="prob-type-row" style="display:none;margin-bottom:12px">
-              <label class="fl mb-2">ART DES MANGELS</label>
-              <div class="cg2">
-                <button class="cbtn" id="pb-phys" onclick="selProbType('physisch')"><span class="ci">🔧</span>PHYSISCH</button>
-                <button class="cbtn" id="pb-soft" onclick="selProbType('software')"><span class="ci">💾</span>SOFTWARE</button>
-              </div>
-            </div>
-            <div id="prob-descr-row" style="display:none;margin-bottom:12px">
-              <label class="fl">BESCHREIBUNG</label>
-              <textarea id="f-prob-beschr" class="fc" placeholder="mangel beschreiben..." rows="3"></textarea>
-            </div>
-            <div id="photo-row" style="display:none">
-              <label class="fl">FOTOS <span style="background:rgba(255,59,59,.1);color:var(--col-r);font-size:8px;padding:1px 5px;border-radius:2px;font-family:'Space Mono',monospace;letter-spacing:.5px">PFLICHT</span></label>
-              <div class="photo-guide" id="photo-guide-box"></div>
-              <div class="photo-zone">
-                <div class="pz-top" onclick="triggerPhotoInput('gallery')">
-                  <i class="bi bi-camera-plus"></i>
-                  <div class="pz-l">Fotos hinzufügen</div>
-                  <div class="pz-s">Max. 15 MB · JPEG komprimiert</div>
-                </div>
-                <div class="pz-btns">
-                  <button class="pz-btn" onclick="triggerPhotoInput('cam')"><i class="bi bi-camera me-1"></i>KAMERA</button>
-                  <button class="pz-btn" onclick="triggerPhotoInput('gallery')"><i class="bi bi-images me-1"></i>GALERIE</button>
-                </div>
-              </div>
-              <div id="photo-main-wrap"></div>
-              <div class="photo-thumbs" id="photo-thumbs"></div>
-            </div>
-          </div>
-
-          <!-- Step 5: Mitarbeiter & Ankauf -->
-          <div class="step" id="st-s5">
-            <div class="step-title">ANKAUF INFO</div>
-            <div class="step-sub">Letzte Details zum Einlagern.</div>
-            <label class="fl">MITARBEITER</label>
-            <input type="text" id="f-ma" class="fc mb-3"/>
-            <div class="row g-2 mb-3">
-              <div class="col-7">
-                <label class="fl">EINKAUFSPREIS (€)</label>
-                <input type="number" id="f-einkaufspreis" class="fc" placeholder="0.00" step="0.01" style="font-family:'Space Mono',monospace"/>
-              </div>
-              <div class="col-5">
-                <label class="fl">WARENTYP</label>
-                <select id="f-warentyp" class="fc">
-                  <option value="Gebrauchtware">Gebraucht</option>
-                  <option value="Neuware">Neuware</option>
-                  <option value="China-Import">China-Import</option>
-                </select>
-              </div>
-            </div>
-            <div id="price-suggest-box" style="display:none" class="price-badge">
-              <div><div class="pl">💡 EMPFOHLENER PREIS</div><div class="pv" id="price-suggest-val">–</div></div>
-            </div>
-            <div id="s5-extra"></div>
-          </div>
-
-        </div>
-
-        <!-- Nav Buttons -->
-        <div style="padding:11px 13px;border-top:1px solid var(--e1);display:flex;gap:7px;justify-content:space-between">
-          <button class="btn btn-outline-secondary" id="btn-back" onclick="stepBack()" disabled><i class="bi bi-arrow-left me-1"></i>Zurück</button>
-          <button class="btn btn-primary px-4 fw-bold" id="btn-next" onclick="stepNext()">Weiter <i class="bi bi-arrow-right ms-1"></i></button>
-          <button class="btn btn-primary px-4 fw-bold" id="btn-save-step" style="display:none" onclick="doSave()"><i class="bi bi-check-lg me-1"></i>SPEICHERN</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════════════ LAGER PANEL ═══════════════════ -->
-<div class="panel" id="list-panel">
-  <div class="wrap">
-    <div style="display:flex;gap:7px;margin-bottom:12px;align-items:center">
-      <input type="text" id="list-q" class="fc" placeholder="suchen..." oninput="renderList()" style="flex:1"/>
-      <button class="btn btn-outline-secondary" onclick="loadAll()" style="height:40px;width:40px;padding:0;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="bi bi-arrow-repeat"></i></button>
-    </div>
-    <div class="lager-tabs">
-      <button class="ltab on" onclick="setLF('all')">ALLE</button>
-      <button class="ltab" onclick="setLF('spielwaren')">🎮</button>
-      <button class="ltab" onclick="setLF('handy')">📱</button>
-      <button class="ltab" onclick="setLF('pc')">💻</button>
-      <button class="ltab" onclick="setLF('defekt')">⚠</button>
-    </div>
-    <div id="lager-category-header" style="display:none;margin-bottom:10px;padding:8px 12px;background:var(--b3);border:1px solid var(--e1);border-radius:var(--r)">
-      <span id="lager-cat-label" style="font-size:13px;font-weight:700;color:var(--w1)"></span>
-      <span id="lager-cat-count" style="font-size:11px;color:var(--w3);margin-left:8px;font-family:'Space Mono',monospace"></span>
-    </div>
-    <div id="list-count" class="slabel"></div>
-    <div id="list-body"><div class="empty"><i class="bi bi-server"></i><p>↻ LADEN</p></div></div>
-  </div>
-</div>
-
-<!-- Search panel (hidden) -->
-<div class="panel" id="search-panel">
-  <div class="wrap">
-    <span class="slabel">SUCHE & FILTER</span>
-    <div class="d-flex gap-2 mb-2">
-      <input type="text" id="s-bc-in" class="fc" placeholder="name, barcode, modell..." oninput="liveSearch(this.value)"/>
-      <button class="btn btn-outline-secondary" onclick="openSearchScanner()"><i class="bi bi-upc-scan"></i></button>
-      <button class="btn btn-primary" onclick="doSearch()"><i class="bi bi-search"></i></button>
-    </div>
-    <div id="recent-searches" style="display:none;margin-bottom:12px">
-      <span class="slabel">ZULETZT GESUCHT</span>
-      <div id="recent-chips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-    </div>
-    <div class="d-flex gap-2 mb-3 flex-wrap">
-      <select id="search-sort" class="fc" style="flex:1;min-width:140px;font-size:12px;padding:8px 10px" onchange="applySearchSort()">
-        <option value="neu">Neueste zuerst</option><option value="alt">Älteste zuerst</option>
-        <option value="az">Name A→Z</option><option value="za">Name Z→A</option>
-      </select>
-      <select id="search-cat" class="fc" style="flex:1;min-width:130px;font-size:12px;padding:8px 10px" onchange="applySearchSort()">
-        <option value="all">Alle</option><option value="konsole">Konsolen</option>
-        <option value="spiel">Spiele</option><option value="handy">Handys</option>
-        <option value="pc">PCs</option><option value="defekt">Defekte</option>
-      </select>
-    </div>
-    <div id="search-count" class="slabel" style="display:none"></div>
-    <div id="search-out"></div>
-  </div>
-</div>
-
-<!-- Diagnose panel (hidden) -->
-<div class="panel" id="diag-panel">
-  <div class="wrap">
-    <span class="slabel">VERBINDUNGSDIAGNOSE</span>
-    <div style="background:var(--b2);border:1px solid var(--e1);border-radius:var(--r-lg);padding:13px;margin-bottom:12px">
-      <div class="d-flex gap-2 flex-wrap mb-2">
-        <button class="btn btn-primary btn-sm" id="bt1" onclick="test1()"><i class="bi bi-plug me-1"></i>Verbindung</button>
-        <button class="btn btn-outline-secondary btn-sm" id="bt2" onclick="test2()"><i class="bi bi-table me-1"></i>Sheet</button>
-        <button class="btn btn-outline-secondary btn-sm" id="bt3" onclick="test3()"><i class="bi bi-pencil me-1"></i>Testzeile</button>
-      </div>
-      <div class="diag" id="t1o"></div>
-      <div class="diag" id="t2o"></div>
-      <div class="diag" id="t3o"></div>
-      <div class="test-timer-box" id="test-timer-box">
-        <div class="d-flex justify-content-between align-items-center">
-          <span style="font-size:11px;font-weight:600;color:var(--col-p);font-family:'Space Mono',monospace">TESTZEILE LÖSCHT IN <span id="timer-cnt">3</span>s</span>
-        </div>
-        <div class="timer-bar-wrap mt-2"><div class="timer-bar" id="timer-bar" style="width:100%"></div></div>
-      </div>
-    </div>
-    <div style="background:var(--b2);border:1px solid rgba(255,204,0,.15);border-radius:var(--r-lg);padding:12px 13px">
-      <div style="font-size:11px;line-height:2;color:var(--w3);font-family:'Space Mono',monospace">
-        <span style="color:var(--col-y)">// KAMERA VERWEIGERT?</span><br>
-        Chrome → 🔒 → Kamera → Zulassen → Reload<br><br>
-        <span style="color:var(--col-y)">// CODE NICHT AKTIV?</span><br>
-        GAS → Bereitstellen → Neue Version
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════════════ HANDEL PANEL ═══════════════════ -->
-<div class="panel" id="handel-panel">
-  <div class="wrap">
-    <div class="lager-tabs" style="margin-bottom:12px">
-      <button class="ltab on" id="htab-vk" onclick="setHandelTab('verkauf')">💸 VERKAUF</button>
-      <button class="ltab" id="htab-ek" onclick="setHandelTab('einkauf')">🛒 EINKAUF</button>
-    </div>
-    <div id="handel-vk">
-      <div class="d-flex gap-2 mb-3 align-items-center">
-        <input type="text" id="vk-search" class="fc" placeholder="suchen..." oninput="filterHandel('verkauf')" style="flex:1"/>
-        <button class="btn btn-primary fw-bold" onclick="openVerkaufForm(null)" style="white-space:nowrap;height:40px"><i class="bi bi-plus me-1"></i>NEU</button>
-        <button class="btn btn-outline-danger btn-sm" onclick="openRTModal(null)" title="Reklamation" style="height:40px;padding:0 10px"><i class="bi bi-arrow-return-left"></i></button>
-        <button class="btn btn-outline-secondary" onclick="loadHandel()" style="height:40px;width:40px;padding:0;display:flex;align-items:center;justify-content:center"><i class="bi bi-arrow-repeat"></i></button>
-      </div>
-      <div id="vk-body"><div class="empty"><i class="bi bi-cash-coin"></i><p>↻ LADEN</p></div></div>
-    </div>
-    <div id="handel-ek" style="display:none">
-      <div class="d-flex gap-2 mb-3 align-items-center">
-        <input type="text" id="ek-search" class="fc" placeholder="suchen..." oninput="filterHandel('einkauf')" style="flex:1"/>
-        <button class="btn btn-primary fw-bold" onclick="openEinkaufForm(null)" style="white-space:nowrap;height:40px"><i class="bi bi-plus me-1"></i>NEU</button>
-        <button class="btn btn-outline-secondary" onclick="loadHandel()" style="height:40px;width:40px;padding:0;display:flex;align-items:center;justify-content:center"><i class="bi bi-arrow-repeat"></i></button>
-      </div>
-      <div id="ek-body"><div class="empty"><i class="bi bi-cart"></i><p>↻ LADEN</p></div></div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════════════ ANALYSE PANEL ═══════════════════ -->
-<div class="panel" id="analyse-panel">
-  <div class="wrap">
-
-    <!-- KPI Strip -->
-    <div class="kpi-strip">
-      <div class="kpi-tile" style="--kpi-col:var(--col-g)">
-        <i class="bi bi-graph-up kpi-ic"></i>
-        <div class="kpi-n" id="an-gewinn">–</div>
-        <div class="kpi-l">Gesamtgewinn</div>
-      </div>
-      <div class="kpi-tile" style="--kpi-col:var(--col-r)">
-        <i class="bi bi-graph-down kpi-ic"></i>
-        <div class="kpi-n" id="an-verlust">–</div>
-        <div class="kpi-l">Verluste</div>
-      </div>
-      <div class="kpi-tile" style="--kpi-col:var(--col-b)">
-        <i class="bi bi-currency-euro kpi-ic"></i>
-        <div class="kpi-n" id="an-umsatz">–</div>
-        <div class="kpi-l">Umsatz</div>
-      </div>
-      <div class="kpi-tile" style="--kpi-col:var(--col-y)">
-        <i class="bi bi-percent kpi-ic"></i>
-        <div class="kpi-n" id="an-marge-avg">–</div>
-        <div class="kpi-l">Ø Marge</div>
-      </div>
-    </div>
-
-    <div class="lager-tabs" style="margin-bottom:12px">
-      <button class="ltab on" id="atab-guv"   onclick="setAnalyseTab('guv')">GuV</button>
-      <button class="ltab"    id="atab-china" onclick="setAnalyseTab('china')">🇨🇳</button>
-      <button class="ltab"    id="atab-ka"    onclick="setAnalyseTab('ka')">📢 KA</button>
-      <button class="ltab"    id="atab-rt"    onclick="setAnalyseTab('rt')">⚠️ RT</button>
-    </div>
-
-    <!-- GuV Tab -->
-    <div id="an-guv">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <span class="slabel" style="margin:0">GEWINN & VERLUST</span>
-        <div style="display:flex;gap:6px">
-          <select id="an-filter-month" class="fc" style="font-size:11px;padding:5px 8px;width:auto;font-family:'Space Mono',monospace" onchange="renderAnalysePanel()">
-            <option value="all">GESAMT</option><option value="thismonth">DIESER MONAT</option><option value="lastmonth">LETZTER MONAT</option>
-          </select>
-          <button class="btn btn-outline-secondary btn-sm" onclick="renderAnalysePanel()"><i class="bi bi-arrow-repeat"></i></button>
-        </div>
-      </div>
-      <div style="background:var(--b2);border:1px solid var(--e1);border-radius:var(--r-lg);padding:12px 13px;margin-bottom:10px">
-        <div class="slabel">MONATLICHE ENTWICKLUNG</div>
-        <div id="an-chart-bars" style="display:flex;align-items:flex-end;gap:3px;height:80px"></div>
-        <div id="an-chart-labels" style="display:flex;gap:3px;margin-top:4px"></div>
-      </div>
-      <div style="background:var(--b2);border:1px solid var(--e1);border-radius:var(--r-lg);overflow:hidden;margin-bottom:10px">
-        <div style="padding:9px 13px;border-bottom:1px solid var(--e1)"><span class="slabel" style="margin:0">TOP VERKÄUFE</span></div>
-        <div id="an-vk-table" style="overflow-x:auto;max-height:280px;overflow-y:auto"></div>
-      </div>
-      <div style="background:rgba(255,59,59,.04);border:1px solid rgba(255,59,59,.12);border-radius:var(--r-lg);padding:12px 13px;margin-bottom:10px">
-        <div class="slabel" style="color:var(--col-r)">VERLUSTANALYSE</div>
-        <div id="an-verlust-detail"></div>
-      </div>
-    </div>
-
-    <!-- China Tab -->
-    <div id="an-china" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <span class="slabel" style="margin:0">CHINA-IMPORTE</span>
-        <button class="btn btn-primary btn-sm" onclick="openChinaForm()"><i class="bi bi-plus me-1"></i>NEU</button>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:12px">
-        <div style="background:var(--b2);border:1px solid var(--e1);border-radius:var(--r-lg);padding:10px;text-align:center">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:1px;color:var(--col-b)" id="cn-total-cost">–</div>
-          <div class="kpi-l">GESAMT</div>
-        </div>
-        <div style="background:var(--b2);border:1px solid var(--e1);border-radius:var(--r-lg);padding:10px;text-align:center">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:1px;color:var(--col-y)" id="cn-total-zoll">–</div>
-          <div class="kpi-l">ZOLL</div>
-        </div>
-        <div style="background:var(--b2);border:1px solid var(--e1);border-radius:var(--r-lg);padding:10px;text-align:center">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:1px;color:var(--col-p)" id="cn-total-fracht">–</div>
-          <div class="kpi-l">FRACHT</div>
-        </div>
-      </div>
-      <div id="an-china-list"></div>
-    </div>
-
-    <!-- KA Tab -->
-    <div id="an-ka" style="display:none">
-      <div class="d-flex gap-2 mb-3 align-items-center">
-        <input type="text" id="ka-search" class="fc" placeholder="suchen..." oninput="filterKA()" style="flex:1"/>
-        <button class="btn btn-outline-secondary" onclick="loadAll();renderKAPanel()"><i class="bi bi-arrow-repeat"></i></button>
-      </div>
-      <div style="background:var(--b2);border:1px solid var(--e1);border-radius:var(--r-lg);padding:12px 13px;margin-bottom:10px;display:flex;gap:16px;align-items:center">
-        <div style="text-align:center">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px;color:var(--acc)" id="ka-done-cnt">–</div>
-          <div class="kpi-l">HOCHGELADEN</div>
-        </div>
-        <div style="text-align:center">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px;color:var(--col-r)" id="ka-todo-cnt">–</div>
-          <div class="kpi-l">AUSSTEHEND</div>
-        </div>
-        <div style="flex:1;background:var(--e1);border-radius:99px;height:2px;overflow:hidden">
-          <div id="ka-prog-bar" style="height:100%;background:var(--acc);border-radius:99px;transition:width .5s ease;width:0%"></div>
-        </div>
-      </div>
-      <div id="ka-body"></div>
-    </div>
-
-    <!-- Retouren Tab -->
-    <div id="an-rt" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <span class="slabel" style="margin:0">REKLAMATIONEN</span>
-        <button class="btn btn-outline-danger btn-sm" onclick="openRTModal(null)"><i class="bi bi-plus me-1"></i>NEU</button>
-      </div>
-      <div id="an-rt-list"></div>
-    </div>
-
-  </div>
-</div>
-
-<!-- ═══════════════════ MODALS ═══════════════════ -->
-
-<!-- Verkauf Modal -->
-<div class="moverlay" id="vk-modal">
-  <div class="msheet">
-    <div class="mhead">
-      <div style="flex:1">
-        <h3 id="vk-modal-title">VERKAUF</h3>
-        <div style="margin-top:3px">
-          <div class="progress"><div class="progress-bar" id="vk-prog" style="width:20%"></div></div>
-          <div style="display:flex;justify-content:space-between;margin-top:2px">
-            <span style="font-size:9px;color:var(--w4);font-family:'Space Mono',monospace" id="vk-step-lbl">STEP 1/5</span>
-            <span style="font-size:9px;color:var(--acc);font-family:'Space Mono',monospace" id="vk-step-name">PRODUKT</span>
-          </div>
-        </div>
-      </div>
-      <button class="btn btn-sm btn-outline-secondary" onclick="closeVKModal()" style="margin-left:10px"><i class="bi bi-x-lg"></i></button>
-    </div>
-    <div class="mbody">
-      <div class="diag" id="vk-diag"></div>
-      <!-- Step 1 -->
-      <div id="vks-1">
-        <div class="step-title">PRODUKT</div>
-        <div class="step-sub">Welchen Artikel verkaufst du?</div>
-        <div style="display:flex;gap:6px;margin-bottom:7px">
-          <input type="text" id="vk-produkte" class="fc" placeholder="produktname..." style="flex:1"/>
-          <button type="button" onclick="openVKMultiSelect()" class="btn btn-outline-success btn-sm" title="Mehrere Artikel"><i class="bi bi-collection"></i></button>
-          <button type="button" onclick="openVKProductPicker()" class="btn btn-outline-primary btn-sm" title="Aus Lager"><i class="bi bi-box-seam"></i></button>
-          <button type="button" onclick="openVKScanner()" class="btn btn-outline-secondary btn-sm" title="Scannen"><i class="bi bi-upc-scan"></i></button>
-        </div>
-        <div id="vk-multi-chips" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:7px"></div>
-        <div id="vk-product-info" style="display:none;background:var(--b3);border:1px solid var(--e2);border-radius:var(--r);padding:7px 10px;font-size:10px;color:var(--w3);margin-bottom:8px;font-family:'Space Mono',monospace"></div>
-        <input type="hidden" id="vk-scanid"/>
-        <div class="row g-2">
-          <div class="col-6"><label class="fl">PREIS (€) *</label><input type="number" id="vk-preis" class="fc" placeholder="0.00" style="font-family:'Space Mono',monospace"/></div>
-          <div class="col-6"><label class="fl">VERSAND (€)</label><input type="number" id="vk-versand" class="fc" placeholder="0.00" style="font-family:'Space Mono',monospace"/></div>
-        </div>
-      </div>
-      <!-- Step 2 -->
-      <div id="vks-2" style="display:none">
-        <div class="step-title">PLATTFORM</div>
-        <div class="step-sub">Wo wird verkauft?</div>
-        <div class="mb-3">
-          <label class="fl mb-2">PLATTFORM *</label>
-          <div class="cg2" style="margin-bottom:0">
-            <button class="cbtn" id="vkp-ka" onclick="selVKPlattform('Kleinanzeigen')"><span class="ci" style="font-size:17px">🟡</span>KLEINANZEIGEN</button>
-            <button class="cbtn" id="vkp-eb" onclick="selVKPlattform('eBay')"><span class="ci" style="font-size:17px">🛒</span>EBAY</button>
-            <button class="cbtn" id="vkp-ab" onclick="selVKPlattform('Abholung')"><span class="ci" style="font-size:17px">🚶</span>ABHOLUNG</button>
-            <button class="cbtn" id="vkp-so" onclick="selVKPlattform('Sonstiges')"><span class="ci" style="font-size:17px">📦</span>SONSTIGES</button>
-          </div>
-          <input type="hidden" id="vk-plattform" value=""/>
-        </div>
-        <div class="row g-2">
-          <div class="col-12"><label class="fl">KÄUFER</label><input type="text" id="vk-kunde" class="fc" placeholder="name oder nutzername"/></div>
-        </div>
-        <div class="row g-2 mt-2">
-          <div class="col-12"><label class="fl">ANGEBOTS-NR.</label><input type="text" id="vk-bestellnr" class="fc" placeholder="z.B. ka-angebotsnr."/></div>
-        </div>
-      </div>
-      <!-- Step 3 -->
-      <div id="vks-3" style="display:none">
-        <div class="step-title">BEZAHLUNG</div>
-        <div class="step-sub" id="vks-3-sub">Zahlungsinfos.</div>
-        <div class="mb-3">
-          <label class="fl mb-2">METHODE</label>
-          <div id="vk-bezahl-opts" class="cg2" style="margin-bottom:0"></div>
-          <input type="hidden" id="vk-bezahlt" value=""/>
-        </div>
-        <div class="row g-2">
-          <div class="col-6"><label class="fl">GELD ERHALTEN?</label>
-            <select id="vk-geld" class="fc"><option value="">–</option><option>Ja</option><option>Nein</option></select>
-          </div>
-          <div class="col-6"><label class="fl">VERSAND</label>
-            <select id="vk-abholung" class="fc"><option>Versand</option><option>Abholung</option></select>
-          </div>
-        </div>
-      </div>
-      <!-- Step 4 -->
-      <div id="vks-4" style="display:none">
-        <div class="step-title">MARGE</div>
-        <div class="step-sub">Einkaufspreis für Kalkulation.</div>
-        <div class="row g-2 mb-3">
-          <div class="col-6"><label class="fl">EINKAUFSPREIS (€)</label><input type="number" id="vk-ep" class="fc" placeholder="0.00" step="0.01" oninput="calcAndShowMarge()" style="font-family:'Space Mono',monospace"/></div>
-          <div class="col-6" style="display:flex;align-items:flex-end"><div id="vk-marge-box" class="marge-badge marge-pos w-100" style="display:none"><div class="marge-val" id="vk-marge-val"></div><div style="font-size:10px;color:var(--w3);font-family:'Space Mono',monospace" id="vk-marge-sub"></div></div></div>
-        </div>
-        <div class="mb-3">
-          <label class="fl mb-2">STATUS</label>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
-            <button class="cbtn" id="vkst-vm" onclick="selVKStatus('Vorgemerkt')"><span class="ci" style="font-size:15px">📝</span>VORGEMERKT</button>
-            <button class="cbtn" id="vkst-vk" onclick="selVKStatus('Verkauft')"><span class="ci" style="font-size:15px">✅</span>VERKAUFT</button>
-            <button class="cbtn" id="vkst-vs" onclick="selVKStatus('Versendet')"><span class="ci" style="font-size:15px">📦</span>VERSENDET</button>
-            <button class="cbtn" id="vkst-ab" onclick="selVKStatus('Abgeschlossen')"><span class="ci" style="font-size:15px">🏁</span>ABGESCHLOSSEN</button>
-          </div>
-          <input type="hidden" id="vk-status" value="Vorgemerkt"/>
-        </div>
-        <div id="vk-sende-wrap" style="display:none">
-          <div class="row g-2 mb-2">
-            <div class="col-7"><label class="fl">SENDENUMMER</label><input type="text" id="vk-sende" class="fc" placeholder="1234567890" oninput="onVKSendeInput()" style="font-family:'Space Mono',monospace"/></div>
-            <div class="col-5"><label class="fl">DIENSTLEISTER</label>
-              <select id="vk-vdl" class="fc"><option value=""></option><option>DHL</option><option>Hermes</option><option>DPD</option><option>UPS</option><option>GLS</option></select>
-            </div>
-          </div>
-          <div id="vk-track-link" style="display:none;margin-bottom:8px">
-            <a id="vk-track-a" href="#" target="_blank" class="btn btn-outline-primary btn-sm w-100"><i class="bi bi-box-arrow-up-right me-1"></i>SENDUNG VERFOLGEN</a>
-          </div>
-        </div>
-        <div class="mb-2"><label class="fl">LIEFERSTATUS</label>
-          <select id="vk-lieferstatus" class="fc" onchange="onVKLieferstatusChange()">
-            <option>Ausstehend</option><option>In Bearbeitung</option><option>Versendet</option><option>Unterwegs</option><option>Zugestellt</option><option>Problem</option>
-          </select>
-        </div>
-      </div>
-      <!-- Step 5 -->
-      <div id="vks-5" style="display:none">
-        <div class="step-title">ABSCHLUSS</div>
-        <div class="step-sub">Letzte Details.</div>
-        <div class="row g-2 mb-2">
-          <div class="col-12"><label class="fl">MITARBEITER</label><input type="text" id="vk-ma" class="fc"/></div>
-        </div>
-        <div class="mb-2"><label class="fl">HINWEISE</label><textarea id="vk-hinweise" class="fc" rows="2" placeholder="optional..."></textarea></div>
-        <div id="vk-summary" style="background:var(--b3);border:1px solid var(--e2);border-radius:var(--r);padding:10px 12px;font-size:11px;color:var(--w3);font-family:'Space Mono',monospace"></div>
-      </div>
-    </div>
-    <div style="padding:10px 13px;border-top:1px solid var(--e1);display:flex;gap:7px;justify-content:space-between">
-      <button class="btn btn-outline-secondary" id="vk-back-btn" onclick="vkStepNav(-1)" disabled><i class="bi bi-arrow-left"></i></button>
-      <button class="btn btn-outline-danger btn-sm" id="vk-del-btn" onclick="deleteHandelEntry('verkauf')" style="display:none"><i class="bi bi-trash3"></i></button>
-      <button class="btn btn-primary px-4 fw-bold" id="vk-next-btn" onclick="vkStepNav(1)">WEITER <i class="bi bi-arrow-right ms-1"></i></button>
-      <button class="btn btn-primary px-4 fw-bold" id="vk-save-btn" style="display:none" onclick="saveVKForm()"><i class="bi bi-check-lg me-1"></i>SPEICHERN</button>
-    </div>
-  </div>
-</div>
-
-<!-- Einkauf Modal - 2 Steps -->
-<div class="moverlay" id="ek-modal">
-  <div class="msheet">
-    <div class="mhead">
-      <div style="flex:1">
-        <h3 id="ek-modal-title">EINKAUF</h3>
-        <div style="margin-top:3px">
-          <div class="progress"><div class="progress-bar" id="ek-prog" style="width:50%"></div></div>
-          <div style="display:flex;justify-content:space-between;margin-top:2px">
-            <span style="font-size:9px;color:var(--w4);font-family:monospace" id="ek-step-lbl">STEP 1/2</span>
-            <span style="font-size:9px;color:var(--acc);font-family:monospace" id="ek-step-name">ARTIKEL</span>
-          </div>
-        </div>
-      </div>
-      <button class="btn btn-sm btn-outline-secondary" onclick="closeEKModal()" style="margin-left:10px"><i class="bi bi-x-lg"></i></button>
-    </div>
-    <div class="mbody">
-      <div class="diag" id="ek-diag"></div>
-      <div id="eks-1">
-        <div class="step-title">ARTIKEL & KUNDE</div>
-        <div class="step-sub">Welche Artikel? Von wem?</div>
-        <label class="fl">PRODUKTE *</label>
-        <div id="ek-produkte-list" style="margin-bottom:10px"></div>
-        <div class="row g-2 mb-2">
-          <div class="col-6"><label class="fl">KUNDE *</label><input type="text" id="ek-kunde" class="fc" placeholder="Name des Verkäufers"/></div>
-          <div class="col-6"><label class="fl">GESAMTPREIS (€)</label><input type="number" id="ek-preis" class="fc" placeholder="0.00" step="0.01" style="font-family:monospace"/></div>
-        </div>
-        <div class="row g-2 mb-2">
-          <div class="col-6"><label class="fl">PLATTFORM</label>
-            <select id="ek-plattform" class="fc"><option>Kleinanzeigen</option><option>eBay</option><option>Facebook</option><option>Direkt</option><option>Amazon</option><option>Alibaba</option><option>Sonstiges</option></select>
-          </div>
-          <div class="col-6"><label class="fl">ZIMMER / LAGERORT</label><input type="text" id="ek-zimmer" class="fc" placeholder="z.B. Zimmer 001"/></div>
-        </div>
-      </div>
-      <div id="eks-2" style="display:none">
-        <div class="step-title">VERSAND & TRACKING</div>
-        <div class="step-sub">Sendung tracken → Einkauf wird als Vorgemerkt gespeichert.</div>
-        <div style="background:rgba(0,255,136,.05);border:1px solid rgba(0,255,136,.15);border-radius:var(--r);padding:10px 12px;margin-bottom:12px;font-size:11px;color:var(--w3)">
-          💡 Nach dem Speichern: Paket abwarten → über <strong style="color:var(--acc)">EINKAUF CHECK</strong> einlagern.
-        </div>
-        <div class="mb-3">
-          <label class="fl mb-2">LIEFERART</label>
-          <div class="cg2">
-            <button class="cbtn sel" id="ekv-versand" onclick="selEKVersand('Versand')"><span class="ci">📦</span>VERSAND</button>
-            <button class="cbtn" id="ekv-abholung" onclick="selEKVersand('Abholung')"><span class="ci">🚶</span>ABHOLUNG</button>
-          </div>
-          <input type="hidden" id="ek-abholung" value="NEIN"/>
-        </div>
-        <div id="ek-versand-fields">
-          <div class="row g-2 mb-2">
-            <div class="col-7"><label class="fl">SENDENUMMER</label><input type="text" id="ek-sende" class="fc" placeholder="Tracking-Nr." style="font-family:monospace" oninput="onEKSendeInput()"/></div>
-            <div class="col-5"><label class="fl">DIENSTLEISTER</label>
-              <select id="ek-vdl" class="fc"><option value=""></option><option>DHL</option><option>Hermes</option><option>DPD</option><option>UPS</option><option>GLS</option></select>
-            </div>
-          </div>
-          <div id="ek-track-link" style="display:none;margin-bottom:8px">
-            <a id="ek-track-a" href="#" target="_blank" class="btn btn-outline-primary btn-sm w-100"><i class="bi bi-box-arrow-up-right me-1"></i>SENDUNG VERFOLGEN</a>
-          </div>
-        </div>
-        <div id="ek-abholung-fields" style="display:none">
-          <div class="row g-2 mb-2">
-            <div class="col-6"><label class="fl">ABHOLDATUM</label><input type="date" id="ek-abhol-datum" class="fc"/></div>
-            <div class="col-6"><label class="fl">ABHOLORT</label><input type="text" id="ek-abhol-ort" class="fc" placeholder="Adresse"/></div>
-          </div>
-        </div>
-        <div class="row g-2 mb-2"><div class="col-6"><label class="fl">MITARBEITER</label><input type="text" id="ek-ma" class="fc"/></div></div>
-        <div class="mb-2"><label class="fl">HINWEISE</label><textarea id="ek-hinweise" class="fc" rows="2"></textarea></div>
-        <div id="ek-products-summary" style="display:none;background:var(--b3);border:1px solid var(--e1);border-radius:var(--r);padding:10px 12px;font-size:11px;color:var(--w3);font-family:monospace;margin-top:8px"></div>
-        <div id="ek-storno-section" style="display:none;border-top:1px solid var(--e1);padding-top:10px;margin-top:10px">
-          <div class="slabel" style="color:var(--col-r)">STORNIERUNG</div>
-          <select id="ek-storno-grund" class="fc mb-2"><option value="">– Storno-Grund –</option><option>Artikel nicht erhalten</option><option>Falscher Artikel</option><option>Qualitätsmängel</option><option>Preis nicht akzeptabel</option><option>Sonstiges</option></select>
-          <textarea id="ek-storno-notiz" class="fc mb-2" rows="2" placeholder="Details..."></textarea>
-          <button class="btn btn-danger w-100 fw-bold" onclick="stornoEinkauf()"><i class="bi bi-x-circle me-1"></i>STORNIEREN</button>
-        </div>
-      </div>
-    </div>
-    <div style="padding:10px 13px;border-top:1px solid var(--e1);display:flex;gap:7px;justify-content:space-between">
-      <button class="btn btn-outline-secondary" id="ek-back-btn" onclick="ekStepNav(-1)" disabled><i class="bi bi-arrow-left"></i></button>
-      <button class="btn btn-outline-danger btn-sm" id="ek-del-btn" onclick="deleteHandelEntry('einkauf')" style="display:none"><i class="bi bi-trash3"></i></button>
-      <button class="btn btn-primary px-4 fw-bold" id="ek-next-btn" onclick="ekStepNav(1)">WEITER <i class="bi bi-arrow-right ms-1"></i></button>
-      <button class="btn btn-success px-4 fw-bold" id="ek-save-btn" style="display:none" onclick="saveEKForm()"><i class="bi bi-bookmark-check me-1"></i>VORMERKEN</button>
-    </div>
-  </div>
-</div>
-
-<!-- Delete Confirm -->
-<div class="moverlay" id="del-modal">
-  <div class="msheet">
-    <div class="mhead"><h3>LÖSCHEN?</h3><button class="btn btn-sm btn-outline-secondary" onclick="closeDelModal()"><i class="bi bi-x-lg"></i></button></div>
-    <div class="mbody"><p id="del-modal-text" style="color:var(--w3);font-size:13px;margin:0;font-family:'Space Mono',monospace"></p></div>
-    <div class="mfoot">
-      <button class="btn btn-outline-secondary btn-sm" onclick="closeDelModal()">ABBRECHEN</button>
-      <button class="btn btn-danger fw-bold" id="del-modal-confirm"><i class="bi bi-trash3 me-1"></i>LÖSCHEN</button>
-    </div>
-  </div>
-</div>
-
-<!-- Account Modal -->
-<div class="moverlay" id="acc-modal">
-  <div class="msheet">
-    <div class="mhead"><h3>TEAM & ACCOUNTS</h3><button class="btn btn-sm btn-outline-secondary" onclick="closeAccModal()"><i class="bi bi-x-lg"></i></button></div>
-    <div class="mbody" style="padding:0">
-      <div style="display:flex;border-bottom:1px solid var(--e1)">
-        <button id="acctab-team"    onclick="setAccTab('team')"    style="flex:1;padding:10px 6px;border:none;background:var(--b3);font-family:'Space Mono',monospace;font-size:10px;font-weight:700;color:var(--acc);cursor:pointer;border-bottom:2px solid var(--acc);letter-spacing:.5px;text-transform:uppercase">TEAM</button>
-        <button id="acctab-invite"  onclick="setAccTab('invite')"  style="flex:1;padding:10px 6px;border:none;background:none;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;color:var(--w4);cursor:pointer;border-bottom:2px solid transparent;letter-spacing:.5px;text-transform:uppercase">EINLADEN</button>
-        <button id="acctab-reports" onclick="setAccTab('reports')" style="flex:1;padding:10px 6px;border:none;background:none;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;color:var(--w4);cursor:pointer;border-bottom:2px solid transparent;letter-spacing:.5px;text-transform:uppercase">BERICHTE</button>
-      </div>
-      <div style="padding:13px">
-        <div class="diag" id="acc-diag"></div>
-        <div id="accpanel-team"><div class="slabel">MITARBEITER</div><div id="acc-list"><div style="text-align:center;padding:16px;color:var(--w4);font-family:'Space Mono',monospace;font-size:10px"><span class="spin-b"></span></div></div></div>
-        <div id="accpanel-invite" style="display:none">
-          <div class="slabel">EINLADEN PER EMAIL</div>
-          <div class="mb-2"><label class="fl">NAME *</label><input type="text" id="acc-name-in" class="fc" placeholder="vorname nachname" autocomplete="off"/></div>
-          <div class="mb-2"><label class="fl">E-MAIL *</label><input type="email" id="acc-email-in" class="fc" placeholder="mitarbeiter@email.de"/></div>
-          <div class="mb-3"><label class="fl">ROLLE</label>
-            <select id="acc-rolle-in" class="fc"><option value="mitarbeiter">Mitarbeiter</option><option value="senior">Senior</option><option value="owner">Inhaber</option></select>
-          </div>
-          <button class="btn btn-primary w-100 fw-bold mb-2" onclick="sendInvite()"><i class="bi bi-envelope me-2"></i>EINLADUNG SENDEN</button>
-          <div style="background:var(--b3);border-radius:var(--r);padding:9px 11px;font-size:10px;color:var(--w4);line-height:1.7;font-family:'Space Mono',monospace">Der Mitarbeiter erhält einen Aktivierungslink + Haftungsklausel.</div>
-        </div>
-        <div id="accpanel-reports" style="display:none">
-          <div class="slabel">BERICHTE</div>
-          <div style="background:var(--b3);border:1px solid var(--e1);border-radius:var(--r);padding:12px;margin-bottom:9px">
-            <div style="font-size:12px;font-weight:700;color:var(--w1);margin-bottom:3px;font-family:'Space Mono',monospace">PDF MONATSBERICHT</div>
-            <div style="font-size:10px;color:var(--w4);margin-bottom:9px;font-family:'Space Mono',monospace">Verkauf + Einkauf → ReTechnologies42@gmail.com</div>
-            <button class="btn btn-outline-secondary w-100 btn-sm" onclick="triggerPDFExport()"><i class="bi bi-file-pdf me-2" style="color:var(--col-r)"></i>JETZT SENDEN</button>
-          </div>
-          <div style="background:var(--b3);border:1px solid var(--e1);border-radius:var(--r);padding:12px">
-            <div style="font-size:10px;color:var(--w3);font-family:'Space Mono',monospace">Auto: jeden 1. des Monats via GAS-Trigger</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Reklamation Modal - Stepper -->
-<div class="moverlay" id="rt-modal">
-  <div class="msheet">
-    <div class="mhead">
-      <div style="flex:1">
-        <h3>REKLAMATION</h3>
-        <div style="margin-top:3px">
-          <div class="progress"><div class="progress-bar" id="rt-prog" style="width:33%"></div></div>
-          <div style="display:flex;justify-content:space-between;margin-top:2px">
-            <span style="font-size:9px;color:var(--w4);font-family:monospace" id="rt-step-lbl">STEP 1/3</span>
-            <span style="font-size:9px;color:var(--acc);font-family:monospace" id="rt-step-name">PRODUKT</span>
-          </div>
-        </div>
-      </div>
-      <button class="btn btn-sm btn-outline-secondary" onclick="closeRTModal()" style="margin-left:10px"><i class="bi bi-x-lg"></i></button>
-    </div>
-    <div class="mbody">
-      <div class="diag" id="rt-diag"></div>
-      <input type="hidden" id="rt-verkauf-zeile" value=""/>
-      <div id="rts-1">
-        <div class="step-title">PRODUKT & KUNDE</div>
-        <div class="step-sub">Was wird reklamiert? Von wem?</div>
-        <div class="mb-2"><label class="fl">PRODUKT *</label><input type="text" id="rt-produkt" class="fc" placeholder="Produktname"/></div>
-        <div class="row g-2 mb-2">
-          <div class="col-6"><label class="fl">KUNDE</label><input type="text" id="rt-kunde" class="fc" placeholder="Name"/></div>
-          <div class="col-6"><label class="fl">SCAN-ID</label>
-            <div style="display:flex;gap:5px">
-              <input type="text" id="rt-scanid" class="fc" placeholder="optional" style="font-family:monospace"/>
-              <button class="btn btn-outline-secondary btn-sm" onclick="openRTScanner()"><i class="bi bi-upc-scan"></i></button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div id="rts-2" style="display:none">
-        <div class="step-title">REKLAMATIONSGRUND</div>
-        <div class="step-sub">Was ist der Grund der Reklamation?</div>
-        <div class="mb-3">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px">
-            <button class="cbtn" id="rtg-defekt" onclick="selRTGrund('Defekt erhalten')"><span class="ci" style="font-size:17px">🔧</span>DEFEKT</button>
-            <button class="cbtn" id="rtg-falsch" onclick="selRTGrund('Falsches Produkt')"><span class="ci" style="font-size:17px">❌</span>FALSCHES PRODUKT</button>
-            <button class="cbtn" id="rtg-beschaedigt" onclick="selRTGrund('Beschädigte Verpackung')"><span class="ci" style="font-size:17px">📦</span>BESCHÄDIGT</button>
-            <button class="cbtn" id="rtg-nonfunc" onclick="selRTGrund('Nicht funktionsfähig')"><span class="ci" style="font-size:17px">⚠️</span>NICHT FUNKTIONSFÄHIG</button>
-            <button class="cbtn" id="rtg-sonstiges" onclick="selRTGrund('Sonstiges')" style="grid-column:1/-1"><span class="ci" style="font-size:17px">💬</span>SONSTIGES</button>
-          </div>
-          <input type="hidden" id="rt-grund" value=""/>
-        </div>
-        <div class="row g-2 mb-2">
-          <div class="col-6"><label class="fl">STATUS</label>
-            <select id="rt-status" class="fc"><option>Offen</option><option>In Bearbeitung</option><option>Erstattet</option><option>Abgelehnt</option></select>
-          </div>
-          <div class="col-6"><label class="fl">ERSTATTUNG (€)</label><input type="number" id="rt-erstattung" class="fc" placeholder="0.00" style="font-family:monospace"/></div>
-        </div>
-        <div class="mb-2"><label class="fl">HINWEISE</label><textarea id="rt-hinweise" class="fc" rows="2"></textarea></div>
-      </div>
-      <div id="rts-3" style="display:none">
-        <div class="step-title">ABSCHLUSS</div>
-        <div class="step-sub">Zusammenfassung und speichern.</div>
-        <div id="rt-summary" style="background:var(--b3);border:1px solid var(--e2);border-radius:var(--r);padding:11px 12px;font-size:11px;color:var(--w3);font-family:monospace;margin-bottom:12px;line-height:1.8"></div>
-        <div class="mb-2"><label class="fl">MITARBEITER</label><input type="text" id="rt-ma" class="fc"/></div>
-      </div>
-    </div>
-    <div style="padding:10px 13px;border-top:1px solid var(--e1);display:flex;gap:7px;justify-content:space-between">
-      <button class="btn btn-outline-secondary" id="rt-back-btn" onclick="rtStepNav(-1)" disabled><i class="bi bi-arrow-left"></i></button>
-      <button class="btn btn-primary px-4 fw-bold" id="rt-next-btn" onclick="rtStepNav(1)">WEITER <i class="bi bi-arrow-right ms-1"></i></button>
-      <button class="btn btn-danger px-4 fw-bold" id="rt-save-btn" style="display:none" onclick="saveRTForm()"><i class="bi bi-check-lg me-1"></i>SPEICHERN</button>
-    </div>
-  </div>
-</div>
-
-<!-- China Modal -->
-<div class="moverlay" id="china-modal">
-  <div class="msheet">
-    <div class="mhead"><h3>CHINA IMPORT</h3><button class="btn btn-sm btn-outline-secondary" onclick="closeChinaModal()"><i class="bi bi-x-lg"></i></button></div>
-    <div class="mbody">
-      <div class="diag" id="china-diag"></div>
-      <div class="row g-2 mb-2">
-        <div class="col-8"><label class="fl">BESCHREIBUNG *</label><input type="text" id="cn-desc" class="fc" placeholder="z.B. 50x iphone hüllen"/></div>
-        <div class="col-4"><label class="fl">ANZAHL</label><input type="number" id="cn-qty" class="fc" placeholder="50" style="font-family:'Space Mono',monospace"/></div>
-      </div>
-      <div class="row g-2 mb-2">
-        <div class="col-4"><label class="fl">WARENWERT (€)</label><input type="number" id="cn-wert" class="fc" placeholder="0.00" oninput="calcChinaCosts()" style="font-family:'Space Mono',monospace"/></div>
-        <div class="col-4"><label class="fl">FRACHT (€)</label><input type="number" id="cn-fracht" class="fc" placeholder="0.00" oninput="calcChinaCosts()" style="font-family:'Space Mono',monospace"/></div>
-        <div class="col-4"><label class="fl">ZOLL (€)</label><input type="number" id="cn-zoll" class="fc" placeholder="0.00" oninput="calcChinaCosts()" style="font-family:'Space Mono',monospace"/></div>
-      </div>
-      <div class="row g-2 mb-2">
-        <div class="col-6"><label class="fl">LIEFERANT</label><input type="text" id="cn-supplier" class="fc" placeholder="z.B. alibaba"/></div>
-        <div class="col-6"><label class="fl">STATUS</label>
-          <select id="cn-status" class="fc"><option>Bestellt</option><option>Unterwegs</option><option>Angekommen</option><option>Eingelagert</option></select>
-        </div>
-      </div>
-      <div class="row g-2 mb-2">
-        <div class="col-6"><label class="fl">BESTELLDATUM</label><input type="date" id="cn-date" class="fc"/></div>
-        <div class="col-6"><label class="fl">TRACKING-NR.</label><input type="text" id="cn-track" class="fc" placeholder="optional" style="font-family:'Space Mono',monospace"/></div>
-      </div>
-      <div id="cn-cost-summary" style="display:none;background:var(--b3);border:1px solid var(--e2);border-radius:var(--r);padding:9px 11px;margin-top:7px;font-family:'Space Mono',monospace;font-size:11px">
-        <div style="display:flex;justify-content:space-between"><span style="color:var(--w3)">GESAMT:</span><span style="font-weight:700;color:var(--w1)" id="cn-total-preview">–</span></div>
-        <div style="display:flex;justify-content:space-between;margin-top:3px"><span style="color:var(--w3)">PRO STÜCK:</span><span style="font-weight:700;color:var(--col-y)" id="cn-per-item">–</span></div>
-      </div>
-      <div class="mb-2 mt-2"><label class="fl">HINWEISE</label><textarea id="cn-notes" class="fc" rows="2"></textarea></div>
-    </div>
-    <div class="mfoot">
-      <button class="btn btn-outline-danger btn-sm" id="cn-del-btn" style="display:none" onclick="deleteChinaEntry()"><i class="bi bi-trash3"></i></button>
-      <button class="btn btn-outline-secondary btn-sm" onclick="closeChinaModal()">ABBRECHEN</button>
-      <button class="btn btn-primary fw-bold" onclick="saveChinaEntry()"><i class="bi bi-check-lg me-1"></i>SPEICHERN</button>
-    </div>
-  </div>
-</div>
-
-<!-- Multi-Select -->
-<div class="moverlay" id="vk-multi-overlay">
-  <div class="msheet" style="max-height:80vh;display:flex;flex-direction:column">
-    <div class="mhead"><h3>ARTIKEL WÄHLEN</h3><button class="btn btn-sm btn-outline-secondary" onclick="closeVKMulti()"><i class="bi bi-x-lg"></i></button></div>
-    <div style="padding:10px 13px;border-bottom:1px solid var(--e1)"><input type="text" id="vkm-search" class="fc" placeholder="suchen..." oninput="filterVKMulti()"/></div>
-    <div id="vkm-list" style="overflow-y:auto;flex:1;padding:6px"></div>
-    <div style="padding:10px 13px;border-top:1px solid var(--e1);display:flex;align-items:center;justify-content:space-between">
-      <span style="font-size:10px;color:var(--w4);font-family:'Space Mono',monospace"><span id="vkm-cnt">0</span> AUSGEWÄHLT · EK: <span id="vkm-ek-total" style="color:var(--col-y)">0€</span></span>
-      <button class="btn btn-primary fw-bold" onclick="applyVKMulti()"><i class="bi bi-check me-1"></i>ÜBERNEHMEN</button>
-    </div>
-  </div>
-</div>
-
-<!-- Upload Wizard -->
-<div class="moverlay" id="upload-wizard">
-  <div class="msheet">
-    <div class="mhead">
-      <div style="flex:1">
-        <h3 id="uw-title">UPLOAD WIZARD</h3>
-        <div style="margin-top:3px">
-          <div class="progress"><div class="progress-bar" id="uw-prog" style="width:33%"></div></div>
-          <span style="font-size:9px;color:var(--w4);font-family:'Space Mono',monospace" id="uw-step-lbl">STEP 1/3</span>
-        </div>
-      </div>
-      <button class="btn btn-sm btn-outline-secondary" onclick="closeUploadWizard()" style="margin-left:10px"><i class="bi bi-x-lg"></i></button>
-    </div>
-    <div class="mbody">
-      <div class="diag" id="uw-diag"></div>
-      <div id="uws-1">
-        <div class="step-title">ARTIKEL</div>
-        <div class="step-sub">Noch nicht hochgeladene Artikel.</div>
-        <input type="text" id="uw-search" class="fc mb-3" placeholder="suchen..." oninput="filterUWItems()"/>
-        <div id="uw-items" style="max-height:280px;overflow-y:auto"></div>
-        <div style="font-size:9px;color:var(--w4);margin-top:6px;font-family:'Space Mono',monospace"><span id="uw-selected-cnt">0</span> AUSGEWÄHLT</div>
-      </div>
-      <div id="uws-2" style="display:none">
-        <div class="step-title">PLATTFORM</div>
-        <div class="step-sub">Wo wird hochgeladen?</div>
-        <div class="mb-3">
-          <div class="cg2">
-            <button class="cbtn" id="uwp-ka" onclick="selUWPlattform('Kleinanzeigen')"><span class="ci" style="font-size:16px">🟡</span>KLEINANZEIGEN</button>
-            <button class="cbtn" id="uwp-eb" onclick="selUWPlattform('eBay')"><span class="ci" style="font-size:16px">🛒</span>EBAY</button>
-            <button class="cbtn" id="uwp-fb" onclick="selUWPlattform('Facebook')"><span class="ci" style="font-size:16px">📘</span>FACEBOOK</button>
-            <button class="cbtn" id="uwp-so" onclick="selUWPlattform('Sonstiges')"><span class="ci" style="font-size:16px">📦</span>SONSTIGES</button>
-          </div>
-          <input type="hidden" id="uw-plattform" value=""/>
-        </div>
-        <div id="uw-price-list"></div>
-      </div>
-      <div id="uws-3" style="display:none">
-        <div class="step-title">LINKS & FOTOS</div>
-        <div class="step-sub">Anzeigen-Links eintragen.</div>
-        <div id="uw-link-list"></div>
-        <div class="mt-3">
-          <label class="fl">FOTOS</label>
-          <div class="photo-zone" onclick="triggerUWPhoto()">
-            <div class="pz-top"><i class="bi bi-camera-plus"></i><div class="pz-l">Fotos hinzufügen</div></div>
-          </div>
-          <div class="photo-thumbs mt-2" id="uw-photo-thumbs"></div>
-        </div>
-      </div>
-    </div>
-    <div style="padding:10px 13px;border-top:1px solid var(--e1);display:flex;gap:7px;justify-content:space-between">
-      <button class="btn btn-outline-secondary" id="uw-back-btn" onclick="uwStepNav(-1)" disabled><i class="bi bi-arrow-left"></i></button>
-      <button class="btn btn-primary px-4 fw-bold" id="uw-next-btn" onclick="uwStepNav(1)">WEITER <i class="bi bi-arrow-right ms-1"></i></button>
-      <button class="btn btn-primary px-4 fw-bold" id="uw-save-btn" style="display:none" onclick="saveUploadWizard()"><i class="bi bi-megaphone me-1"></i>HOCHLADEN</button>
-    </div>
-  </div>
-</div>
-
-<!-- Profil Overlay -->
-<div class="detail-overlay" id="profil-overlay">
-  <div style="position:sticky;top:0;z-index:10;background:rgba(0,0,0,.95);backdrop-filter:blur(10px);padding:10px 13px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--e1)">
-    <button onclick="document.getElementById('profil-overlay').classList.remove('open')" style="background:none;border:none;color:var(--w1);font-size:20px;cursor:pointer;padding:0"><i class="bi bi-arrow-left"></i></button>
-    <span style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--w1)">MEIN PROFIL</span>
-    <button onclick="changeEmp()" style="margin-left:auto;background:none;border:1px solid var(--e2);color:var(--w3);border-radius:var(--r);padding:4px 10px;cursor:pointer;font-size:11px;font-family:'Space Mono',monospace;font-weight:700;letter-spacing:.5px">ABMELDEN</button>
-  </div>
-  <div style="padding:20px 13px">
-    <div style="text-align:center;margin-bottom:20px">
-      <div style="width:64px;height:64px;border-radius:50%;background:var(--b3);border:2px solid var(--acc);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:var(--acc);margin:0 auto 10px" id="profil-avatar">?</div>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:3px;color:var(--w1)" id="profil-name">–</div>
-      <div style="font-size:10px;color:var(--w4);font-family:'Space Mono',monospace;letter-spacing:1px;margin-top:2px">MITARBEITER // STOCKMASTER PRO</div>
-    </div>
-    <div style="font-size:9px;color:var(--w4);text-align:center;margin-bottom:7px;font-family:'Space Mono',monospace;letter-spacing:.5px;text-transform:uppercase">STATISTIKEN // GESAMT</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:9px">
-      <div style="background:var(--b2);border:1px solid var(--e1);border-radius:var(--r-lg);padding:11px;text-align:center">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:1px;color:var(--col-b)" id="ps-eingelagert">–</div>
-        <div class="kpi-l">EINGELAGERT</div>
-      </div>
-      <div style="background:var(--b2);border:1px solid var(--e1);border-radius:var(--r-lg);padding:11px;text-align:center">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:1px;color:var(--acc)" id="ps-verkauft">–</div>
-        <div class="kpi-l">VERKÄUFE</div>
-      </div>
-      <div style="background:var(--b2);border:1px solid var(--e1);border-radius:var(--r-lg);padding:11px;text-align:center">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:1px;color:var(--col-r)" id="ps-retouren">–</div>
-        <div class="kpi-l">RETOUREN</div>
-      </div>
-    </div>
-    <div style="font-size:9px;color:var(--acc);text-align:center;margin-bottom:9px;font-family:'Space Mono',monospace;letter-spacing:.5px">7-TAGE REVIEW</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:20px">
-      <div style="background:var(--b2);border:1px solid rgba(77,159,255,.2);border-radius:var(--r-lg);padding:11px;text-align:center">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:var(--col-b)" id="ps-7d-eingelagert">–</div>
-        <div class="kpi-l">EINGELAGERT (7T)</div>
-      </div>
-      <div style="background:var(--b2);border:1px solid rgba(0,255,136,.2);border-radius:var(--r-lg);padding:11px;text-align:center">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:var(--acc)" id="ps-7d-verkauft">–</div>
-        <div class="kpi-l">VERKÄUFE (7T)</div>
-      </div>
-    </div>
-    <div class="slabel">AKTIVITÄTSLOG</div>
-    <div id="profil-log" style="max-height:320px;overflow-y:auto"></div>
-  </div>
-</div>
-
-<!-- Detail Overlay -->
-<div class="detail-overlay" id="detail-overlay">
-  <div style="position:sticky;top:0;z-index:10;background:rgba(0,0,0,.95);backdrop-filter:blur(10px);padding:10px 13px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--e1)">
-    <button onclick="closeDetail()" style="background:none;border:none;color:var(--w1);font-size:20px;cursor:pointer;padding:0"><i class="bi bi-arrow-left"></i></button>
-    <span style="font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1.5px;color:var(--w1)" id="detail-header-title">DETAIL</span>
-    <div style="margin-left:auto;display:flex;gap:6px">
-      <button id="detail-edit-btn" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil-fill"></i></button>
-    </div>
-  </div>
-  <div id="detail-photo-tabs" style="display:none;background:var(--b1);border-bottom:1px solid var(--e1)"></div>
-  <div id="detail-hero" class="detail-hero-empty">📦</div>
-  <div id="detail-thumbs" class="detail-photos" style="display:none"></div>
-  <div class="detail-body">
-    <div class="detail-title" id="detail-title"></div>
-    <div id="detail-ka-badge" style="margin-bottom:7px"></div>
-    <div class="detail-price" id="detail-price"></div>
-    <div class="detail-price-sub" id="detail-price-sub"></div>
-    <div id="detail-upload-photos-wrap" style="display:none;margin-bottom:13px">
-      <div class="slabel" style="color:var(--col-b)">ANZEIGEN-FOTOS</div>
-      <div id="detail-upload-photos" style="display:flex;flex-wrap:wrap;gap:5px"></div>
-    </div>
-    <div id="detail-links-wrap" style="display:none;margin-bottom:13px">
-      <div class="slabel" style="color:var(--col-b)">ANZEIGEN-LINKS</div>
-      <div id="detail-links"></div>
-    </div>
-    <div id="detail-specs"></div>
-    <div id="detail-defekt-wrap" style="display:none;margin:13px 0">
-      <div class="slabel" style="color:var(--col-r)">DEFEKT-FOTOS</div>
-      <div id="detail-defekt-fotos" style="display:flex;flex-wrap:wrap;gap:5px"></div>
-    </div>
-    <div id="detail-notes" style="display:none;margin-top:10px;padding:10px 12px;background:var(--b2);border-radius:var(--r);font-size:12px;color:var(--w3);font-family:'Space Mono',monospace"></div>
-  </div>
-</div>
-
-<!-- Notifications -->
-<div class="notif-overlay" id="notif-overlay">
-  <div class="notif-panel">
-    <div class="notif-head">
-      <h3>NACHRICHTEN</h3>
-      <div style="display:flex;gap:7px;align-items:center">
-        <button onclick="clearAllNotifications()" class="btn btn-sm btn-outline-secondary" style="font-size:10px;padding:3px 8px;font-family:'Space Mono',monospace">ALLE LÖSCHEN</button>
-        <button onclick="closeNotifications()" style="background:var(--b3);border:1px solid var(--e2);color:var(--w1);border-radius:4px;padding:4px 9px;cursor:pointer;font-size:13px;font-family:'Space Mono',monospace">✕</button>
-      </div>
-    </div>
-    <div class="notif-list" id="notif-list"><div class="notif-empty"><i class="bi bi-bell-slash"></i><p style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.5px;text-transform:uppercase">KEINE NACHRICHTEN</p></div></div>
-  </div>
-</div>
-
-<!-- Mandatory Notif Overlay -->
-<div id="mandatory-notif-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9990;flex-direction:column;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)">
-  <div style="background:var(--b2);border:1px solid var(--acc);border-radius:var(--r-xl);max-width:400px;width:100%;overflow:hidden;box-shadow:0 0 40px rgba(0,255,136,.1)">
-    <div style="background:rgba(0,255,136,.06);padding:14px 16px;border-bottom:1px solid var(--e1)">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--acc)">PFLICHT-BENACHRICHTIGUNG</div>
-      <div style="font-size:10px;color:var(--w4);font-family:'Space Mono',monospace;margin-top:1px;letter-spacing:.5px">BITTE BESTÄTIGEN UM FORTZUFAHREN</div>
-    </div>
-    <div style="padding:14px 16px">
-      <div style="font-size:14px;font-weight:700;color:var(--w1);margin-bottom:5px;font-family:'Space Mono',monospace" id="mn-titel"></div>
-      <div style="font-size:12px;color:var(--w3);line-height:1.6;margin-bottom:13px" id="mn-body"></div>
-      <div style="font-size:9px;color:var(--w4);margin-bottom:13px;font-family:'Space Mono',monospace" id="mn-date"></div>
-      <button class="btn btn-primary w-100 fw-bold" onclick="confirmCurrentNotif()" style="letter-spacing:1px">✓ BESTÄTIGEN</button>
-    </div>
-    <div style="padding:6px 16px 12px;text-align:center"><span style="font-size:9px;color:var(--w4);font-family:'Space Mono',monospace;letter-spacing:.5px" id="mn-counter"></span></div>
-  </div>
-</div>
-
-<!-- Activation Overlay -->
-<div id="activation-overlay" style="display:none;position:fixed;inset:0;background:var(--b0);z-index:10000;overflow-y:auto">
-  <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px">
-    <div style="background:var(--b2);border:1px solid var(--e2);border-radius:var(--r-xl);max-width:400px;width:100%;padding:24px 20px">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:4px;color:var(--acc);margin-bottom:3px">AKTIVIERUNG</div>
-      <div style="font-size:11px;color:var(--w3);margin-bottom:18px;font-family:'Space Mono',monospace;letter-spacing:.5px">PASSWORT FESTLEGEN</div>
-      <div class="diag" id="act-diag"></div>
-      <label class="fl">DEIN NAME</label>
-      <input type="text" id="act-name" class="fc mb-3" placeholder="vorname nachname"/>
-      <label class="fl">PASSWORT</label>
-      <input type="password" id="act-pw" class="fc mb-2" placeholder="mindestens 6 zeichen"/>
-      <label class="fl">WIEDERHOLEN</label>
-      <input type="password" id="act-pw2" class="fc mb-3"/>
-      <div style="background:var(--b3);border:1px solid var(--e2);border-radius:var(--r);padding:11px 12px;font-size:10px;color:var(--w4);line-height:1.8;margin-bottom:11px;font-family:'Space Mono',monospace">
-        <strong style="color:var(--w2)">// HAFTUNGSERKLÄRUNG</strong><br>
-        Mit der Aktivierung bestätigst du, dass alle unter deinem Klarnamen durchgeführten Aktionen dir persönlich zugerechnet werden. Du haftest für die Richtigkeit der von dir erfassten Daten. Jede Transaktion wird protokolliert. Bei vorsätzlicher Falschangabe oder grober Fahrlässigkeit behält sich das Unternehmen rechtliche Schritte vor.
-      </div>
-      <label style="display:flex;gap:8px;align-items:flex-start;font-size:11px;color:var(--w3);cursor:pointer;margin-bottom:14px;font-family:'Space Mono',monospace">
-        <input type="checkbox" id="act-chk" style="margin-top:2px;flex-shrink:0;accent-color:var(--acc)"/>
-        HAFTUNGSERKLÄRUNG AKZEPTIEREN
-      </label>
-      <button class="btn btn-primary w-100 fw-bold" id="act-btn" onclick="doActivation()" style="letter-spacing:1px">ACCOUNT AKTIVIEREN →</button>
-      <input type="hidden" id="act-token" value=""/>
-    </div>
-  </div>
-</div>
-
-<!-- Search Scanner -->
-<div class="scan-overlay hidden" id="search-scan-overlay">
-  <div class="scan-overlay-video">
-    <video id="search-scan-video" autoplay playsinline muted></video>
-    <canvas id="search-scan-canvas" style="display:none"></canvas>
-    <div class="scan-overlay-frame"><div></div></div>
-    <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:var(--acc);border-radius:20px;padding:4px 12px;font-size:10px;font-weight:700;font-family:'Space Mono',monospace;letter-spacing:.5px" id="search-scan-hint">PRODUKT SCANNEN</div>
-  </div>
-  <div style="margin-top:14px;text-align:center">
-    <p style="color:var(--w3);font-size:11px;margin-bottom:11px;font-family:'Space Mono',monospace;letter-spacing:.5px">BARCODE WIRD AUTOMATISCH ERKANNT</p>
-    <button class="btn btn-outline-secondary" onclick="closeSearchScanner()"><i class="bi bi-x-circle me-1"></i>ABBRECHEN</button>
-  </div>
-</div>
-
-<!-- Global Cam Bar -->
-<div id="global-cam-bar" style="display:none;position:fixed;top:50px;left:0;right:0;z-index:8000;background:rgba(0,0,0,.98);border-bottom:1px solid var(--e1);padding:7px 12px;align-items:center;gap:8px">
-  <i class="bi bi-camera-video" style="color:var(--acc);font-size:14px"></i>
-  <select id="global-cam-select" class="fc" style="flex:1;font-size:11px;padding:5px 10px;font-family:'Space Mono',monospace" onchange="onGlobalCamChange()">
-    <option value="">KAMERA WÄHLEN...</option>
-  </select>
-  <button onclick="hideGlobalCamBar()" style="background:none;border:none;color:var(--w4);font-size:16px;cursor:pointer;padding:0"><i class="bi bi-x"></i></button>
-</div>
-
-<!-- File inputs -->
-<input type="file" id="f-photo-cam"     accept="image/*" capture="environment" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0"/>
-<input type="file" id="f-photo-gallery" accept="image/*"                       style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0"/>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="app.js"></script>
-</body>
-</html>
+// ── LOGIN ─────────────────────────────────────────────────────────
+function initEmp(){
+  // Check for activation token in URL
+  var params=new URLSearchParams(window.location.search);
+  var activate=params.get("activate");
+  if(activate){showActivationFlow(activate);return;}
+  var s=document.getElementById("emp-scr");if(s)s.classList.remove("hidden");
+  setTimeout(function(){var i=document.getElementById("emp-in");if(i)i.focus();},200);
+}
+function togglePwVis(){var i=document.getElementById("pw-in"),e=document.getElementById("pw-eye");if(!i||!e)return;var h=i.type==="password";i.type=h?"text":"password";e.innerHTML=h?'<i class="bi bi-eye-slash"></i>':'<i class="bi bi-eye"></i>';}
+function showLoginErr(msg){var e=document.getElementById("pw-err"),m=document.getElementById("pw-err-msg");if(m)m.textContent=msg;if(e)e.style.display="block";}
+var empRolle="mitarbeiter";
+function applyEmp(n,rolle){emp=n.trim();empRolle=rolle||"mitarbeiter";var b=document.getElementById("emp-name");if(b)b.textContent=emp;var s=document.getElementById("emp-scr");if(s)s.classList.add("hidden");try{setGreeting();}catch(e){}try{fillMA();}catch(e){}
+// Show owner-only UI
+var ownerEls=document.querySelectorAll(".owner-only");ownerEls.forEach(function(el){el.style.display=empRolle==="owner"?"block":"none";});
+var ownerInline=document.querySelectorAll(".owner-only-inline");ownerInline.forEach(function(el){el.style.display=empRolle==="owner"?"inline-flex":"none";});
+  saveSession(n, rolle||"mitarbeiter");
+}
+function changeEmp(){emp="";var i=document.getElementById("emp-in"),p=document.getElementById("pw-in");if(i)i.value="";if(p)p.value="";var e=document.getElementById("pw-err");if(e)e.style.display="none";var s=document.getElementById("emp-scr");if(s)s.classList.remove("hidden");setTimeout(function(){var x=document.getElementById("emp-in");if(x)x.focus();},150);
+  clearSession();
+}
+function fillMA(){var e=document.getElementById("f-ma");if(e)e.value=emp;}
+(function(){
+  var b=document.getElementById("btn-emp"),i=document.getElementById("emp-in"),p=document.getElementById("pw-in");
+  if(b)b.addEventListener("click",doLogin);
+  if(i)i.addEventListener("keydown",function(e){if(e.key==="Enter")document.getElementById("pw-in").focus();});
+  if(p)p.addEventListener("keydown",function(e){if(e.key==="Enter")doLogin();});
+})();
+
+// ── GREETING ─────────────────────────────────────────────────────
+function setGreeting(){var h=new Date().getHours(),g,emoji;if(h>=5&&h<10){g="GUTEN MORGEN";emoji="☀️";}else if(h>=10&&h<12){g="GUTEN VORMITTAG";emoji="🌤️";}else if(h>=12&&h<14){g="GUTEN MITTAG";emoji="🌞";}else if(h>=14&&h<18){g="GUTEN NACHMITTAG";emoji="⛅";}else if(h>=18&&h<22){g="GUTEN ABEND";emoji="🌆";}else{g="GUTE NACHT";emoji="🌙";}document.getElementById("g-time").textContent=g+" "+emoji;document.getElementById("g-name").textContent=emp;updateMyStats();}
+function updateMyStats(){if(!emp)return;var today=new Date().toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"});var total=0,todayCount=0,defekte=0;allItems.forEach(function(item){if((item.mitarbeiter||"").toLowerCase()===emp.toLowerCase()){total++;if(item.datum&&item.datum.startsWith(today.split(".")[0]+"."+today.split(".")[1]))todayCount++;}if(item.type==="defekt"&&(item.mitarbeiter||"").toLowerCase()===emp.toLowerCase())defekte++;});var t=document.getElementById("my-total");if(t)t.textContent=total;var td=document.getElementById("my-today");if(td)td.textContent=todayCount;var df=document.getElementById("my-defekte");if(df)df.textContent=defekte;var nf=document.getElementById("my-notifs");if(nf)nf.textContent=notifications.length;}
+
+// ── TABS ─────────────────────────────────────────────────────────
+document.querySelectorAll(".bnav-btn").forEach(function(b){b.addEventListener("click",function(){document.querySelectorAll(".bnav-btn").forEach(function(x){x.classList.remove("on");});document.querySelectorAll(".panel").forEach(function(x){x.classList.remove("on");});b.classList.add("on");var p=document.getElementById(b.dataset.tab);if(p)p.classList.add("on");if(b.dataset.tab==="home-panel"){setGreeting();loadStats();}if(b.dataset.tab==="list-panel"&&allItems.length===0)loadAll();if(b.dataset.tab==="search-panel"){initSearch();if(allItems.length===0){loadAll();setTimeout(function(){if(allItems.length>0)renderSearchResults(allItems);},2500);}else{renderSearchResults(allItems);}}if(b.dataset.tab==="handel-panel"){loadHandel();}if(b.dataset.tab==="analyse-panel"){renderAnalysePanel();}});});
+function goTabFn(id,lfMode){document.querySelectorAll(".bnav-btn").forEach(function(b){b.classList.toggle("on",b.dataset.tab===id);});document.querySelectorAll(".panel").forEach(function(p){p.classList.toggle("on",p.id===id);});if(lfMode){lf=lfMode;renderList();}if(id==="list-panel"&&allItems.length===0)loadAll();if(id==="home-panel"){setGreeting();loadStats();}}
+
+// ── STATS ─────────────────────────────────────────────────────────
+function loadStats(){gasGet("getStats",{},function(r){if(!r||!r.ok)return;var s=r.stats||{};document.getElementById("st-sw").textContent=(s.konsolen||0)+(s.spiele||0);document.getElementById("st-h").textContent=s.handys||0;document.getElementById("st-pc").textContent=s.pcs||0;document.getElementById("st-def").textContent=s.defekte||0;document.getElementById("st-heu").textContent=s.heute||0;var ve=document.getElementById("st-vk");if(ve)ve.textContent=s.verkauf||0;var ee=document.getElementById("st-ek");if(ee)ee.textContent=s.einkauf||0;},function(){});}
+
+// ── KATEGORIE ─────────────────────────────────────────────────────
+function selCat(cat){curCat=cat;isEditMode=false;editingItem=null;document.getElementById("mode-chooser").style.display="none";document.getElementById("cat-chooser").style.display="none";document.getElementById("sw-sub").style.display="none";document.getElementById("main-stepper").style.display="none";if(cat==="spielwaren"){document.getElementById("sw-sub").style.display="block";}else{startStepper(cat);}}
+function resetFlow(){stopCam();document.getElementById("mode-chooser").style.display="block";document.getElementById("cat-chooser").style.display="none";document.getElementById("sw-sub").style.display="none";document.getElementById("main-stepper").style.display="none";isEditMode=false;editingItem=null;resetStepperState();}
+
+// ── STEPPER ───────────────────────────────────────────────────────
+function startStepper(type, prefillItem){
+  curType=type;isEditMode=!!prefillItem;editingItem=prefillItem||null;
+  stepCur=(type==="spiel"||type==="handy")?2:1;
+  resetStepperState();
+  document.getElementById("main-stepper").style.display="block";
+  configS2(type);configS3(type);buildDots();updateProgress();showStep(stepCur);fillMA();
+  if(prefillItem){prefillStepper(prefillItem,type);}
+}
+
+function prefillStepper(item,type){
+  var si=document.getElementById("f-scanid");if(si)si.value=item.scanId||"";
+  var nm=document.getElementById("f-name");if(nm)nm.value=item.name||item.spiel||item.modell||"";
+  var ma=document.getElementById("f-ma");if(ma)ma.value=item.mitarbeiter||emp;
+  var ep=document.getElementById("f-einkaufspreis");if(ep)ep.value=item.einkaufspreis||"";
+  var wt=document.getElementById("f-warentyp");if(wt&&item.warentyp)wt.value=item.warentyp;
+  setTimeout(function(){
+    if(type==="konsole"){sv("f-gb",item.speicherGB);sv("f-farbe",item.farbe);}
+    else if(type==="spiel"){sv("f-sys",item.system);sv("f-zustand",item.zustand);sv("f-usk",item.usk);sv("f-sprache",item.sprache);sv("f-hinweise",item.hinweise);}
+    else if(type==="handy"){sv("f-gb",item.speicherGB);sv("f-ram",item.ram);sv("f-farbe",item.farbe);sv("f-netz",item.netzwerk);sv("f-imei",item.imei);sv("f-zustand",item.zustand);}
+    else if(type==="pc"){if(item.typ_){selPCTyp(item.typ_);}setTimeout(function(){sv("f-cpu",item.prozessor);sv("f-ram",item.ram);sv("f-gb",item.speicherGB);sv("f-stype",item.speicherTyp);sv("f-gpu",item.grafikkarte);sv("f-mb",item.mainboard);sv("f-psu",item.netzteil);sv("f-os",item.betriebssystem);sv("f-zustand",item.zustand);},60);}
+    if(item.problemTyp&&item.problemTyp!==""){
+      selProb("ja");
+      setTimeout(function(){
+        if(item.problemTyp==="physisch"||item.problemTyp==="software"){selProbType(item.problemTyp);}
+        else{document.getElementById("prob-descr-row").style.display="block";}
+        sv("f-prob-beschr",item.problemBeschr);
+        if(item.fotos&&item.fotos.length>0){photos=item.fotos.map(function(b64){return{b64:b64,name:"foto.jpg"};});renderAllPhotos();document.getElementById("photo-row").style.display="block";}
+      },60);
+    } else {selProb("nein");}
+  },120);
+}
+function sv(id,val){var el=document.getElementById(id);if(!el||val===undefined||val===null)return;el.value=String(val);}
+
+function configS2(t){var tt={konsole:"Name der Konsole",spiel:"Spieltitel",handy:"Gerätemodell",pc:"Modell"};var ss={konsole:"z.B. PlayStation 5 Slim",spiel:"z.B. Zelda: Tears of the Kingdom",handy:"z.B. Samsung Galaxy S24",pc:"z.B. Dell XPS 15"};document.getElementById("s2-title").textContent=tt[t]||"Name";document.getElementById("s2-lbl").textContent=(tt[t]||"Name")+" *";document.getElementById("f-name").placeholder=ss[t]||"";document.getElementById("s2-sub").textContent="Vollständige Bezeichnung eingeben.";document.getElementById("s2-extra").innerHTML="";}
+function configS3(t){
+  var h="";
+  if(t==="konsole"){document.getElementById("s3-title").textContent="Speicher & Farbe";h='<div class="row g-2 mb-3"><div class="col-6"><label class="fl">Speicher (GB)</label><input type="number" id="f-gb" class="fc" placeholder="z.B. 825"/></div><div class="col-6"><label class="fl">Farbe</label><input type="text" id="f-farbe" class="fc" placeholder="z.B. Weiß"/></div></div>';}
+  else if(t==="spiel"){document.getElementById("s3-title").textContent="Spiel-Details";h='<div class="mb-3"><label class="fl">System / Plattform</label>'+selHTML("f-sys",["PlayStation 5","PlayStation 4","PlayStation 3","Xbox Series X/S","Xbox One","Xbox 360","Nintendo Switch","Nintendo 3DS","Nintendo Wii","Nintendo Wii U","Game Boy Advance","Nintendo DS","PC","Sonstiges"])+'</div><div class="row g-2 mb-3"><div class="col-4"><label class="fl">USK</label>'+selHTML("f-usk",["","USK 0","USK 6","USK 12","USK 16","USK 18"])+'</div><div class="col-4"><label class="fl">Sprache</label>'+selHTML("f-sprache",["Deutsch","Englisch","Multilingual","Sonstiges"])+'</div><div class="col-4"><label class="fl" style="display:flex;align-items:center;gap:4px">Zustand <button type="button" onclick="showZustandInfo()" style="width:17px;height:17px;background:var(--blue);border:none;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#fff;cursor:pointer;flex-shrink:0;padding:0">i</button></label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div></div><div class="mb-3"><label class="fl">Hinweise</label><textarea id="f-hinweise" class="fc" placeholder="z.B. Cover fehlt…"></textarea></div>';}
+  else if(t==="handy"){document.getElementById("s3-title").textContent="Technische Daten";h='<div class="row g-2 mb-3"><div class="col-6"><label class="fl">Speicher (GB)</label><input type="number" id="f-gb" class="fc" placeholder="z.B. 256"/></div><div class="col-6"><label class="fl">RAM (GB)</label><input type="number" id="f-ram" class="fc" placeholder="z.B. 8"/></div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Farbe</label><input type="text" id="f-farbe" class="fc" placeholder="z.B. Midnight Black"/></div><div class="col-6"><label class="fl">Netzwerk</label>'+selHTML("f-netz",["","4G/LTE","5G","Dual-SIM 5G","Sonstiges"])+'</div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div><div class="col-6"><label class="fl">IMEI (optional)</label><input type="text" id="f-imei" class="fc" placeholder="15-stellig"/></div></div>';}
+  else if(t==="pc"){document.getElementById("s3-title").textContent="Hardware-Spezifikationen";h='<div class="mb-3"><label class="fl">Typ – Bitte zuerst wählen</label><div class="cg2"><button class="cbtn" id="pc-l" onclick="selPCTyp(\'Laptop\')"><span class="ci">💻</span>Laptop</button><button class="cbtn" id="pc-d" onclick="selPCTyp(\'Desktop\')"><span class="ci">🖥️</span>Desktop</button></div><input type="hidden" id="f-pc-typ" value=""/></div><div id="pc-fields-wrap" style="display:none"></div>';}
+  document.getElementById("s3-fields").innerHTML=h;
+}
+function selHTML(id,opts){return'<select id="'+id+'" class="fc"><option value="">– Auswählen –</option>'+opts.map(function(o){return o?'<option>'+o+'</option>':'';}).join("")+'</select>';}
+function selPCTyp(v){
+  document.getElementById("f-pc-typ").value=v;
+  document.getElementById("pc-l").className="cbtn"+(v==="Laptop"?" sel":"");
+  document.getElementById("pc-d").className="cbtn"+(v==="Desktop"?" sel":"");
+  var wrap=document.getElementById("pc-fields-wrap");if(!wrap)return;wrap.style.display="block";
+  var lf='<div class="row g-2 mb-3"><div class="col-6"><label class="fl">Marke / Modell *</label><input type="text" id="f-brand" class="fc" placeholder="z.B. Dell XPS 15"/></div><div class="col-6"><label class="fl">Bildschirmgröße</label><input type="text" id="f-screen" class="fc" placeholder="z.B. 15,6 Zoll"/></div></div><div class="mb-3"><label class="fl">Prozessor</label><input type="text" id="f-cpu" class="fc" placeholder="z.B. Intel Core i7-13700H"/></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">RAM (GB)</label><input type="number" id="f-ram" class="fc" placeholder="z.B. 16"/></div><div class="col-6"><label class="fl">Speicher (GB)</label><input type="number" id="f-gb" class="fc" placeholder="z.B. 512"/></div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Grafikkarte</label><input type="text" id="f-gpu" class="fc" placeholder="z.B. RTX 4060"/></div><div class="col-6"><label class="fl">Akku-Zustand</label>'+selHTML("f-battery",["Sehr gut","Gut","Ok","Schwach","Defekt"])+'</div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Betriebssystem</label>'+selHTML("f-os",["Windows 11","Windows 10","macOS","Linux","Ohne OS"])+'</div><div class="col-6"><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Wie neu","Sehr gut","Gut","Gebraucht","Defekt"])+'</div></div>';
+  var df='<div class="mb-3"><label class="fl">Prozessor *</label><input type="text" id="f-cpu" class="fc" placeholder="z.B. Intel Core i7-13700K"/></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">RAM (GB)</label><input type="number" id="f-ram" class="fc" placeholder="z.B. 32"/></div><div class="col-6"><label class="fl">Speicher (GB)</label><input type="number" id="f-gb" class="fc" placeholder="z.B. 1000"/></div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Speichertyp</label>'+selHTML("f-stype",["SSD","HDD","SSD+HDD","NVMe SSD"])+'</div><div class="col-6"><label class="fl">Grafikkarte</label><input type="text" id="f-gpu" class="fc" placeholder="z.B. RTX 4070"/></div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Mainboard</label><input type="text" id="f-mb" class="fc" placeholder="z.B. ASUS ROG Z790"/></div><div class="col-6"><label class="fl">Netzteil (W)</label><input type="number" id="f-psu" class="fc" placeholder="z.B. 650"/></div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Betriebssystem</label>'+selHTML("f-os",["Windows 11","Windows 10","Linux","Ohne OS"])+'</div><div class="col-6"><label class="fl">Anschlüsse</label><input type="text" id="f-ports" class="fc" placeholder="z.B. USB 3.2, HDMI, DP"/></div></div><div class="mb-3"><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Wie neu","Sehr gut","Gut","Gebraucht","Defekt"])+'</div>';
+  wrap.innerHTML=(v==="Desktop"?df:lf);
+}
+function buildDots(){var c=document.getElementById("step-dots");c.innerHTML="";for(var i=1;i<=stepTotal;i++){var d=document.createElement("div");d.className="sdot"+(i===1?" act":"");d.id="sd"+i;c.appendChild(d);}}
+function updateProgress(){
+  var pct=Math.round((stepCur/stepTotal)*100);
+  document.getElementById("prog-bar").style.width=pct+"%";
+  document.getElementById("prog-label").textContent=(isEditMode?"✏️ ":"")+"Schritt "+stepCur+" von "+stepTotal;
+  var nn=SNAMES[curType]||[];document.getElementById("prog-name").textContent=nn[stepCur-1]||"";
+  for(var i=1;i<=stepTotal;i++){var d=document.getElementById("sd"+i);if(d)d.className="sdot"+(i<stepCur?" done":i===stepCur?" act":"");}
+  document.getElementById("btn-back").disabled=false;
+  var last=(stepCur===stepTotal);
+  document.getElementById("btn-next").style.display=last?"none":"inline-flex";
+  var sb=document.getElementById("btn-save-step");sb.style.display=last?"inline-flex":"none";
+  sb.innerHTML=isEditMode?'<i class="bi bi-pencil-fill me-1"></i>Aktualisieren':'<i class="bi bi-cloud-upload-fill me-1"></i>Speichern';
+}
+function showStep(n){for(var i=1;i<=stepTotal;i++){var el=document.getElementById("st-s"+i);if(el){el.classList.remove("on");if(i===n)el.classList.add("on");}}}
+function stepNext(){
+  if(stepCur===1){if(!document.getElementById("f-scanid").value.trim()){showD("s1-diag","Barcode eingeben oder scannen.","derr");return;}hideD("s1-diag");}
+  if(stepCur===2&&!document.getElementById("f-name").value.trim()){toast("Name eingeben.","err");return;}
+  if(stepCur===4){if(!probChoice){toast("Mängel auswählen.","err");return;}if(probChoice==="ja"&&!probType){toast("Mangeltyp auswählen.","err");return;}if(probType==="physisch"&&photos.length===0){toast("Mindestens 1 Foto erforderlich.","err");return;}}
+  if(stepCur<stepTotal){stepCur++;updateProgress();showStep(stepCur);window.scrollTo({top:0,behavior:"smooth"});
+    if(stepCur===5){updatePriceSuggest();}
+  }
+}
+function stepBack(){
+  if(stepCur>1){stepCur--;updateProgress();showStep(stepCur);window.scrollTo({top:0,behavior:"smooth"});}
+  else{stopCam();document.getElementById("main-stepper").style.display="none";if(isEditMode){isEditMode=false;editingItem=null;goTabFn("list-panel");}else if(curCat==="spielwaren"){document.getElementById("sw-sub").style.display="block";}else{document.getElementById("cat-chooser").style.display="block";}resetStepperState();}
+}
+
+// ── MÄNGEL ───────────────────────────────────────────────────────
+function selProb(v){probChoice=v;document.getElementById("pb-nein").className="cbtn"+(v==="nein"?" sel-g":"");document.getElementById("pb-ja").className="cbtn"+(v==="ja"?" sel-r":"");document.getElementById("prob-type-row").style.display=v==="ja"?"block":"none";if(v==="nein"){document.getElementById("prob-descr-row").style.display="none";document.getElementById("photo-row").style.display="none";probType=null;photos=[];renderAllPhotos();}}
+function selProbType(v){probType=v;document.getElementById("pb-phys").className="cbtn"+(v==="physisch"?" sel-r":"");document.getElementById("pb-soft").className="cbtn"+(v==="software"?" sel":"");document.getElementById("prob-descr-row").style.display="block";document.getElementById("photo-row").style.display=v==="physisch"?"block":"none";if(v==="physisch"){showPhotoGuide(curType);}}
+
+// ================================================================
+// KAMERA FIX: Kamera 0 immer direkt verwenden
+// ================================================================
+function camStart(){
+  var startBtn=document.getElementById("btn-cam-start"),stopBtn=document.getElementById("btn-cam-stop");
+  startBtn.disabled=true;startBtn.innerHTML='<span class="spin"></span>&nbsp;Starte…';
+  document.getElementById("scan-err").style.display="none";
+
+  // Check cam-preselect first (visible dropdown)
+  var preselEl=document.getElementById("cam-preselect");
+  if(preselEl&&preselEl.value&&!firstCamDeviceId){firstCamDeviceId=preselEl.value;}
+  // FIX: Wenn wir schon die DeviceId von Kamera 0 kennen, direkt verwenden
+  // Sonst erst Geräteliste holen, Kamera 0 auswählen, dann starten
+  if(firstCamDeviceId){
+    _startCamWithDevice(firstCamDeviceId);
+  } else {
+    navigator.mediaDevices.enumerateDevices()
+      .then(function(devices){
+        var videoDevices=devices.filter(function(d){return d.kind==="videoinput";});
+        if(videoDevices.length>0){
+          // Kamera 0 = erste Kamera (auf dem Handy ist das die Rückkamera)
+          // Falls Label verfügbar: bevorzuge "back" / "environment"
+          var chosen=videoDevices[0];
+          for(var i=0;i<videoDevices.length;i++){
+            if(/back|rear|environment|rück/i.test(videoDevices[i].label)){chosen=videoDevices[i];break;}
+          }
+          firstCamDeviceId=chosen.deviceId||null;
+          camDevices=videoDevices;
+          _fillCamSelect(videoDevices, chosen.deviceId);
+          _startCamWithDevice(chosen.deviceId||null);
+        } else {
+          _startCamWithDevice(null);
+        }
+      })
+      .catch(function(){
+        // enumerateDevices fehlgeschlagen → direkt mit environment starten
+        _startCamWithDevice(null);
+      });
+  }
+}
+
+function _startCamWithDevice(deviceId){
+  var constraints;
+  if(deviceId){
+    constraints={video:{deviceId:{exact:deviceId},width:{ideal:1280},height:{ideal:720}}};
+  } else {
+    constraints={video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}}};
+  }
+  navigator.mediaDevices.getUserMedia(constraints)
+    .then(function(stream){
+      camStream=stream;camRunning=true;
+      var video=document.getElementById("cam-video");video.srcObject=stream;
+      document.getElementById("cam-wrap").style.display="block";
+      var startBtn=document.getElementById("btn-cam-start"),stopBtn=document.getElementById("btn-cam-stop");
+      startBtn.style.display="none";stopBtn.style.display="inline-flex";
+
+      // Nach getUserMedia: jetzt Labels verfügbar → Dropdown aktualisieren
+      if(camDevices.length===0){
+        navigator.mediaDevices.enumerateDevices().then(function(devices){
+          camDevices=devices.filter(function(d){return d.kind==="videoinput";});
+          if(camDevices.length>0&&!firstCamDeviceId){
+            var chosen=camDevices[0];
+            for(var i=0;i<camDevices.length;i++){if(/back|rear|environment|rück/i.test(camDevices[i].label)){chosen=camDevices[i];break;}}
+            firstCamDeviceId=chosen.deviceId||null;
+          }
+          _fillCamSelect(camDevices, deviceId);
+        }).catch(function(){});
+      }
+
+      video.onloadedmetadata=function(){video.play().then(function(){camScanLoop();}).catch(function(){camScanLoop();});};
+    })
+    .catch(function(err){
+      var startBtn=document.getElementById("btn-cam-start");
+      startBtn.disabled=false;startBtn.innerHTML='<i class="bi bi-camera-video-fill me-1"></i>Kamera starten';
+      var msg=String(err),text;
+      if(/NotAllowed|Permission|denied/i.test(msg))text="Kamerazugriff verweigert. Chrome → Adressleiste → 🔒 → Kamera → Zulassen → Seite neu laden.";
+      else if(/NotFound|DevicesNotFound|NotReadableError/i.test(msg))text="Keine Kamera gefunden oder bereits in Benutzung.";
+      else text="Kamera-Fehler: "+msg;
+      var errEl=document.getElementById("scan-err"),msgEl=document.getElementById("scan-err-msg");
+      if(errEl&&msgEl){msgEl.textContent=text;errEl.style.display="block";}
+    });
+}
+
+function _fillCamSelect(devices, selectedDeviceId){
+  if(devices.length<=1)return;
+  var sel=document.getElementById("cam-select");
+  sel.innerHTML="";
+  devices.forEach(function(d,i){
+    var opt=document.createElement("option");opt.value=d.deviceId;
+    var lbl=d.label||("Kamera "+(i+1));
+    var back=/back|rear|environment|rück/i.test(lbl);
+    opt.textContent=(back?"🔙 ":"🤳 ")+lbl;
+    if(d.deviceId===selectedDeviceId)opt.selected=true;
+    sel.appendChild(opt);
+  });
+  document.getElementById("cam-select-row").style.display="block";
+}
+
+var zxingReader=null,scanLastCode="",scanConfirmCnt=0,SCAN_CONFIRM_NEEDED=3;
+function getZxingReader(){if(!zxingReader){try{var hints=new Map();hints.set(ZXingBrowser.DecodeHintType.POSSIBLE_FORMATS,[ZXingBrowser.BarcodeFormat.EAN_13,ZXingBrowser.BarcodeFormat.EAN_8,ZXingBrowser.BarcodeFormat.UPC_A,ZXingBrowser.BarcodeFormat.UPC_E,ZXingBrowser.BarcodeFormat.CODE_128,ZXingBrowser.BarcodeFormat.CODE_39,ZXingBrowser.BarcodeFormat.CODE_93,ZXingBrowser.BarcodeFormat.CODABAR,ZXingBrowser.BarcodeFormat.ITF,ZXingBrowser.BarcodeFormat.QR_CODE,ZXingBrowser.BarcodeFormat.DATA_MATRIX,ZXingBrowser.BarcodeFormat.AZTEC,ZXingBrowser.BarcodeFormat.PDF_417]);hints.set(ZXingBrowser.DecodeHintType.TRY_HARDER,true);zxingReader=new ZXingBrowser.BrowserMultiFormatReader(hints);}catch(e){zxingReader=null;}}return zxingReader;}
+function camScanLoop(){if(!camRunning)return;var video=document.getElementById("cam-video"),canvas=document.getElementById("cam-canvas");if(!video||!canvas||video.readyState<2){camAnimFrame=requestAnimationFrame(camScanLoop);return;}canvas.width=video.videoWidth;canvas.height=video.videoHeight;var ctx=canvas.getContext("2d");ctx.drawImage(video,0,0,canvas.width,canvas.height);var detectedCode=null,reader=getZxingReader();if(reader){try{var res=reader.decodeFromCanvas(canvas);if(res&&res.getText())detectedCode=res.getText().trim();}catch(e){}}if(!detectedCode&&typeof BarcodeDetector!=="undefined"){var det=new BarcodeDetector({formats:["ean_13","ean_8","upc_a","upc_e","code_128","code_39","qr_code","data_matrix","pdf417","aztec","codabar"]});det.detect(canvas).then(function(codes){if(codes&&codes.length>0)processDetectedCode(codes[0].rawValue.trim());if(camRunning)camAnimFrame=requestAnimationFrame(camScanLoop);}).catch(function(){if(camRunning)camAnimFrame=requestAnimationFrame(camScanLoop);});return;}if(detectedCode){processDetectedCode(detectedCode);}else{if(scanConfirmCnt>0){scanConfirmCnt=0;scanLastCode="";updateScanStatus("");}}if(camRunning)camAnimFrame=requestAnimationFrame(camScanLoop);}
+function processDetectedCode(code){if(code===scanLastCode){scanConfirmCnt++;var dots="";for(var i=0;i<scanConfirmCnt;i++)dots+="●";for(var j=scanConfirmCnt;j<SCAN_CONFIRM_NEEDED;j++)dots+="○";updateScanStatus("Prüfe: "+dots+"  "+code.substring(0,20));}else{scanLastCode=code;scanConfirmCnt=1;updateScanStatus("Erkenne: "+code.substring(0,20));}if(scanConfirmCnt>=SCAN_CONFIRM_NEEDED){scanLastCode="";scanConfirmCnt=0;camStop();camOnCode(code);}}
+function updateScanStatus(msg){var hint=document.getElementById("cam-hint");if(!hint)return;if(!msg){hint.textContent="Halte Barcode in den Rahmen";hint.style.background="rgba(0,0,0,.7)";}else{hint.textContent=msg;hint.style.background="rgba(88,166,255,.8)";}}
+function camStop(){camRunning=false;scanLastCode="";scanConfirmCnt=0;if(camAnimFrame){cancelAnimationFrame(camAnimFrame);camAnimFrame=null;}if(camStream){camStream.getTracks().forEach(function(t){t.stop();});camStream=null;}var video=document.getElementById("cam-video");if(video)video.srcObject=null;document.getElementById("cam-wrap").style.display="none";document.getElementById("cam-select-row").style.display="none";var sb=document.getElementById("btn-cam-start"),st=document.getElementById("btn-cam-stop");if(sb){sb.style.display="inline-flex";sb.disabled=false;sb.innerHTML='<i class="bi bi-camera-video-fill me-1"></i>Kamera starten';}if(st)st.style.display="none";}
+function camSwitchDevice(){
+  var sel=document.getElementById("cam-select");
+  firstCamDeviceId=sel&&sel.value?sel.value:null;
+  camStop();setTimeout(function(){_startCamWithDevice(firstCamDeviceId);},300);
+}
+function camOnCode(code){code=(code||"").trim();var inp=document.getElementById("f-scanid");if(inp)inp.value=code;var okEl=document.getElementById("scan-ok"),valEl=document.getElementById("scan-ok-val");if(okEl&&valEl){valEl.textContent=code;okEl.style.display="block";}try{if(navigator.vibrate)navigator.vibrate([80]);}catch(e){}toast("✓ Barcode: "+code,"ok",3000);}
+function stopCam(){camStop();}
+
+// ── FOTOS ─────────────────────────────────────────────────────────
+function triggerPhotoInput(mode){var id=mode==="cam"?"f-photo-cam":"f-photo-gallery";var el=document.getElementById(id);if(!el){toast("Foto-Input nicht gefunden.","err");return;}el.onchange=function(){if(this.files&&this.files[0])processPhotoFile(this.files[0]);this.value="";};el.click();}
+function processPhotoFile(file){if(!file)return;if(file.size>15*1024*1024){toast("Max. 15 MB pro Foto.","err");return;}var name=(file.name||"foto.jpg").replace(/[^a-zA-Z0-9._-]/g,"_");var img=new Image(),url=URL.createObjectURL(file);img.onload=function(){URL.revokeObjectURL(url);var MAX=800,w=img.width,h=img.height;if(w>MAX||h>MAX){if(w>h){h=Math.round(h*(MAX/w));w=MAX;}else{w=Math.round(w*(MAX/h));h=MAX;}}var canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;var ctx=canvas.getContext("2d");ctx.fillStyle="#ffffff";ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);var b64=canvas.toDataURL("image/jpeg",0.72);if(!b64||b64.indexOf("base64,")===-1){toast("Bild konnte nicht verarbeitet werden.","err");return;}photos.push({b64:b64,name:name});renderAllPhotos();toast("Foto hinzugefügt ✅","ok",2000);};img.onerror=function(){toast("Bild konnte nicht geladen werden.","err");};img.src=url;}
+function renderAllPhotos(){var mw=document.getElementById("photo-main-wrap"),thumbs=document.getElementById("photo-thumbs");if(!mw||!thumbs)return;mw.innerHTML="";thumbs.innerHTML="";if(photos.length===0){renderAddThumbBtn();return;}mw.innerHTML='<div class="photo-main-preview"><img src="'+photos[0].b64+'"/><button class="rm-main-photo" onclick="removePhoto(0)">✕ Entfernen</button></div>';for(var i=1;i<photos.length;i++){var div=document.createElement("div");div.className="photo-thumb";div.innerHTML='<img src="'+photos[i].b64+'"/><button class="rm-thumb" onclick="removePhoto('+i+')">✕</button>';thumbs.appendChild(div);}renderAddThumbBtn();}
+function renderAddThumbBtn(){var t=document.getElementById("photo-thumbs");if(!t)return;var btn=document.createElement("div");btn.className="add-thumb";btn.innerHTML='<i class="bi bi-plus"></i>';btn.onclick=function(){triggerPhotoInput("gallery");};t.appendChild(btn);}
+function removePhoto(idx){photos.splice(idx,1);renderAllPhotos();}
+
+// ── SAVE ──────────────────────────────────────────────────────────
+function doSave(){
+  var btn=document.getElementById("btn-save-step"),orig=btn.innerHTML;setBL(btn,true);
+  var scanId=document.getElementById("f-scanid").value.trim();
+  var name=document.getElementById("f-name").value.trim();
+  var ma=document.getElementById("f-ma").value||emp;
+  var probTyp=probChoice==="nein"?"":probType||"";
+  var probD=probChoice==="nein"?"":(gv("f-prob-beschr"));
+  var fotoB64arr=photos.map(function(p){return p.b64;});
+  var d={scanId:scanId,mitarbeiter:ma,problemTyp:probTyp,problemBeschr:probD,fotos:fotoB64arr,
+         einkaufspreis:gv("f-einkaufspreis"),warentyp:gv("f-warentyp")||"Gebrauchtware"};
+  var fn="";
+
+  if(curType==="konsole"){d.name=name;d.speicherGB=gv("f-gb");d.farbe=gv("f-farbe");fn=isEditMode?"updateKonsole":"saveKonsole";}
+  else if(curType==="spiel"){d.spiel=name;d.system=gv("f-sys");d.zustand=gv("f-zustand");d.usk=gv("f-usk");d.sprache=gv("f-sprache");d.hinweise=gv("f-hinweise");fn=isEditMode?"updateSpiel":"saveSpiel";}
+  else if(curType==="handy"){d.modell=name;d.speicherGB=gv("f-gb");d.ram=gv("f-ram");d.farbe=gv("f-farbe");d.netzwerk=gv("f-netz");d.imei=gv("f-imei");d.zustand=gv("f-zustand");fn=isEditMode?"updateHandy":"saveHandy";}
+  else if(curType==="pc"){var pcTyp=gv("f-pc-typ");d.modell=(gv("f-brand")||name);d.typ=pcTyp;d.prozessor=gv("f-cpu");d.ram=gv("f-ram");d.speicherGB=gv("f-gb");d.speicherTyp=gv("f-stype");d.grafikkarte=gv("f-gpu");d.mainboard=gv("f-mb");d.netzteil=gv("f-psu");d.anschluesse=gv("f-ports");d.betriebssystem=gv("f-os");d.zustand=gv("f-zustand");if(pcTyp==="Laptop"){d.anschluesse=gv("f-screen")+" | Akku: "+gv("f-battery");}fn=isEditMode?"updatePC":"savePC";}
+
+  if(!fn){setBL(btn,false,orig);toast("Kein Typ ausgewählt.","err");return;}
+  if(isEditMode&&editingItem)d.rowIndex=editingItem.rowIndex;
+
+  // POST für alle save/update (Fotos können dabei sein oder auch nicht)
+  gasPost(fn,d,
+    function(r){setBL(btn,false,orig);if(r&&r.ok){if(window._afterSaveCallback){var _cbSave=window._afterSaveCallback;window._afterSaveCallback=null;_cbSave(r.scanId||gv("f-scanid"));}toast(r.msg,"ok");addNotification(isEditMode?"✏️ Aktualisiert":"✅ Eingelagert",r.msg,"info");allItems=[];loadStats();isEditMode=false;editingItem=null;setTimeout(function(){loadAll();resetFlow();goTabFn("list-panel");},700);}else{toast("Fehler: "+(r?r.fehler:"?"),"err");}},
+    function(e){setBL(btn,false,orig);toast("Fehler: "+e,"err");}
+  );
+}
+
+function resetStepperState(){probChoice=null;probType=null;photos=[];["f-scanid","f-name","f-ma","f-prob-beschr","f-einkaufspreis"].forEach(function(id){var e=document.getElementById(id);if(e)e.value="";});var mw=document.getElementById("photo-main-wrap");if(mw)mw.innerHTML="";var pt=document.getElementById("photo-thumbs");if(pt)pt.innerHTML="";var ptr=document.getElementById("prob-type-row");if(ptr)ptr.style.display="none";var pdr=document.getElementById("prob-descr-row");if(pdr)pdr.style.display="none";var phr=document.getElementById("photo-row");if(phr)phr.style.display="none";var pn=document.getElementById("pb-nein");if(pn)pn.className="cbtn";var pj=document.getElementById("pb-ja");if(pj)pj.className="cbtn";// Fix 1: Barcode-Banner zurücksetzen
+var so=document.getElementById("scan-ok");if(so)so.style.display="none";var sv2=document.getElementById("scan-ok-val");if(sv2)sv2.textContent="";// Fix 2: Mängel-Buttons zurücksetzen
+var pp=document.getElementById("pb-phys");if(pp)pp.className="cbtn";var ps=document.getElementById("pb-soft");if(ps)ps.className="cbtn";stopCam();}
+
+// ── LAGER ─────────────────────────────────────────────────────────
+function loadAll(){document.getElementById("list-body").innerHTML='<div class="empty"><span class="spin-b"></span><p>Lade…</p></div>';allItems=[];var done=0,total=5,kd=[],sd=[],hd=[],pd=[],dd=[];function tryR(){done++;if(done<total)return;allItems=kd.concat(sd,hd,pd,dd);renderList();checkLongStorageItems();buildWeekChart();buildKAProgress();updateMyStats();}gasGet("getAllKonsolen",{},function(r){if(r&&r.ok)kd=r.data||[];tryR();},function(){tryR();});gasGet("getAllSpiele",{},function(r){if(r&&r.ok)sd=r.data||[];tryR();},function(){tryR();});gasGet("getAllHandys",{},function(r){if(r&&r.ok)hd=r.data||[];tryR();},function(){tryR();});gasGet("getAllPCs",{},function(r){if(r&&r.ok)pd=r.data||[];tryR();},function(){tryR();});gasGet("getAllDefekte",{},function(r){if(r&&r.ok)dd=r.data||[];tryR();},function(){tryR();});}
+function renderList(){cardRegistry=[];var q=document.getElementById("list-q").value.toLowerCase();var f=allItems.filter(function(i){var tm=true;if(lf==="spielwaren")tm=(i.type==="konsole"||i.type==="spiel");else if(lf==="handy")tm=(i.type==="handy");else if(lf==="pc")tm=(i.type==="pc");else if(lf==="defekt")tm=(i.type==="defekt");if(!tm)return false;if(!q)return true;var n=i.name||i.spiel||i.modell||i.geraet||"";return n.toLowerCase().includes(q)||String(i.scanId||"").toLowerCase().includes(q)||(i.mitarbeiter||"").toLowerCase().includes(q);});document.getElementById("list-count").textContent=f.length+" Einträge";var cntEl=document.getElementById("lager-cat-count");if(cntEl)cntEl.textContent="("+f.length+" Artikel)";if(!f.length){document.getElementById("list-body").innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Nichts gefunden.</p></div>';return;}document.getElementById("list-body").innerHTML=f.map(function(i){return mkCard(i);}).join("");}
+var lfArr=["all","spielwaren","handy","pc","defekt"],lfLabels={"all":"Gesamtes Lager","spielwaren":"🎮 Spielwaren","handy":"📱 Handys","pc":"💻 PCs & Laptops","defekt":"⚠️ Defekte Geräte"};
+function setLF(m){lf=m;var tabs=document.querySelectorAll(".ltab");var idx=lfArr.indexOf(m);tabs.forEach(function(t,i){t.classList.toggle("on",i===idx);});var hdr=document.getElementById("lager-category-header"),lbl=document.getElementById("lager-cat-label");if(hdr&&lbl){if(m==="all"){hdr.style.display="none";}else{hdr.style.display="block";lbl.textContent=lfLabels[m]||m;}}renderList();}
+
+function mkCard(item){
+  // Fix 7: Kleinanzeigen Status
+  var kaStatus=item.kleinanzeigen||"";
+  var kaIsDone=kaStatus.toLowerCase().includes("hochgeladen")||kaStatus==="ja";
+  var avLabel=kaIsDone?"✓ Bei Kleinanzeigen":"✗ Noch nicht hochgeladen";
+  var avc=kaIsDone?"av-v":"av-n", avi=kaIsDone?"bi-check-circle-fill":"bi-x-circle-fill";
+  // Kategorien Badge
+  var katBadge="";
+  if(item.kategorien&&String(item.kategorien).includes("|")){
+    katBadge='<span class="ic-badge" style="background:rgba(248,81,73,.15);color:var(--red);margin-left:4px">🔧 Defekt</span>';
+  }
+  var nm=item.name||item.spiel||item.modell||item.geraet||"–";
+  var tmap={konsole:["ib-k","🕹️ Konsole"],spiel:["ib-sp","💿 Spiel"],handy:["ib-h","📱 Handy"],pc:["ib-pc","💻 PC/Laptop"],defekt:["ib-def","⚠️ Defekt"]};
+  var tm=tmap[item.type]||["","–"];
+  var chips="";
+  if(item.einkaufspreis&&String(item.einkaufspreis).trim()&&item.einkaufspreis!="0")chips+='<span class="chip" style="border-color:rgba(63,185,80,.3);color:var(--green)"><i class="bi bi-tag"></i>&nbsp;<b>EK: '+esc(String(item.einkaufspreis))+'€</b></span>';
+  if(item.scanId)chips+='<span class="chip"><i class="bi bi-upc"></i>&nbsp;<b>'+esc(String(item.scanId))+'</b></span>';
+  if(item.speicherGB)chips+='<span class="chip"><i class="bi bi-hdd"></i>&nbsp;<b>'+esc(item.speicherGB)+'GB</b></span>';
+  if(item.ram)chips+='<span class="chip"><i class="bi bi-memory"></i>&nbsp;<b>'+esc(item.ram)+'GB RAM</b></span>';
+  if(item.farbe)chips+='<span class="chip"><i class="bi bi-palette2"></i>&nbsp;<b>'+esc(item.farbe)+'</b></span>';
+  if(item.system)chips+='<span class="chip"><i class="bi bi-display"></i>&nbsp;<b>'+esc(item.system)+'</b></span>';
+  if(item.typ_)chips+='<span class="chip"><i class="bi bi-laptop"></i>&nbsp;<b>'+esc(item.typ_)+'</b></span>';
+  if(item.prozessor)chips+='<span class="chip"><i class="bi bi-cpu"></i>&nbsp;<b>'+esc(item.prozessor)+'</b></span>';
+  if(item.grafikkarte)chips+='<span class="chip"><i class="bi bi-gpu-card"></i>&nbsp;<b>'+esc(item.grafikkarte)+'</b></span>';
+  if(item.zustand)chips+='<span class="chip"><i class="bi bi-star"></i>&nbsp;<b>'+esc(item.zustand)+'</b></span>';
+  if(item.mitarbeiter)chips+='<span class="chip"><i class="bi bi-person"></i>&nbsp;<b>'+esc(item.mitarbeiter)+'</b></span>';
+  if(item.datum)chips+='<span class="chip"><i class="bi bi-calendar3"></i>&nbsp;<b>'+esc(item.datum)+'</b></span>';
+  if(item.problemTyp&&item.type!=="defekt")chips+='<span class="chip" style="border-color:rgba(248,81,73,.3);color:var(--red)"><i class="bi bi-exclamation-triangle-fill"></i>&nbsp;<b>'+esc(item.problemTyp)+'</b></span>';
+  var note=item.problemBeschr||item.hinweise||"";
+  if(item.type==="defekt"){chips+='<span class="chip"><i class="bi bi-box-arrow-in-right"></i>&nbsp;<b>'+esc(item.ursprung||"")+'</b></span>';note=item.problemBeschr||"";}
+  var rIdx=cardRegistry.length;
+  var fotosHtml="";
+  if(item.fotos&&item.fotos.length>0){fotosHtml='<div class="card-fotos">';item.fotos.forEach(function(b64,fi){fotosHtml+='<div class="card-foto" onclick="openLightbox('+rIdx+','+fi+')"><img src="'+esc(b64)+'" loading="lazy"/></div>';});fotosHtml+='</div>';}
+  cardRegistry.push(item);
+  var actions='<div class="ic-actions">';
+  if(item.type!=="defekt"){actions+='<button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation();openEditStepper('+rIdx+')"><i class="bi bi-pencil-fill me-1"></i>Bearbeiten</button><button class="btn btn-outline-danger btn-sm" onclick="confirmDelete('+rIdx+')"><i class="bi bi-trash3"></i></button>';}
+  else{actions+='<button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDeleteDefekt('+rIdx+')"><i class="bi bi-trash3 me-1"></i>Löschen</button>';}
+  actions+='</div>';
+  return '<div class="ic" onclick="openDetail('+rIdx+')" style="cursor:pointer"><div class="ic-top"><div class="ic-name">'+esc(nm)+'</div><div style="display:flex;gap:4px;align-items:center"><span class="ic-badge '+tm[0]+'">'+tm[1]+'</span>'+katBadge+'</div></div><div class="chips">'+chips+(item.type!=="defekt"?'<span class="av-badge '+avc+'"><i class="bi '+avi+' me-1"></i>'+avLabel+'</span>':'')+' </div>'+(note?'<div style="font-size:12px;color:var(--text2);margin-bottom:4px"><i class="bi bi-chat-text me-1"></i>'+esc(note)+'</div>':"")+fotosHtml+actions+'</div>';
+}
+
+function openLightbox(itemIdx,fotoIdx){var item=cardRegistry[itemIdx];if(!item||!item.fotos||!item.fotos[fotoIdx])return;var lb=document.createElement("div");lb.className="lightbox";lb.innerHTML='<img src="'+esc(item.fotos[fotoIdx])+'" alt="Foto"/>';lb.onclick=function(){lb.remove();};document.body.appendChild(lb);}
+
+function openEditStepper(rIdx){var item=cardRegistry[rIdx];if(!item)return;document.querySelectorAll(".bnav-btn").forEach(function(b){b.classList.toggle("on",b.dataset.tab==="scan-panel");});document.querySelectorAll(".panel").forEach(function(p){p.classList.toggle("on",p.id==="scan-panel");});document.getElementById("mode-chooser").style.display="none";document.getElementById("cat-chooser").style.display="none";document.getElementById("sw-sub").style.display="none";curCat=item.type==="konsole"||item.type==="spiel"?"spielwaren":item.type;startStepper(item.type,item);}
+
+function confirmDelete(rIdx){var item=cardRegistry[rIdx];if(!item)return;var nm=item.name||item.spiel||item.modell||"?";document.getElementById("del-modal-text").textContent='"'+nm+'" wirklich löschen?';document.getElementById("del-modal-confirm").onclick=function(){closeDelModal();doDelete(item);};document.getElementById("del-modal").classList.add("open");}
+function confirmDeleteDefekt(rIdx){var item=cardRegistry[rIdx];if(!item)return;document.getElementById("del-modal-text").textContent='"'+(item.geraet||"?")+'" wirklich löschen?';document.getElementById("del-modal-confirm").onclick=function(){closeDelModal();doDeleteDefekt(item);};document.getElementById("del-modal").classList.add("open");}
+function closeDelModal(){document.getElementById("del-modal").classList.remove("open");}
+function doDelete(item){var fns={konsole:"deleteKonsole",spiel:"deleteSpiel",handy:"deleteHandy",pc:"deletePC"};var fn=fns[item.type];if(!fn){toast("Nicht verfügbar.","err");return;}gasGet(fn,{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast(r.msg,"ok");allItems=[];loadAll();loadStats();}else{toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){toast("Fehler: "+e,"err");});}
+function doDeleteDefekt(item){gasGet("deleteDefekt",{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast(r.msg,"ok");allItems=[];loadAll();loadStats();}else{toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){toast("Fehler: "+e,"err");});}
+
+// ── SUCHE ─────────────────────────────────────────────────────────
+var recentSearches=[],searchResults=[];
+function initSearch(){try{var s=localStorage.getItem("smp_recent");if(s)recentSearches=JSON.parse(s)||[];}catch(e){}renderRecentChips();}
+function saveRecentSearch(q){if(!q||q.length<2)return;recentSearches=recentSearches.filter(function(r){return r!==q;});recentSearches.unshift(q);if(recentSearches.length>5)recentSearches=recentSearches.slice(0,5);try{localStorage.setItem("smp_recent",JSON.stringify(recentSearches));}catch(e){}renderRecentChips();}
+function renderRecentChips(){var box=document.getElementById("recent-searches"),wrap=document.getElementById("recent-chips");if(!box||!wrap)return;if(!recentSearches||recentSearches.length===0){box.style.display="none";return;}box.style.display="block";wrap.innerHTML=recentSearches.map(function(r,i){return'<button onclick="useRecent('+i+')" style="background:var(--bg3);border:1px solid var(--border2);color:var(--blue);border-radius:20px;padding:4px 11px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;"><i class="bi bi-clock-history" style="font-size:10px"></i>'+esc(r)+'</button>';}).join("");}
+function useRecent(idx){var q=recentSearches[idx];document.getElementById("s-bc-in").value=q;doSearch();}
+
+function doSearch(){var q=document.getElementById("s-bc-in").value.trim();if(!q){renderSearchResults(allItems);return;}saveRecentSearch(q);liveSearch(q);}
+function applySearchSort(){renderSearchResults(searchResults.length>0?searchResults:allItems);}
+function renderSearchResults(items){searchResults=items||[];var cat=document.getElementById("search-cat")?document.getElementById("search-cat").value:"all";var sort=document.getElementById("search-sort")?document.getElementById("search-sort").value:"neu";var filtered=searchResults.filter(function(i){if(cat==="all")return true;if(cat==="spielwaren")return i.type==="konsole"||i.type==="spiel";return i.type===cat;});filtered=filtered.slice().sort(function(a,b){var na=a.name||a.spiel||a.modell||a.geraet||"",nb=b.name||b.spiel||b.modell||b.geraet||"",da=a.datum||"",db=b.datum||"";if(sort==="neu")return db.localeCompare(da);if(sort==="alt")return da.localeCompare(db);if(sort==="az")return na.localeCompare(nb,"de");if(sort==="za")return nb.localeCompare(na,"de");return 0;});var countEl=document.getElementById("search-count");if(countEl){countEl.style.display="block";countEl.textContent=filtered.length+" Ergebnisse";}cardRegistry=[];if(!filtered.length){document.getElementById("search-out").innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Keine Ergebnisse.</p></div>';return;}document.getElementById("search-out").innerHTML=filtered.map(function(i){return mkCard(i);}).join("");}
+document.getElementById("s-bc-in").addEventListener("keydown",function(e){if(e.key==="Enter")doSearch();});
+
+// ── DIAGNOSE ─────────────────────────────────────────────────────
+function test1(){var b=document.getElementById("bt1"),o=b.innerHTML;setBL(b,true);var x=document.getElementById("t1o");x.className="diag dinf";x.textContent="Warte…";x.style.display="block";gasGet("verbindungstest",{},function(r){setBL(b,false,o);if(r&&r.ok){x.className="diag dok";x.textContent="✅ "+(r.msg||"OK")+" – "+(r.zeit||"");}else{x.className="diag derr";x.textContent="❌ Fehler: "+(r?JSON.stringify(r):"keine Antwort");}},function(e){setBL(b,false,o);x.className="diag derr";x.textContent="❌ "+String(e);});}
+function test2(){var b=document.getElementById("bt2"),o=b.innerHTML;setBL(b,true);var x=document.getElementById("t2o");x.className="diag dinf";x.textContent="Prüfe…";x.style.display="block";gasGet("sheetTest",{},function(r){setBL(b,false,o);if(r&&r.ok){x.className="diag dok";x.textContent="✅ Sheet: "+(r.name||"OK");}else{x.className="diag derr";x.textContent="❌ "+(r&&r.fehler?r.fehler:JSON.stringify(r));}},function(e){setBL(b,false,o);x.className="diag derr";x.textContent="❌ "+String(e);});}
+function test3(){var b=document.getElementById("bt3"),o=b.innerHTML;setBL(b,true);var x=document.getElementById("t3o");x.className="diag dinf";x.textContent="Schreibe Testzeile…";x.style.display="block";gasGet("saveTestzeile",{},function(r){setBL(b,false,o);if(r&&r.ok){testRowNum=r.rowNum;x.className="diag dok";x.textContent="✅ "+r.msg+" – wird in 3s gelöscht…";startTestTimer(3);}else{x.className="diag derr";x.textContent="❌ "+(r?r.fehler:"?");}},function(e){setBL(b,false,o);x.className="diag derr";x.textContent="❌ "+e;});}
+function startTestTimer(sec){var box=document.getElementById("test-timer-box"),bar=document.getElementById("timer-bar"),cnt=document.getElementById("timer-cnt");box.classList.add("show");var remaining=sec*10,total=remaining;if(timerInterval)clearInterval(timerInterval);timerInterval=setInterval(function(){remaining--;cnt.textContent=Math.ceil(remaining/10);bar.style.width=Math.round((remaining/total)*100)+"%";if(remaining<=0){clearInterval(timerInterval);timerInterval=null;box.classList.remove("show");if(testRowNum>0){gasGet("deleteTestzeile",{rowNum:testRowNum},function(r){var x=document.getElementById("t3o");x.className=r.ok?"diag dok":"diag derr";x.textContent=r.ok?"✅ Testzeile gelöscht.":"❌ Löschen fehlgeschlagen: "+(r.fehler||"?");testRowNum=-1;},function(){});}}},100);}
+
+// ── UTILS ────────────────────────────────────────────────────────
+function gv(id){var e=document.getElementById(id);return e?e.value:"";}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+function setBL(btn,on,orig){if(on){btn.disabled=true;btn.innerHTML='<span class="spin"></span>';}else{btn.disabled=false;if(orig)btn.innerHTML=orig;}}
+function showD(id,msg,cls){var e=document.getElementById(id);if(!e)return;e.className="diag "+(cls||"derr");e.textContent=msg;e.style.display="block";}
+function hideD(id){var e=document.getElementById(id);if(e)e.style.display="none";}
+function toast(msg,t,d){d=d||4000;var w=document.getElementById("toasts"),el=document.createElement("div");var c=t==="ok"?"tok":t==="err"?"terr":"tinf",ic=t==="ok"?"✅":t==="err"?"❌":"💡";el.className="tm "+c;el.innerHTML="<span>"+ic+"</span><span>"+msg+"</span>";w.appendChild(el);setTimeout(function(){el.style.opacity="0";el.style.transform="translateY(7px)";setTimeout(function(){el.remove();},300);},d);}
+function showZustandInfo(){var info=[["Neuwertig","Neu & originalverpackt, unbenutzt"],["Sehr gut","Mit Originalverpackung, kaum Gebrauchsspuren"],["Gut","Leichte Gebrauchsspuren, vollständig mit Hülle"],["Akzeptabel","Sichtbare Kratzer/Gebrauch, funktionsfähig"],["Defekt","Funktioniert nicht oder stark beschädigt"]];var rows=info.map(function(r){return'<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)"><span style="font-weight:700;color:var(--blue);min-width:90px;font-size:13px">'+r[0]+'</span><span style="font-size:13px;color:var(--text2)">'+r[1]+'</span></div>';}).join("");var overlay=document.createElement("div");overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)";var inner=document.createElement("div");inner.style.cssText="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:400px;width:100%";var hd=document.createElement("div");hd.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px";var ttl=document.createElement("span");ttl.style.cssText="font-size:16px;font-weight:700;color:var(--text)";ttl.textContent="Zustand-Erklärung";var xbtn=document.createElement("button");xbtn.textContent="✕";xbtn.style.cssText="background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:14px";xbtn.onclick=function(){overlay.remove();};hd.appendChild(ttl);hd.appendChild(xbtn);inner.appendChild(hd);var rd=document.createElement("div");rd.innerHTML=rows;inner.appendChild(rd);overlay.appendChild(inner);overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};document.body.appendChild(overlay);}
+
+// ── BENACHRICHTIGUNGEN ────────────────────────────────────────────
+var notifications=[];
+function loadNotifications(){try{var s=localStorage.getItem("smp_notifs");if(s)notifications=JSON.parse(s)||[];}catch(e){}updateNotifBadge();checkLongStorageItems();}
+function saveNotifications(){try{localStorage.setItem("smp_notifs",JSON.stringify(notifications.slice(0,50)));}catch(e){}}
+function addNotification(title,body,type){var notif={id:Date.now(),title:title,body:body,type:type||"info",time:new Date().toLocaleString("de-DE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}),read:false};notifications.unshift(notif);saveNotifications();updateNotifBadge();}
+function updateNotifBadge(){var unread=notifications.filter(function(n){return!n.read;}).length;var badge=document.getElementById("notif-count-badge");if(badge){if(unread>0){badge.style.display="flex";badge.textContent=unread>9?"9+":unread;}else{badge.style.display="none";}}}
+function openNotifications(){notifications.forEach(function(n){n.read=true;});saveNotifications();updateNotifBadge();renderNotifList();document.getElementById("notif-overlay").classList.add("open");}
+function closeNotifications(){document.getElementById("notif-overlay").classList.remove("open");}
+function renderNotifList(){var list=document.getElementById("notif-list");if(!notifications||notifications.length===0){list.innerHTML='<div class="notif-empty"><i class="bi bi-bell-slash"></i><p>Keine Benachrichtigungen</p></div>';return;}list.innerHTML=notifications.map(function(n){var cls=n.type==="alert"?"alert":n.type==="warn"?"warn":"";return'<div class="notif-item '+cls+'"><div class="notif-title">'+esc(n.title)+'</div><div class="notif-body">'+esc(n.body)+'</div><div class="notif-time">'+esc(n.time)+'</div><button class="notif-rm" onclick="removeNotif('+n.id+')">✕</button></div>';}).join("");}
+function removeNotif(id){notifications=notifications.filter(function(n){return n.id!==id;});saveNotifications();renderNotifList();updateNotifBadge();}
+function clearAllNotifications(){if(!confirm("Alle Benachrichtigungen löschen?"))return;notifications=[];saveNotifications();renderNotifList();updateNotifBadge();}
+function checkLongStorageItems(){if(!allItems||allItems.length===0)return;var now=new Date(),threshold=30;allItems.forEach(function(item){if(!item.datum)return;var parts=item.datum.split(".");if(parts.length<3)return;var d=new Date(parts[2].split(" ")[0],parts[1]-1,parts[0]);if(isNaN(d))return;var days=Math.floor((now-d)/(1000*60*60*24));if(days>=threshold){var nm=item.name||item.spiel||item.modell||item.geraet||"Unbekannt";var already=notifications.find(function(n){return n.body&&n.body.indexOf(nm)>-1&&n.title.indexOf("Lager")>-1;});if(!already)addNotification("⏳ Lange im Lager",'"'+nm+'" lagert seit '+days+' Tagen.',"warn");}});}
+
+// ================================================================
+// SCAN MODE
+// ================================================================
+function setMode(mode){
+  scanMode=mode;
+  document.getElementById("mode-chooser").style.display="none";
+  if(mode==="einlagern"){
+    document.getElementById("cat-chooser").style.display="block";
+  } else {
+    // Direkt Barcode-Scanner für Verkauf/Einkauf
+    _openHandelScan(mode);
+  }
+}
+function resetToMode(){
+  stopCam();
+  document.getElementById("mode-chooser").style.display="block";
+  document.getElementById("cat-chooser").style.display="none";
+  document.getElementById("sw-sub").style.display="none";
+  document.getElementById("main-stepper").style.display="none";
+  // Hide handel scan wrap
+  var hw=document.getElementById("handel-scan-wrap");if(hw)hw.style.display="none";
+  isEditMode=false;editingItem=null;
+  resetStepperState();
+}
+
+// Öffnet Scan direkt für Verkauf/Einkauf
+function _openHandelScan(mode){
+  var el=document.getElementById("handel-scan-wrap");
+  if(!el){
+    var wrap=document.createElement("div");
+    wrap.id="handel-scan-wrap";
+    wrap.innerHTML='<div class="card"><div class="card-head"><h2>'+(mode==="verkauf"?"💸 Verkauf":"🛒 Einkauf")+'</h2><button class="btn btn-sm btn-outline-secondary" onclick="resetToMode()">✕</button></div><div class="card-body"><p style="font-size:13px;color:var(--text2);margin-bottom:12px">Barcode scannen oder direkt eingeben:</p><div class="d-flex gap-2 mb-3"><input type="text" id="handel-scan-input" class="fc" placeholder="Barcode / Scan-ID (optional)"/></div><div class="d-flex gap-2"><button class="btn btn-outline-secondary flex-fill" onclick="openHandelFormFromScan(\''+mode+'\',\'\')">Ohne Barcode</button><button class="btn '+(mode==="verkauf"?"btn-success":"btn-primary")+' flex-fill" onclick="openHandelFormFromScan(\''+mode+'\',document.getElementById(\'handel-scan-input\').value)">Weiter</button></div></div></div>';
+    document.getElementById("scan-panel").querySelector(".wrap").appendChild(wrap);
+  } else {
+    el.style.display="block";
+    el.querySelector("h2").textContent=(mode==="verkauf"?"💸 Verkauf":"🛒 Einkauf");
+  }
+}
+function openHandelFormFromScan(mode, scanId){
+  var el=document.getElementById("handel-scan-wrap");if(el)el.style.display="none";
+  document.getElementById("mode-chooser").style.display="block";
+  // Switch to handel panel and open form
+  goTabFn("handel-panel");
+  setHandelTab(mode==="verkauf"?"verkauf":"einkauf");
+  if(mode==="verkauf"){openVerkaufForm(null,scanId||"");}
+  else{openEinkaufForm(null,scanId||"");}
+}
+
+// ================================================================
+// CAMERA PRESELECT – sichtbar vor dem Starten
+// ================================================================
+function initCamPreselect(){
+  var sel=document.getElementById("cam-preselect");if(!sel)return;
+  navigator.mediaDevices.enumerateDevices().then(function(devices){
+    var vids=devices.filter(function(d){return d.kind==="videoinput";});
+    sel.innerHTML="";
+    if(vids.length===0){sel.innerHTML='<option value="">Keine Kamera gefunden</option>';return;}
+    vids.forEach(function(d,i){
+      var opt=document.createElement("option");
+      opt.value=d.deviceId;
+      var lbl=d.label||("Kamera "+(i+1));
+      var back=/back|rear|environment|rück/i.test(lbl);
+      opt.textContent=(back?"🔙 ":"🤳 ")+lbl;
+      if(i===0||back)opt.selected=true;
+      sel.appendChild(opt);
+    });
+    // Set firstCamDeviceId to selected
+    if(!firstCamDeviceId&&sel.value)firstCamDeviceId=sel.value;
+  }).catch(function(){
+    var sel2=document.getElementById("cam-preselect");
+    if(sel2)sel2.innerHTML='<option value="">Bitte Kamerazugriff erlauben</option>';
+  });
+}
+
+// ================================================================
+// HANDEL: VERKAUF + EINKAUF
+// ================================================================
+var allVerkauf=[], allEinkauf=[], currentHandelTab="verkauf";
+var editVerkaufItem=null, editEinkaufItem=null;
+
+function setHandelTab(tab){
+  currentHandelTab=tab;
+  document.getElementById("htab-vk").className="ltab"+(tab==="verkauf"?" on":"");
+  document.getElementById("htab-ek").className="ltab"+(tab==="einkauf"?" on":"");
+  document.getElementById("handel-vk").style.display=tab==="verkauf"?"block":"none";
+  document.getElementById("handel-ek").style.display=tab==="einkauf"?"block":"none";
+}
+
+function loadHandel(){
+  gasGet("getAllVerkauf",{},function(r){if(r&&r.ok){allVerkauf=r.data||[];renderVerkaufList();}},function(){});
+  gasGet("getAllEinkauf",{},function(r){if(r&&r.ok){allEinkauf=r.data||[];renderEinkaufList();}},function(){});
+}
+
+function filterHandel(type){
+  if(type==="verkauf")renderVerkaufList();
+  else renderEinkaufList();
+}
+
+function renderVerkaufList(){
+  var q=(document.getElementById("vk-search")||{value:""}).value.toLowerCase();
+  var items=q?allVerkauf.filter(function(r){return(r.kunde||"").toLowerCase().includes(q)||(r.produkte||"").toLowerCase().includes(q)||(r.scanId||"").toLowerCase().includes(q)||(r.sendenummer||"").toLowerCase().includes(q);}):allVerkauf;
+  var el=document.getElementById("vk-body");
+  if(!items.length){el.innerHTML='<div class="empty"><i class="bi bi-cash-coin"></i><p>Keine Verkäufe gefunden</p></div>';return;}
+  el.innerHTML=items.map(function(v,i){return mkHandelCard(v,"verkauf",i);}).join("");
+}
+
+function renderEinkaufList(){
+  var q=(document.getElementById("ek-search")||{value:""}).value.toLowerCase();
+  var items=q?allEinkauf.filter(function(r){return(r.kunde||"").toLowerCase().includes(q)||(r.produkte||"").toLowerCase().includes(q)||(r.scanId||"").toLowerCase().includes(q)||(r.zimmer||"").toLowerCase().includes(q);}):allEinkauf;
+  var el=document.getElementById("ek-body");
+  if(!items.length){el.innerHTML='<div class="empty"><i class="bi bi-cart"></i><p>Keine Einkäufe gefunden</p></div>';return;}
+  el.innerHTML=items.map(function(v,i){return mkHandelCard(v,"einkauf",i);}).join("");
+}
+
+function mkHandelCard(item,type,idx){
+  var nm=item.produkte||"–";
+  var statusCls="sb-"+((item.status||"").toLowerCase().replace(/\s+/g,"").replace(/ä/g,"ae").replace(/ü/g,"ue").replace(/ö/g,"oe"));
+  var lsDot=getLsDot(item.lieferstatus||"");
+  var isVk=(type==="verkauf");
+  var chips='<span class="chip"><i class="bi bi-calendar3"></i>&nbsp;<b>'+esc(item.datum||"")+'</b></span>';
+  chips+='<span class="chip"><i class="bi bi-person"></i>&nbsp;<b>'+esc(item.kunde||"–")+'</b></span>';
+  if(item.preis)chips+='<span class="chip"><i class="bi bi-currency-euro"></i>&nbsp;<b>'+esc(item.preis)+'€</b></span>';
+  if(item.plattform)chips+='<span class="chip"><i class="bi bi-shop"></i>&nbsp;<b>'+esc(item.plattform)+'</b></span>';
+  if(isVk&&item.bestellnr)chips+='<span class="chip"><i class="bi bi-hash"></i>&nbsp;<b>'+esc(item.bestellnr)+'</b></span>';
+  if(!isVk&&item.zimmer)chips+='<span class="chip" style="color:var(--yellow)"><i class="bi bi-door-open"></i>&nbsp;<b>Zimmer: '+esc(item.zimmer)+'</b></span>';
+  if(item.mitarbeiter)chips+='<span class="chip"><i class="bi bi-person-badge"></i>&nbsp;<b>'+esc(item.mitarbeiter)+'</b></span>';
+  // Sendenummer mit Lieferstatus
+  var sendeHtml="";
+  if(item.sendenummer){
+    var trackUrl=getTrackingUrl(item.versanddienstleister,item.sendenummer);
+    sendeHtml='<div style="display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12px;color:var(--text2)">'+lsDot+'<span>'+esc(item.lieferstatus||"Ausstehend")+'</span>'+
+    (trackUrl?'<a href="'+trackUrl+'" target="_blank" style="color:var(--blue);margin-left:4px"><i class="bi bi-box-arrow-up-right"></i> '+esc(item.sendenummer)+'</a>':'<span style="color:var(--text3)"> – '+esc(item.sendenummer)+'</span>')+'</div>';
+  } else {
+    sendeHtml='<div style="display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12px;color:var(--text3)">'+lsDot+' '+esc(item.lieferstatus||"Ausstehend")+'</div>';
+  }
+  return'<div class="handel-card"><div class="hc-top"><div class="hc-name">'+esc(nm)+'</div><span class="status-badge '+statusCls+'">'+esc(item.status||"–")+'</span></div><div class="hc-meta">'+chips+'</div>'+sendeHtml+'<div class="ic-actions" style="margin-top:8px"><button class="btn btn-outline-primary btn-sm" onclick="openHandelEdit(\''+type+'\','+idx+')"><i class="bi bi-pencil-fill me-1"></i>Bearbeiten</button></div></div>';
+}
+
+function getLsDot(ls){
+  var c="ls-ausstehend";
+  var l=(ls||"").toLowerCase();
+  if(l.includes("bearbeit"))c="ls-inbearbeitung";
+  else if(l.includes("versend"))c="ls-versendet";
+  else if(l.includes("unterweg"))c="ls-unterwegs";
+  else if(l.includes("zugestell"))c="ls-zugestellt";
+  else if(l.includes("problem"))c="ls-problem";
+  return'<span class="ls-dot '+c+'"></span>';
+}
+
+function getTrackingUrl(vdl,nr){
+  var v=(vdl||"").toLowerCase();
+  if(v.includes("dhl"))return"https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode="+encodeURIComponent(nr);
+  if(v.includes("hermes"))return"https://www.myhermes.de/empfangen/sendungsverfolgung/sendungsinformation/#"+encodeURIComponent(nr);
+  if(v.includes("dpd"))return"https://tracking.dpd.de/status/de_DE/parcel/"+encodeURIComponent(nr);
+  if(v.includes("ups"))return"https://www.ups.com/track?tracknum="+encodeURIComponent(nr);
+  if(v.includes("gls"))return"https://gls-group.eu/track/"+encodeURIComponent(nr);
+  return"";
+}
+
+function openHandelEdit(type,idx){
+  if(type==="verkauf"){openVerkaufForm(allVerkauf[idx]);}
+  else{openEinkaufForm(allEinkauf[idx]);}
+}
+
+// VERKAUF FORM
+
+function closeVKModal(){document.getElementById("vk-modal").classList.remove("open");editVerkaufItem=null;}
+
+// Fix 4: Lieferstatus dynamisch – Sendenummer-Feld erscheint bei Versendet+
+function onVKLieferstatusChange(){
+  var ls=gv("vk-lieferstatus");
+  var needSende=["Versendet","Unterwegs","Zugestellt"].indexOf(ls)>-1;
+  var wrap=document.getElementById("vk-sende-wrap");
+  if(wrap)wrap.style.display=needSende?"block":"none";
+  if(needSende)onVKSendeInput();
+}
+function onVKSendeInput(){
+  var nr=gv("vk-sende").trim();
+  var vdl=gv("vk-vdl");
+  var trackDiv=document.getElementById("vk-track-link");
+  var trackA=document.getElementById("vk-track-a");
+  if(!nr||!trackDiv||!trackA){if(trackDiv)trackDiv.style.display="none";return;}
+  var url=getTrackingUrl(vdl,nr);
+  if(url){trackA.href=url;trackDiv.style.display="block";}
+  else{trackDiv.style.display="none";}
+}
+
+// Fix 1: Produkt aus Lager wählen
+var vkPickerActive=false;
+function openVKProductPicker(){
+  // Build picker overlay
+  var items=allItems.filter(function(i){return i.type!=="defekt"&&i.type!=="verkauf";});
+  var overlay=document.createElement("div");
+  overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9999;display:flex;flex-direction:column;padding:16px;overflow:hidden";
+  overlay.id="vk-picker-overlay";
+  overlay.innerHTML='<div style="background:var(--bg2);border-radius:var(--r);overflow:hidden;flex:1;display:flex;flex-direction:column;max-height:90vh">'
+    +'<div style="padding:13px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
+    +'<span style="font-size:14px;font-weight:700;color:var(--text)">📦 Produkt aus Lager wählen</span>'
+    +'<button onclick="document.getElementById(\'vk-picker-overlay\').remove()" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer">✕</button></div>'
+    +'<div style="padding:10px 14px;border-bottom:1px solid var(--border)"><input type="text" id="vk-picker-search" class="fc" placeholder="Suchen…" oninput="filterVKPicker()" style="font-size:13px"/></div>'
+    +'<div id="vk-picker-list" style="overflow-y:auto;flex:1;padding:8px"></div>'
+    +'</div>';
+  document.body.appendChild(overlay);
+  // Render items
+  window._vkPickerItems=items;
+  renderVKPickerList(items);
+}
+function renderVKPickerList(items){
+  var el=document.getElementById("vk-picker-list"); if(!el)return;
+  if(!items.length){el.innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Keine Artikel</p></div>';return;}
+  el.innerHTML=items.map(function(item,i){
+    var nm=item.name||item.spiel||item.modell||"–";
+    var sub=[item.datum,item.mitarbeiter,item.zustand].filter(Boolean).join(" · ");
+    return'<div onclick="selectVKProduct('+i+')" style="padding:10px 13px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s" onmouseover="this.style.background=\'var(--bg3)\'" onmouseout="this.style.background=\'\'">'+
+      '<div style="font-size:13px;font-weight:700;color:var(--text)">'+esc(nm)+'</div>'+
+      '<div style="font-size:11px;color:var(--text3)">'+esc(sub)+'  ·  ID: '+esc(item.scanId||"–")+'</div></div>';
+  }).join("");
+}
+function filterVKPicker(){
+  var q=(document.getElementById("vk-picker-search")||{value:""}).value.toLowerCase();
+  var filtered=q?(window._vkPickerItems||[]).filter(function(i){var nm=i.name||i.spiel||i.modell||"";return nm.toLowerCase().includes(q)||(i.scanId||"").toLowerCase().includes(q);}):window._vkPickerItems||[];
+  renderVKPickerList(filtered);
+}
+function selectVKProduct(idx){
+  var item=(window._vkPickerItems||[])[idx]; if(!item)return;
+  var nm=item.name||item.spiel||item.modell||"";
+  sv2("vk-produkte",nm);
+  // scanId is editable now
+  var scanEl=document.getElementById("vk-scanid");
+  if(scanEl){scanEl.removeAttribute("readonly");scanEl.value=item.scanId||"";}
+  var pi=document.getElementById("vk-product-info");
+  if(pi){
+    var info=[item.datum,item.mitarbeiter,"Zustand: "+(item.zustand||"–")].filter(Boolean).join(" · ");
+    pi.textContent="✓ Aus Lager: "+info; pi.style.display="block";
+  }
+  var ol=document.getElementById("vk-picker-overlay");if(ol)ol.remove();
+}
+
+// Fix 1: Barcode Scanner für Verkauf
+var vkScanStream=null, vkScanRunning=false, vkScanFrame=null;
+function openVKScanner(){
+  var overlay=document.createElement("div");
+  overlay.id="vk-scan-overlay";
+  overlay.className="scan-overlay";
+  overlay.innerHTML='<div class="scan-overlay-video"><video id="vk-scan-video" autoplay playsinline muted></video><canvas id="vk-scan-canvas" style="display:none"></canvas><div class="scan-overlay-frame"><div></div></div><div style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);color:#fff;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:600">Produkt scannen</div></div><div style="margin-top:16px;text-align:center"><p style="color:var(--text2);font-size:13px;margin-bottom:12px">Barcode wird automatisch erkannt</p><button class="btn btn-outline-light" onclick="closeVKScanner()"><i class="bi bi-x-circle me-1"></i>Abbrechen</button></div>';
+  document.body.appendChild(overlay);
+  var video=document.getElementById("vk-scan-video");
+  var constraints={video:firstCamDeviceId?{deviceId:{exact:firstCamDeviceId}}:{facingMode:{ideal:"environment"}}};
+  navigator.mediaDevices.getUserMedia(constraints).then(function(stream){
+    vkScanStream=stream;vkScanRunning=true;
+    video.srcObject=stream;
+    video.onloadedmetadata=function(){video.play().then(function(){_vkScanLoop();});};
+  }).catch(function(err){toast("Kamera: "+String(err),"err");closeVKScanner();});
+}
+function closeVKScanner(){
+  vkScanRunning=false;
+  if(vkScanFrame){cancelAnimationFrame(vkScanFrame);vkScanFrame=null;}
+  if(vkScanStream){vkScanStream.getTracks().forEach(function(t){t.stop();});vkScanStream=null;}
+  var ol=document.getElementById("vk-scan-overlay");if(ol)ol.remove();
+}
+function _vkScanLoop(){
+  if(!vkScanRunning)return;
+  var video=document.getElementById("vk-scan-video"),canvas=document.getElementById("vk-scan-canvas");
+  if(!video||video.readyState<2){vkScanFrame=requestAnimationFrame(_vkScanLoop);return;}
+  canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+  canvas.getContext("2d").drawImage(video,0,0,canvas.width,canvas.height);
+  var reader=getZxingReader();var detected=null;
+  if(reader){try{var res=reader.decodeFromCanvas(canvas);if(res&&res.getText())detected=res.getText().trim();}catch(e){}}
+  if(detected){
+    closeVKScanner();
+    // Suche in Lager nach dieser Scan-ID
+    var found=allItems.filter(function(i){return i.type!=="defekt"&&String(i.scanId||"")===detected;});
+    if(found.length>0){
+      // Produkt direkt befüllen
+      var item=found[0];
+      var nm=item.name||item.spiel||item.modell||"";
+      sv2("vk-produkte",nm);
+      var scanEl=document.getElementById("vk-scanid");if(scanEl){scanEl.removeAttribute("readonly");scanEl.value=detected;}
+      var pi=document.getElementById("vk-product-info");
+      if(pi){pi.textContent="✓ Gefunden: "+nm+" (Scan-ID: "+detected+")";pi.style.display="block";}
+      toast("✓ Produkt gefunden: "+nm,"ok");
+    } else {
+      // Scan-ID nicht im Lager – trotzdem eintragen
+      var scanEl2=document.getElementById("vk-scanid");if(scanEl2){scanEl2.removeAttribute("readonly");scanEl2.value=detected;}
+      var pi2=document.getElementById("vk-product-info");
+      if(pi2){pi2.textContent="⚠️ Scan-ID "+detected+" nicht im Lager gefunden – bitte Produkt manuell eingeben.";pi2.style.display="block";}
+      toast("Scan-ID erkannt: "+detected,"inf");
+    }
+    try{if(navigator.vibrate)navigator.vibrate([80]);}catch(e){}
+    return;
+  }
+  if(vkScanRunning)vkScanFrame=requestAnimationFrame(_vkScanLoop);
+}
+function saveVKForm() {
+  var d = document.getElementById("vk-diag"); if(d) d.style.display="none";
+  var produkte = vkScannedItems.length>0
+    ? vkScannedItems.map(function(i){return i.name;}).join(", ")
+    : gv("vk-produkte").trim();
+  var scanIds = vkScannedItems.length>0
+    ? vkScannedItems.map(function(i){return i.scanId;}).filter(Boolean).join(", ")
+    : gv("vk-scanid");
+  var ekPreis = vkScannedItems.length>0
+    ? vkScannedItems.reduce(function(s,i){return s+i.ekPreis;},0).toFixed(2)
+    : gv("vk-ep")||"";
+  if(!produkte){var dg=document.getElementById("vk-diag");dg.className="diag derr";dg.textContent="Bitte Produkt eingeben.";dg.style.display="block";return;}
+  if(!gv("vk-preis")){var dg=document.getElementById("vk-diag");dg.className="diag derr";dg.textContent="Bitte Preis eingeben.";dg.style.display="block";return;}
+  var data = {
+    produkte: produkte, scanIds: scanIds, verkaufspreis: gv("vk-preis"),
+    einkaufspreis: ekPreis, versandkosten: gv("vk-versand")||"0",
+    plattform: gv("vk-plattform"), kunde: gv("vk-kunde"),
+    angebotsnr: gv("vk-bestellnr"), bezahlMit: gv("vk-bezahlt"),
+    geldErhalten: gv("vk-geld"),
+    versand: gv("vk-abholung")==="Abholung"?"Abholung":"Versand",
+    abholung: gv("vk-abholung")==="Abholung"?"JA":"NEIN",
+    status: gv("vk-status"), lieferstatus: gv("vk-lieferstatus"),
+    sendenummer: gv("vk-sende"), versanddienstleister: gv("vk-vdl"),
+    mitarbeiter: gv("vk-ma")||emp, hinweise: gv("vk-hinweise"),
+    datum: new Date().toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"})
+      +" "+new Date().toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})
+  };
+  var btn = document.getElementById("vk-save-btn"); setBL(btn,true);
+  var action = editVerkaufItem ? "updateVerkauf" : "saveVerkauf";
+  if(editVerkaufItem) data.rowIndex = editVerkaufItem.rowIndex;
+  gasPost(action, data, function(r){
+    setBL(btn,false);
+    if(r&&r.ok){
+      closeVKModal();
+      vkScannedItems=[];
+      loadHandel();
+      // Show success message based on status
+      var marge = parseFloat(r.marge||0);
+      var status = data.status;
+      var msg = "";
+      if(status==="Abgeschlossen"||status==="Verkauft"||status==="Versendet"){
+        msg = marge>0
+          ? "🎉 Glückwunsch! Du hast einen Verkauf mit +" + marge.toFixed(2) + "€ Gewinn abgeschlossen!"
+          : marge===0
+          ? "✅ Verkauf gespeichert. Nullsumme – kein Verlust, kein Gewinn."
+          : "⚠️ Verkauf gespeichert. Verlust: " + marge.toFixed(2) + "€ – Preis prüfen!";
+      } else if(status==="Vorgemerkt"){
+        msg = marge>0
+          ? "📝 Glückwunsch! Du hast eine Bestellung mit +" + marge.toFixed(2) + "€ Gewinn vorgemerkt – viel Erfolg!"
+          : "📝 Verkauf vorgemerkt.";
+      } else {
+        msg = "✅ " + (r.msg||"Gespeichert.");
+      }
+      showSuccessToast(msg, marge);
+    } else {
+      var dg=document.getElementById("vk-diag");
+      dg.className="diag derr";dg.textContent=r?r.fehler:"Fehler";dg.style.display="block";
+      setBL(btn,false);
+    }
+  }, function(e){ setBL(btn,false); var dg=document.getElementById("vk-diag");dg.className="diag derr";dg.textContent="Verbindungsfehler: "+e;dg.style.display="block"; });
+}
+
+function showSuccessToast(msg, marge) {
+  var overlay = document.createElement("div");
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9998;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(8px)";
+  var color = marge>0?"var(--acc)":marge<0?"var(--col-r)":"var(--w3)";
+  var numDisplay = marge>0?"+"+marge.toFixed(2)+"€":"✅";
+  var inner = document.createElement("div");
+  inner.style.cssText = "background:var(--b2);border:1px solid "+color+";border-radius:14px;max-width:380px;width:100%;padding:24px 20px;text-align:center;box-shadow:0 0 40px rgba(0,255,136,.1)";
+  inner.innerHTML = '<div style="font-size:48px;letter-spacing:3px;color:'+color+';line-height:1;margin-bottom:10px">'+esc(numDisplay)+'</div>'
+    +(marge>0?'<div style="font-size:13px;color:var(--acc);font-weight:700;margin-bottom:10px;font-family:monospace">GEWINN</div>':"")
+    +'<div style="font-size:13px;color:var(--w2);line-height:1.6;margin-bottom:18px">'+esc(msg)+'</div>';
+  var btn = document.createElement("button");
+  btn.style.cssText = "background:var(--acc);color:#000;border:none;border-radius:6px;padding:11px 28px;font-size:16px;letter-spacing:1.5px;cursor:pointer;width:100%;font-weight:700";
+  btn.textContent = "OK →";
+  btn.onclick = function(){ overlay.remove(); };
+  inner.appendChild(btn);
+  overlay.appendChild(inner);
+  overlay.onclick = function(e){ if(e.target===this) this.remove(); };
+  document.body.appendChild(overlay);
+}
+
+// EINKAUF FORM
+
+
+
+
+function deleteHandelEntry(type){
+  var item=(type==="verkauf")?editVerkaufItem:editEinkaufItem;
+  if(!item||!confirm("Wirklich löschen?"))return;
+  gasGet("delete"+(type==="verkauf"?"Verkauf":"Einkauf"),{rowIndex:item.rowIndex},function(r){
+    if(r&&r.ok){toast(r.msg,"ok");if(type==="verkauf"){closeVKModal();}else{closeEKModal();}loadHandel();}
+    else{toast("Fehler: "+(r?r.fehler:"?"),"err");}
+  },function(e){toast("Fehler: "+e,"err");});
+}
+
+// Helper: set value safely
+function sv2(id,val){var el=document.getElementById(id);if(!el)return;el.value=String(val===null||val===undefined?"":val);}
+
+// ================================================================
+// KLEINANZEIGEN PANEL
+// ================================================================
+function renderKAPanel(){
+  if(!allItems.length){loadAll();setTimeout(function(){_buildKAPanel();},2000);}
+  else{_buildKAPanel();}
+}
+function _buildKAPanel(){
+  var relevant=allItems.filter(function(i){return i.type!=="defekt";});
+  var done=relevant.filter(function(i){return(i.kleinanzeigen||"").toLowerCase().includes("hochgeladen")||i.kleinanzeigen==="ja";}).length;
+  var todo=relevant.length-done;
+  var pct=relevant.length>0?Math.round((done/relevant.length)*100):0;
+  var dc=document.getElementById("ka-done-cnt");if(dc)dc.textContent=done;
+  var tc=document.getElementById("ka-todo-cnt");if(tc)tc.textContent=todo;
+  var bar=document.getElementById("ka-prog-bar");if(bar)bar.style.width=pct+"%";
+
+  // Filter
+  var q=(document.getElementById("ka-search")||{value:""}).value.toLowerCase();
+  var filtered=q?relevant.filter(function(i){var nm=i.name||i.spiel||i.modell||"";return nm.toLowerCase().includes(q)||(i.scanId||"").toLowerCase().includes(q);}):relevant;
+
+  var el=document.getElementById("ka-body");
+  if(!filtered.length){el.innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Keine Artikel</p></div>';return;}
+  el.innerHTML=filtered.map(function(item){
+    var nm=item.name||item.spiel||item.modell||"–";
+    var isDone=(item.kleinanzeigen||"").toLowerCase().includes("hochgeladen")||item.kleinanzeigen==="ja";
+    var kaClass=isDone?"ka-done":"ka-todo";
+    var tgClass=isDone?"done":"todo";
+    var tgTxt=isDone?"✓ Hochgeladen":"✗ Nicht hochgeladen";
+    var typ=item.type;var ri=item.rowIndex;
+    return'<div class="ka-item '+kaClass+'" id="ka-'+typ+'-'+ri+'">'+
+      '<div><div style="font-size:13px;font-weight:700;color:var(--text)">'+esc(nm)+'</div>'+
+      '<div style="font-size:11px;color:var(--text3);margin-top:2px">'+esc(item.datum||"")+'  ·  '+esc(item.mitarbeiter||"")+'</div></div>'+
+      '<button class="ka-toggle '+tgClass+'" onclick="toggleKA(\''+typ+'\','+ri+','+(!isDone)+')" data-type="'+typ+'" data-row="'+ri+'">'+tgTxt+'</button></div>';
+  }).join("");
+}
+function filterKA(){_buildKAPanel();}
+
+function toggleKA(type,rowIndex,setDone){
+  var status=setDone?"hochgeladen":"nicht hochgeladen";
+  gasGet("updateKleinanzeigen",{type:type,rowIndex:rowIndex,status:status},function(r){
+    if(r&&r.ok){
+      // Update local cache
+      for(var i=0;i<allItems.length;i++){if(allItems[i].type===type&&allItems[i].rowIndex===rowIndex){allItems[i].kleinanzeigen=status;break;}}
+      _buildKAPanel();
+      buildKAProgress();
+      toast(setDone?"✅ Als hochgeladen markiert":"Als ausstehend markiert",setDone?"ok":"inf",2000);
+    }else{toast("Fehler: "+(r?r.fehler:"?"),"err");}
+  },function(e){toast("Fehler: "+e,"err");});
+}
+
+
+// ================================================================
+// 1. GLOBAL KAMERA-AUSWAHL (shared für alle Scanner)
+// ================================================================
+// initCamPreselect already defined - it fills #cam-preselect
+// All scanner functions already use firstCamDeviceId
+// The search scanner and vk scanner also use firstCamDeviceId ✓
+// Additional: make cam-preselect update propagate
+function onCamPreselect(){
+  var sel=document.getElementById("cam-preselect");
+  if(sel&&sel.value){firstCamDeviceId=sel.value;}
+}
+
+// ================================================================
+// VK STEPPER
+// ================================================================
+var vkStep=1, vkTotalSteps=5;
+
+function vkStepNav(dir){
+  // Validate current step
+  if(dir>0){
+    if(vkStep===1){
+      if(!gv("vk-produkte").trim()){var d=document.getElementById("vk-diag");d.className="diag derr";d.textContent="Bitte Produkt eingeben.";d.style.display="block";return;}
+      if(!gv("vk-preis")){var d=document.getElementById("vk-diag");d.className="diag derr";d.textContent="Bitte Preis eingeben.";d.style.display="block";return;}
+    }
+    if(vkStep===2&&!gv("vk-plattform")){var d=document.getElementById("vk-diag");d.className="diag derr";d.textContent="Bitte Plattform auswählen.";d.style.display="block";return;}
+    if(vkStep===3&&!gv("vk-bezahlt")){var d=document.getElementById("vk-diag");d.className="diag derr";d.textContent="Bitte Bezahlmethode wählen.";d.style.display="block";return;}
+    if(vkStep===4&&gv("vk-status")==="Versendet"&&!gv("vk-sende")){var d=document.getElementById("vk-diag");d.className="diag derr";d.textContent="Bitte Sendenummer eintragen.";d.style.display="block";return;}
+  }
+  var d=document.getElementById("vk-diag");if(d)d.style.display="none";
+  vkStep=Math.max(1,Math.min(vkTotalSteps,vkStep+dir));
+  _renderVKStep();
+}
+
+function _renderVKStep(){
+  for(var i=1;i<=vkTotalSteps;i++){
+    var el=document.getElementById("vks-"+i);
+    if(el)el.style.display=(i===vkStep?"block":"none");
+  }
+  var pct=Math.round((vkStep/vkTotalSteps)*100);
+  var pb=document.getElementById("vk-prog");if(pb)pb.style.width=pct+"%";
+  var sl=document.getElementById("vk-step-lbl");if(sl)sl.textContent="Schritt "+vkStep+" von "+vkTotalSteps;
+  var snames=["Produkt","Plattform","Bezahlung","Versand","Abschluss"];
+  var sn=document.getElementById("vk-step-name");if(sn)sn.textContent=snames[vkStep-1]||"";
+  var bb=document.getElementById("vk-back-btn");if(bb)bb.disabled=(vkStep===1);
+  var nb=document.getElementById("vk-next-btn");if(nb)nb.style.display=(vkStep<vkTotalSteps?"inline-flex":"none");
+  var sb=document.getElementById("vk-save-btn");if(sb)sb.style.display=(vkStep===vkTotalSteps?"inline-flex":"none");
+  // Step 3: update payment options based on platform
+  if(vkStep===3)_updateVKBezahlOpts();
+  // Step 4: update lieferstatus wrap
+  if(vkStep===4){onVKLieferstatusChange();calcAndShowMarge();}
+  // Step 5: show summary
+  if(vkStep===5)_buildVKSummary();
+  // Step 2: show platform sub-hint
+  if(vkStep===2){var p=gv("vk-plattform");if(p)_highlightVKPlattform(p);}
+}
+
+function selVKPlattform(p){
+  sv2("vk-plattform",p);
+  _highlightVKPlattform(p);
+}
+function _highlightVKPlattform(p){
+  ["ka","eb","ab","so"].forEach(function(id){var el=document.getElementById("vkp-"+id);if(el)el.className="cbtn";});
+  var map={Kleinanzeigen:"ka",eBay:"eb",Abholung:"ab",Sonstiges:"so"};
+  var el=document.getElementById("vkp-"+(map[p]||"so"));if(el)el.className="cbtn vk-sel";
+}
+
+function _updateVKBezahlOpts(){
+  var p=gv("vk-plattform");
+  var opts={
+    Kleinanzeigen:["PayPal","Überweisung","Bar (Abholung)"],
+    eBay:["eBay-Zahlung","PayPal"],
+    Abholung:["Bar"],
+    Sonstiges:["PayPal","Überweisung","Bar","Sonstiges"]
+  };
+  var list=opts[p]||opts.Sonstiges;
+  var wrap=document.getElementById("vk-bezahl-opts");if(!wrap)return;
+  var cur=gv("vk-bezahlt");
+  // Use data-val to avoid onclick string escaping issues
+  wrap.innerHTML=list.map(function(o){
+    var isSel=(cur===o);
+    return'<button class="cbtn'+(isSel?" vk-sel":"")+'" data-bezahl="'+esc(o)+'">'+esc(o)+'</button>';
+  }).join("");
+  // Event delegation
+  wrap.onclick=function(e){
+    var btn=e.target.closest("[data-bezahl]");
+    if(!btn)return;
+    selVKBezahl(btn.getAttribute("data-bezahl"));
+  };
+  var sub=document.getElementById("vks-3-sub");
+  if(sub){var hints={Kleinanzeigen:"PayPal oder Überweisung bereithalten.",eBay:"Zahlung über eBay-System.",Abholung:"Barzahlung bei Übergabe."};sub.textContent=hints[p]||"Zahlungsart wählen.";}
+}
+
+function selVKBezahl(v){
+  sv2("vk-bezahlt",v);
+  _updateVKBezahlOpts();
+}
+
+function selVKStatus(v){
+  sv2("vk-status",v);
+  ["vm","vk","vs","ab"].forEach(function(id){var el=document.getElementById("vkst-"+id);if(el)el.className="cbtn";});
+  var map={Vorgemerkt:"vm",Verkauft:"vk",Versendet:"vs",Abgeschlossen:"ab"};
+  var el=document.getElementById("vkst-"+(map[v]||"vm"));if(el)el.className="cbtn vk-sel";
+  onVKLieferstatusChange();
+}
+
+function _buildVKSummary(){
+  var s=document.getElementById("vk-summary");if(!s)return;
+  var items=[
+    ["Produkt",gv("vk-produkte")],["Preis",gv("vk-preis")?"€"+gv("vk-preis"):"–"],
+    ["Plattform",gv("vk-plattform")],["Käufer",gv("vk-kunde")||"–"],
+    ["Bezahlt mit",gv("vk-bezahlt")||"–"],["Status",gv("vk-status")],
+    ["Versand",gv("vk-abholung")]
+  ];
+  if(gv("vk-sende"))items.push(["Sendenummer",gv("vk-sende")]);
+  s.innerHTML=items.map(function(r){return'<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--text2)">'+esc(r[0])+'</span><span style="font-weight:700;color:var(--text)">'+esc(r[1])+'</span></div>';}).join("");
+}
+
+
+
+// ================================================================
+// PRODUCT DETAIL OVERLAY (Fix 5)
+// ================================================================
+var detailItem=null;
+
+function openDetail(rIdx){
+  var item=cardRegistry[rIdx];if(!item)return;
+  detailItem=item;
+  var nm=item.name||item.spiel||item.modell||item.geraet||"–";
+  document.getElementById("detail-header-title").textContent=nm;
+  document.getElementById("detail-title").textContent=nm;
+  // Edit button
+  var eb=document.getElementById("detail-edit-btn");
+  if(eb)eb.onclick=function(){closeDetail();openEditStepper(rIdx);};
+
+  // Price
+  var sugPrice=_getSuggestedPrice(item);
+  var kaPreis=item.kaPreis||"";
+  var kaTyp=item.kaPreisTyp||"";
+  var pp=document.getElementById("detail-price");
+  var ps=document.getElementById("detail-price-sub");
+  if(kaPreis){
+    pp.textContent=kaPreis+"€"+(kaTyp?" ("+kaTyp+")":"");
+    pp.style.color="var(--acc)";
+    var subParts=[];
+    if(item.einkaufspreis && parseFloat(item.einkaufspreis)>0) subParts.push("EK: "+item.einkaufspreis+"€");
+    if(sugPrice) subParts.push("Empfehlung: "+sugPrice);
+    ps.textContent=subParts.join(" · ");
+  } else if(item.einkaufspreis && parseFloat(item.einkaufspreis)>0){
+    // Show EK price when no KA price set
+    pp.textContent=item.einkaufspreis+"€";
+    pp.style.color="var(--col-y)";
+    ps.textContent="Einkaufspreis"+(sugPrice?" · Empfehlung: "+sugPrice:"");
+  } else if(sugPrice){
+    pp.textContent=sugPrice;
+    pp.style.color="var(--col-y)";
+    ps.textContent="Vorgeschlagener Verkaufspreis";
+  } else {
+    pp.textContent="Kein Preis eingetragen";
+    pp.style.color="var(--w4)";
+    ps.textContent="Einkaufspreis im Stepper nachtragen";
+  }
+
+  // Kleinanzeigen Badge
+  var kab=document.getElementById("detail-ka-badge");
+  var isDone=(item.kleinanzeigen||"").toLowerCase().includes("hochgeladen")||item.kleinanzeigen==="ja";
+  kab.innerHTML=isDone?'<span class="av-badge av-v"><i class="bi bi-check-circle-fill me-1"></i>Bei Kleinanzeigen hochgeladen</span>':'<span class="av-badge av-n"><i class="bi bi-x-circle-fill me-1"></i>Noch nicht hochgeladen</span>';
+
+  // Photo tabs
+  var photoTabsEl=document.getElementById("detail-photo-tabs");
+  var heroEl=document.getElementById("detail-hero");
+  var thumbsEl=document.getElementById("detail-thumbs");
+  var kaFotos=item.kaFotos||[];
+  var defFotos=item.fotos||[];
+  // Show photo tab switcher
+  if(photoTabsEl){
+    var hasBoth=kaFotos.length>0 && defFotos.length>0;
+    photoTabsEl.style.display=hasBoth?"flex":"none";
+    if(hasBoth){
+      photoTabsEl.innerHTML="";
+    [["anzeige","📸 ANZEIGENFOTOS"],["defekt","⚠️ DEFEKTFOTOS"]].forEach(function(pair){
+      var btn=document.createElement("button");
+      btn.id="ftab-"+pair[0];
+      btn.style.cssText="flex:1;padding:7px 6px;border:none;font-family:monospace;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:.5px;background:"+(pair[0]==="anzeige"?"var(--b3)":"none")+";color:"+(pair[0]==="anzeige"?"var(--acc)":"var(--w4)")+";border-bottom:"+(pair[0]==="anzeige"?"2px solid var(--acc)":"2px solid transparent");
+      btn.textContent=pair[1];
+      (function(mode){btn.onclick=function(){detailShowFotoTab(mode);};})(pair[0]);
+      photoTabsEl.appendChild(btn);
+    });
+    }
+  }
+  var _detailFotoMode="anzeige";
+  window.detailShowFotoTab=function(mode){
+    _detailFotoMode=mode;
+    ["anzeige","defekt"].forEach(function(t){
+      var btn=document.getElementById("ftab-"+t);
+      if(btn){
+        btn.style.background=t===mode?"var(--b3)":"none";
+        btn.style.color=t===mode?"var(--acc)":"var(--w4)";
+        btn.style.borderBottom=t===mode?"2px solid var(--acc)":"2px solid transparent";
+      }
+    });
+    var showFotos=mode==="anzeige"?kaFotos:defFotos;
+    if(showFotos.length>0){
+      heroEl.innerHTML='<img src="'+esc(showFotos[0])+'" style="width:100%;height:100%;object-fit:cover"/>';
+      heroEl.className="detail-hero";
+      if(showFotos.length>1){
+        thumbsEl.style.display="flex";
+        thumbsEl.innerHTML=showFotos.map(function(b,i){return'<div class="detail-photo-thumb'+(i===0?" active":"")+'" data-src="'+esc(b)+'"><img src="'+esc(b)+'"/></div>';}).join("");
+        thumbsEl.onclick=function(e){var t=e.target.closest(".detail-photo-thumb");if(!t)return;detailSetHeroImg(t,t.getAttribute("data-src"));};
+      } else {thumbsEl.style.display="none";}
+    } else {
+      heroEl.className="detail-hero-empty";heroEl.innerHTML="📦";
+      thumbsEl.style.display="none";
+    }
+  };
+  window.detailSetHeroImg=function(el,src){
+    heroEl.innerHTML='<img src="'+esc(src)+'" style="width:100%;height:100%;object-fit:cover"/>';
+    thumbsEl.querySelectorAll(".detail-photo-thumb").forEach(function(t){t.classList.remove("active");});
+    el.classList.add("active");
+  };
+  var allFotos=kaFotos.concat(defFotos);
+  // Initial display: show anzeige fotos first, fallback to defekt
+  if(kaFotos.length>0){ detailShowFotoTab("anzeige"); }
+  else if(defFotos.length>0){ detailShowFotoTab("defekt"); }
+  else { heroEl.className="detail-hero-empty";heroEl.innerHTML="📦"; thumbsEl.style.display="none"; }
+
+  // KA Photos separate
+  var upWrap=document.getElementById("detail-upload-photos-wrap");
+  var upEl=document.getElementById("detail-upload-photos");
+  if(kaFotos.length>0){
+    upWrap.style.display="block";
+    upEl.innerHTML=kaFotos.map(function(b,i){return'<div class="card-foto" onclick="openLightboxDirect(\'"+b+"\')" style="width:64px;height:64px"><img src="'+esc(b)+'"/></div>';}).join("");
+  } else {upWrap.style.display="none";}
+
+  // Links
+  var linksWrap=document.getElementById("detail-links-wrap");
+  var linksEl=document.getElementById("detail-links");
+  var links=item.kaLinks||[];
+  if(typeof links==="string")try{links=JSON.parse(links);}catch(e){links=links?[links]:[];}
+  if(links.length>0){
+    linksWrap.style.display="block";
+    linksEl.innerHTML=links.map(function(l){return'<a href="'+esc(l)+'" target="_blank" class="btn btn-outline-primary btn-sm w-100 mb-1"><i class="bi bi-box-arrow-up-right me-1"></i>'+esc(l.length>40?l.substring(0,40)+"…":l)+'</a>';}).join("");
+  } else {linksWrap.style.display="none";}
+
+  // Specs
+  var specs=_buildSpecs(item);
+  document.getElementById("detail-specs").innerHTML=specs;
+
+  // Defekt fotos
+  var dw=document.getElementById("detail-defekt-wrap");
+  var df=document.getElementById("detail-defekt-fotos");
+  if(defFotos.length>0){
+    dw.style.display="block";
+    df.innerHTML=defFotos.map(function(b){return'<div class="card-foto" onclick="openLightboxDirect(\'"+b+"\')" style="width:64px;height:64px"><img src="'+esc(b)+'"/></div>';}).join("");
+  } else {dw.style.display="none";}
+
+  // Notes
+  var note=item.problemBeschr||item.hinweise||"";
+  var nw=document.getElementById("detail-notes");
+  if(note){nw.style.display="block";nw.innerHTML='<i class="bi bi-chat-text me-1"></i>'+esc(note);}
+  else{nw.style.display="none";}
+
+  document.getElementById("detail-overlay").classList.add("open");
+}
+
+function detailSetHero(idx){
+  var item=detailItem;if(!item)return;
+  var kaFotos=item.kaFotos||[];var defFotos=item.fotos||[];
+  var all=kaFotos.concat(defFotos);
+  if(!all[idx])return;
+  var heroEl=document.getElementById("detail-hero");
+  heroEl.innerHTML='<img src="'+esc(all[idx])+'" style="width:100%;height:100%;object-fit:cover"/>';
+  document.querySelectorAll("#detail-thumbs .detail-photo-thumb").forEach(function(el,i){el.classList.toggle("active",i===idx);});
+}
+
+function openLightboxDirect(b64){
+  var lb=document.createElement("div");lb.className="lightbox";lb.innerHTML='<img src="'+esc(b64)+'" alt="Foto"/>';lb.onclick=function(){lb.remove();};document.body.appendChild(lb);
+}
+
+function closeDetail(){
+  document.getElementById("detail-overlay").classList.remove("open");
+  detailItem=null;
+}
+
+function detailEdit(){
+  // handled by onclick on edit button
+}
+
+function _getSuggestedPrice(item){
+  var PREISE={konsole:{Neuwertig:"180–250€","Sehr gut":"120–180€",Gut:"80–130€",Akzeptabel:"40–80€",Defekt:"10–30€"},spiel:{Neuwertig:"25–45€","Sehr gut":"15–25€",Gut:"8–15€",Akzeptabel:"3–8€",Defekt:"1–3€"},handy:{Neuwertig:"200–400€","Sehr gut":"120–200€",Gut:"70–120€",Akzeptabel:"30–70€",Defekt:"10–30€"},pc:{Neuwertig:"400–800€","Sehr gut":"250–400€",Gut:"150–250€",Akzeptabel:"80–150€",Defekt:"20–60€"}};
+  var t=PREISE[item.type];if(!t)return"";
+  return t[item.zustand]||"";
+}
+
+function _buildSpecs(item){
+  var rows=[];
+  function row(k,v){if(v&&String(v).trim())rows.push('<div class="detail-spec"><span class="detail-spec-key">'+esc(k)+'</span><span class="detail-spec-val">'+esc(String(v))+'</span></div>');}
+  row("Datum",item.datum);row("Mitarbeiter",item.mitarbeiter);row("Zustand",item.zustand);
+  if(item.type==="konsole"){row("Speicher",item.speicherGB?(item.speicherGB+" GB"):"");row("Farbe",item.farbe);}
+  if(item.type==="spiel"){row("System",item.system);row("USK",item.usk);row("Sprache",item.sprache);}
+  if(item.type==="handy"){row("Speicher",item.speicherGB?(item.speicherGB+" GB"):"");row("RAM",item.ram?(item.ram+" GB"):"");row("Farbe",item.farbe);row("Netzwerk",item.netzwerk);row("IMEI",item.imei);}
+  if(item.type==="pc"){row("Typ",item.typ_);row("Prozessor",item.prozessor);row("RAM",item.ram?(item.ram+" GB"):"");row("Speicher",item.speicherGB?(item.speicherGB+" GB"):"");row("GPU",item.grafikkarte);row("OS",item.betriebssystem);}
+  if(item.problemTyp)row("Problemtyp",item.problemTyp);
+  row("Kategorien",item.kategorien);
+  if(item.scanId)row("Scan-ID",item.scanId);
+  return rows.join("");
+}
+
+// ================================================================
+// UPLOAD WIZARD
+// ================================================================
+var uwStep=1, uwTotalSteps=3, uwSelectedItems=[], uwPhotos=[], uwPlattform="";
+
+function openUploadWizard(){
+  uwStep=1;uwSelectedItems=[];uwPhotos=[];uwPlattform="";
+  document.getElementById("mode-chooser").style.display="block";
+  // If allItems empty, load first
+  if(!allItems.length){loadAll();setTimeout(function(){_initUWItems();},2000);}
+  else{_initUWItems();}
+  document.getElementById("upload-wizard").classList.add("open");
+  _renderUWStep();
+}
+function closeUploadWizard(){
+  document.getElementById("upload-wizard").classList.remove("open");
+}
+function _initUWItems(){
+  // Only items not yet uploaded
+  window._uwAllItems=allItems.filter(function(i){
+    return i.type!=="defekt"&&!(i.kleinanzeigen||"").toLowerCase().includes("hochgeladen")&&i.kleinanzeigen!=="ja";
+  });
+  _renderUWItemList(window._uwAllItems);
+}
+function filterUWItems(){
+  var q=(document.getElementById("uw-search")||{value:""}).value.toLowerCase();
+  var items=window._uwAllItems||[];
+  _renderUWItemList(q?items.filter(function(i){var nm=i.name||i.spiel||i.modell||"";return nm.toLowerCase().includes(q)||(i.scanId||"").toLowerCase().includes(q);}):items);
+}
+function _renderUWItemList(items){
+  var el=document.getElementById("uw-items");if(!el)return;
+  if(!items.length){el.innerHTML='<div class="empty"><i class="bi bi-check-circle"></i><p>Alle Artikel bereits hochgeladen!</p></div>';return;}
+  el.innerHTML=items.map(function(item,idx){
+    var nm=item.name||item.spiel||item.modell||"–";
+    var isSelected=uwSelectedItems.some(function(s){return s.rowIndex===item.rowIndex&&s.type===item.type;});
+    var chk=isSelected?'<div class="upload-item-check checked"><i class="bi bi-check"></i></div>':'<div class="upload-item-check"></div>';
+    return'<div class="upload-item" data-type="'+esc(item.type)+'" data-row="'+item.rowIndex+'" onclick="uwItemClick(this)">'+chk
+      +'<div><div style="font-size:13px;font-weight:700;color:var(--text)">'+esc(nm)+'</div>'
+      +'<div style="font-size:11px;color:var(--text3)">'+esc(item.datum||"")+' · '+esc(item.zustand||"")+'</div></div></div>';
+  }).join("");
+  _updateUWSelCount();
+}
+function uwItemClick(el){
+  var type=el.getAttribute("data-type");
+  var rowIndex=parseInt(el.getAttribute("data-row"));
+  toggleUWItem(el,type,rowIndex);
+}
+function toggleUWItem(el,type,rowIndex){
+  var idx=uwSelectedItems.findIndex(function(s){return s.rowIndex===rowIndex&&s.type===type;});
+  var item=(window._uwAllItems||[]).find(function(i){return i.rowIndex===rowIndex&&i.type===type;});
+  if(!item)return;
+  if(idx>-1){uwSelectedItems.splice(idx,1);}else{uwSelectedItems.push(item);}
+  // Update UI
+  var check=el.querySelector(".upload-item-check");
+  var isNowSelected=uwSelectedItems.some(function(s){return s.rowIndex===rowIndex&&s.type===type;});
+  if(check){check.className="upload-item-check"+(isNowSelected?" checked":"");check.innerHTML=isNowSelected?'<i class="bi bi-check"></i>':""; }
+  _updateUWSelCount();
+}
+function _updateUWSelCount(){var el=document.getElementById("uw-selected-cnt");if(el)el.textContent=uwSelectedItems.length;}
+
+function selUWPlattform(p){
+  uwPlattform=p;
+  sv2("uw-plattform",p);
+  ["ka","eb","fb","so"].forEach(function(id){var el=document.getElementById("uwp-"+id);if(el)el.className="cbtn";});
+  var map={Kleinanzeigen:"ka",eBay:"eb",Facebook:"fb",Sonstiges:"so"};
+  var el=document.getElementById("uwp-"+(map[p]||"so"));if(el)el.className="cbtn vk-sel";
+  _renderUWPriceList();
+}
+function _renderUWPriceList(){
+  var el=document.getElementById("uw-price-list");if(!el)return;
+  el.innerHTML=uwSelectedItems.map(function(item,i){
+    var nm=item.name||item.spiel||item.modell||"–";
+    var sug=_getSuggestedPrice(item);
+    return'<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:8px">'
+      +'<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">'+esc(nm)+'</div>'
+      +(sug?'<div style="font-size:11px;color:var(--text3);margin-bottom:5px">Vorschlag: '+esc(sug)+'</div>':"")
+      +'<div style="display:flex;gap:6px;align-items:center">'
+      +'<input type="number" class="fc" id="uw-preis-'+i+'" placeholder="Preis (€)" style="flex:1"/>'
+      +'<select class="fc" id="uw-typ-'+i+'" style="max-width:120px"><option value="VB">VB</option><option value="Festpreis">Festpreis</option></select>'
+      +'</div></div>';
+  }).join("");
+}
+
+function _renderUWLinkList(){
+  var el=document.getElementById("uw-link-list");if(!el)return;
+  el.innerHTML=uwSelectedItems.map(function(item,i){
+    var nm=item.name||item.spiel||item.modell||"–";
+    return'<div style="margin-bottom:10px">'
+      +'<label class="fl" style="margin-bottom:4px">'+esc(nm)+' – Anzeigen-Link</label>'
+      +'<input type="url" class="fc" id="uw-link-'+i+'" placeholder="https://www.kleinanzeigen.de/…"/></div>';
+  }).join("");
+}
+
+function uwStepNav(dir){
+  var d=document.getElementById("uw-diag");if(d)d.style.display="none";
+  if(dir>0){
+    if(uwStep===1&&uwSelectedItems.length===0){if(d){d.className="diag derr";d.textContent="Bitte mind. 1 Artikel auswählen.";d.style.display="block";}return;}
+    if(uwStep===2&&!uwPlattform){if(d){d.className="diag derr";d.textContent="Bitte Plattform auswählen.";d.style.display="block";}return;}
+  }
+  uwStep=Math.max(1,Math.min(uwTotalSteps,uwStep+dir));
+  _renderUWStep();
+}
+function _renderUWStep(){
+  for(var i=1;i<=uwTotalSteps;i++){var el=document.getElementById("uws-"+i);if(el)el.style.display=(i===uwStep?"block":"none");}
+  var pct=Math.round((uwStep/uwTotalSteps)*100);
+  var pb=document.getElementById("uw-prog");if(pb)pb.style.width=pct+"%";
+  var sl=document.getElementById("uw-step-lbl");if(sl)sl.textContent="Schritt "+uwStep+" von "+uwTotalSteps;
+  var bb=document.getElementById("uw-back-btn");if(bb)bb.disabled=(uwStep===1);
+  var nb=document.getElementById("uw-next-btn");if(nb)nb.style.display=(uwStep<uwTotalSteps?"inline-flex":"none");
+  var sb=document.getElementById("uw-save-btn");if(sb)sb.style.display=(uwStep===uwTotalSteps?"inline-flex":"none");
+  if(uwStep===2){_renderUWPriceList();}
+  if(uwStep===3){_renderUWLinkList();}
+}
+
+function triggerUWPhoto(){
+  var inp=document.createElement("input");inp.type="file";inp.accept="image/*";
+  inp.onchange=function(){if(this.files&&this.files[0])_processUWPhoto(this.files[0]);};
+  inp.click();
+}
+function _processUWPhoto(file){
+  var img=new Image(),url=URL.createObjectURL(file);
+  img.onload=function(){
+    URL.revokeObjectURL(url);
+    var MAX=800,w=img.width,h=img.height;
+    if(w>MAX||h>MAX){if(w>h){h=Math.round(h*(MAX/w));w=MAX;}else{w=Math.round(w*(MAX/h));h=MAX;}}
+    var canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;
+    canvas.getContext("2d").drawImage(img,0,0,w,h);
+    var b64=canvas.toDataURL("image/jpeg",0.72);
+    uwPhotos.push(b64);_renderUWPhotoThumbs();
+  };
+  img.src=url;
+}
+function _renderUWPhotoThumbs(){
+  var el=document.getElementById("uw-photo-thumbs");if(!el)return;
+  el.innerHTML=uwPhotos.map(function(b,i){
+    return'<div class="photo-thumb"><img src="'+esc(b)+'"/><button class="rm-thumb" onclick="uwPhotos.splice('+i+',1);_renderUWPhotoThumbs()">✕</button></div>';
+  }).join('')+('<div class="add-thumb" onclick="triggerUWPhoto()"><i class="bi bi-plus"></i></div>');
+}
+
+function saveUploadWizard(){
+  if(!uwSelectedItems.length){toast("Keine Artikel ausgewählt","err");return;}
+  var btn=document.getElementById("uw-save-btn");if(btn)btn.disabled=true;
+  var saved=0,total=uwSelectedItems.length;
+  uwSelectedItems.forEach(function(item,i){
+    var preis=(document.getElementById("uw-preis-"+i)||{value:""}).value;
+    var typ=(document.getElementById("uw-typ-"+i)||{value:"VB"}).value;
+    var link=(document.getElementById("uw-link-"+i)||{value:""}).value;
+    // Build update data
+    var d={type:item.type,rowIndex:item.rowIndex,status:"hochgeladen",
+           kaPreis:preis,kaPreisTyp:typ,
+           kaLinks:link?JSON.stringify([link]):JSON.stringify([]),
+           kaFotos:JSON.stringify(uwPhotos),
+           plattform:uwPlattform};
+    gasGet("updateKleinanzeigen",d,function(r){
+      if(r&&r.ok){
+        // Update local cache
+        for(var j=0;j<allItems.length;j++){
+          if(allItems[j].type===item.type&&allItems[j].rowIndex===item.rowIndex){
+            allItems[j].kleinanzeigen="hochgeladen";
+            allItems[j].kaPreis=preis;allItems[j].kaPreisTyp=typ;
+            allItems[j].kaLinks=link?[link]:[];
+            allItems[j].kaFotos=uwPhotos;
+            break;
+          }
+        }
+      }
+      saved++;
+      if(saved===total){
+        toast(total+" Artikel als hochgeladen markiert ✅","ok");
+        closeUploadWizard();
+        buildKAProgress();
+        renderList();
+        if(btn)btn.disabled=false;
+      }
+    },function(){saved++;if(saved===total&&btn)btn.disabled=false;});
+  });
+}
+
+
+
+// ================================================================
+// MITARBEITER STATS & PROFIL
+// ================================================================
+var mitarbeiterStats = [];
+
+function loadMitarbeiterStats() {
+  gasGet("getMitarbeiterStats", {}, function(r) {
+    if (!r || !r.ok) return;
+    mitarbeiterStats = r.data || [];
+    renderTeamPerf();
+  }, function() {});
+}
+
+function renderTeamPerf() {
+  var el = document.getElementById("team-perf-body");
+  if (!el) return;
+  if (!mitarbeiterStats.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center;padding:8px">Keine Daten</div>';
+    return;
+  }
+  var maxE = Math.max.apply(null, mitarbeiterStats.map(function(m){return m.eingelagert||0;})) || 1;
+  el.innerHTML = mitarbeiterStats.slice(0,8).map(function(m) {
+    var ini = (m.name||"?").split(" ").map(function(w){return w[0]||"";}).join("").toUpperCase().substring(0,2);
+    var pct = Math.round(((m.eingelagert||0)/maxE)*100);
+    return '<div class="perf-row">'
+      + '<div class="perf-avatar" style="cursor:pointer" onclick="openProfilFor(this.dataset.name)" data-name="' + esc(m.name) + '">' + esc(ini) + '</div>'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="display:flex;justify-content:space-between;margin-bottom:3px">'
+      + '<span style="font-size:12px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(m.name) + '</span>'
+      + '<span style="font-size:11px;color:var(--text3);white-space:nowrap">'
+      + (m.eingelagert||0) + '📦 ' + (m.verkauft||0) + '💸</span>'
+      + '</div>'
+      + '<div class="perf-bar-wrap"><div class="perf-bar" style="width:' + pct + '%"></div></div>'
+      + '</div></div>';
+  }).join("");
+}
+
+function openProfil() {
+  openProfilFor(emp);
+}
+
+function openProfilFor(name) {
+  if (!name) return;
+  var stat = mitarbeiterStats.find(function(m) { return m.name === name; });
+  var ini = name.split(" ").map(function(w){return w[0]||"";}).join("").toUpperCase().substring(0,2);
+  var av = document.getElementById("profil-avatar"); if(av) av.textContent = ini;
+  var pn = document.getElementById("profil-name"); if(pn) pn.textContent = name;
+  var pe = document.getElementById("ps-eingelagert"); if(pe) pe.textContent = stat ? (stat.eingelagert||0) : "–";
+  var pv = document.getElementById("ps-verkauft"); if(pv) pv.textContent = stat ? (stat.verkauft||0) : "–";
+  var pr = document.getElementById("ps-retouren"); if(pr) pr.textContent = stat ? (stat.retouren||0) : "–";
+  // 7-day stats
+  var sevenAgo=new Date();sevenAgo.setDate(sevenAgo.getDate()-7);
+  var ein7=0,vk7=0;
+  allItems.forEach(function(item){if((item.mitarbeiter||"").toLowerCase()!==name.toLowerCase())return;if(!item.datum)return;var pts=item.datum.split(".");if(pts.length<3)return;var dd=new Date(pts[2].split(" ")[0],pts[1]-1,pts[0]);if(dd>=sevenAgo)ein7++;});
+  (allVerkauf||[]).forEach(function(v){if((v.mitarbeiter||"").toLowerCase()!==name.toLowerCase())return;if(!v.datum)return;var pts=v.datum.split(".");if(pts.length<3)return;var dd=new Date(pts[2].split(" ")[0],pts[1]-1,pts[0]);if(dd>=sevenAgo)vk7++;});
+  var p7e=document.getElementById("ps-7d-eingelagert");if(p7e)p7e.textContent=ein7;
+  var p7v=document.getElementById("ps-7d-verkauft");if(p7v)p7v.textContent=vk7;
+  // Load activity log
+  var logEl = document.getElementById("profil-log");
+  if (logEl) logEl.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center;padding:8px"><span class="spin-b"></span> Lade…</div>';
+  gasGet("getActivityLog", {mitarbeiter: name}, function(r) {
+    if (!logEl) return;
+    if (!r || !r.ok || !r.data || !r.data.length) {
+      logEl.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center;padding:8px">Keine Aktivitäten</div>';
+      return;
+    }
+    logEl.innerHTML = "";
+    r.data.forEach(function(entry) {
+      var dotCls = "log-" + (entry.typ||"info");
+      var isLager = entry.typ==="lager" && entry.details;
+      var item = document.createElement("div");
+      item.className = "log-item";
+      if(isLager) item.style.cursor = "pointer";
+      item.innerHTML = '<div class="log-dot ' + dotCls + '"></div>'
+        + '<div style="flex:1">'
+        + '<div style="font-size:12px;font-weight:700;color:var(--w1)">' + esc(entry.aktion||"") + '</div>'
+        + '<div style="font-size:11px;color:var(--w3)">' + esc(entry.details||"") + '</div>'
+        + '<div style="font-size:10px;color:var(--w4);margin-top:1px;font-family:monospace">' + esc(entry.datum||"") + '</div></div>'
+        + (isLager ? '<div style="font-size:10px;color:var(--acc);font-family:monospace;white-space:nowrap;align-self:center">→ LAGER</div>' : "");
+      if(isLager){
+        (function(details,typ){
+          item.onclick = function(){
+            // Close profil, go to lager, search for item
+            document.getElementById("profil-overlay").classList.remove("open");
+            goTabFn("list-panel","all");
+            var cat = typ==="lager"?"all":"all";
+            setTimeout(function(){
+              var qEl = document.getElementById("list-q");
+              if(qEl){ qEl.value=details; renderList(); }
+            }, 150);
+          };
+        })(entry.details, entry.typ);
+      }
+      logEl.appendChild(item);
+    });
+  }, function() {});
+  document.getElementById("profil-overlay").classList.add("open");
+}
+
+// ================================================================
+// REKLAMATION
+// ================================================================
+var editRTItem = null;
+
+
+
+
+
+
+
+// ================================================================
+// GLOBAL CAMERA PICKER
+// ================================================================
+function initGlobalCamList() {
+  _fillCamSelects();
+}
+
+function refreshCamList() {
+  // Request camera permission first (needed to get labels)
+  navigator.mediaDevices.getUserMedia({video:true}).then(function(stream){
+    stream.getTracks().forEach(function(t){t.stop();});
+    _fillCamSelects();
+  }).catch(function(){_fillCamSelects();});
+}
+
+function _fillCamSelects() {
+  if(!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+  navigator.mediaDevices.enumerateDevices().then(function(devices){
+    var vids = devices.filter(function(d){return d.kind==="videoinput";});
+    var targets = [
+      document.getElementById("cam-preselect"),
+      document.getElementById("global-cam-select")
+    ];
+    targets.forEach(function(sel){
+      if(!sel) return;
+      var prev = sel.value;
+      sel.innerHTML = "";
+      if(!vids.length){
+        sel.innerHTML='<option value="">Keine Kamera gefunden</option>';
+        return;
+      }
+      vids.forEach(function(d,i){
+        var opt = document.createElement("option");
+        opt.value = d.deviceId;
+        var lbl = d.label || ("Kamera "+(i+1));
+        var back = /back|rear|environment|rück/i.test(lbl);
+        opt.textContent = (back?"🔙 ":"🤳 ")+lbl;
+        if(d.deviceId===prev) opt.selected=true;
+        sel.appendChild(opt);
+      });
+      // Auto-select back camera if nothing was previously selected
+      if(!prev){
+        var backOpt = Array.from(sel.options).find(function(o){return /back|rear|environment|rück/i.test(o.textContent);});
+        if(backOpt) backOpt.selected=true;
+        else if(sel.options.length>0) sel.options[0].selected=true;
+      }
+      if(sel.value && !firstCamDeviceId) firstCamDeviceId=sel.value;
+    });
+  }).catch(function(){});
+}
+
+function showGlobalCamBar() {
+  var bar = document.getElementById("global-cam-bar");
+  if (bar) { bar.style.display = "flex"; }
+}
+function hideGlobalCamBar() {
+  var bar = document.getElementById("global-cam-bar");
+  if (bar) bar.style.display = "none";
+}
+function onGlobalCamChange() {
+  var sel = document.getElementById("global-cam-select");
+  if (sel && sel.value) {
+    firstCamDeviceId = sel.value;
+    var pre = document.getElementById("cam-preselect");
+    if (pre) pre.value = sel.value;
+  }
+}
+
+// ================================================================
+// VERKAUF MARGE ANZEIGE im VK Stepper Step 4
+// ================================================================
+function calcAndShowMarge() {
+  var vp = parseFloat(gv("vk-preis")||0);
+  var ep = parseFloat(gv("vk-ep")||0);
+  var vs = parseFloat(gv("vk-versand")||0);
+  var plattform = gv("vk-plattform")||"";
+  var feeRates = {"eBay":0.13,"Kleinanzeigen":0,"Facebook":0,"Abholung":0,"Sonstiges":0};
+  var fee = Math.round(vp * (feeRates[plattform]||0) * 100) / 100;
+  var marge = Math.round((vp - ep - vs - fee) * 100) / 100;
+  var box = document.getElementById("vk-marge-box");
+  var val = document.getElementById("vk-marge-val");
+  var sub = document.getElementById("vk-marge-sub");
+  if (!box) return;
+  if (vp > 0 && ep > 0) {
+    box.style.display = "block";
+    box.className = "marge-badge " + (marge >= 0 ? "marge-pos" : "marge-neg");
+    val.textContent = (marge >= 0 ? "+" : "") + marge.toFixed(2) + " €";
+    var msg = marge > 0 ? "🎉 Glückwunsch! Gewinn erzielt." : marge === 0 ? "⚠️ Nullsumme – kein Gewinn." : "❌ Verlust! Preis prüfen.";
+    if (fee > 0) msg += " (Gebühr: " + fee.toFixed(2) + "€)";
+    sub.textContent = msg;
+  } else {
+    box.style.display = "none";
+  }
+}
+
+// VK Stepper Einkaufspreis: injected directly into HTML step 4 and saveVKForm
+
+// loadMitarbeiterStats is called from home panel refresh button and setGreeting
+
+// Einkaufspreis chip is added inline in mkCard directly
+
+
+
+// ================================================================
+// PHASE 2: ACCOUNT SYSTEM
+// ================================================================
+function openAccModal(){
+  setAccTab("team");
+  loadServerAccounts();
+  document.getElementById("acc-modal").classList.add("open");
+  // Show/hide invite tab based on role
+  var inviteTab = document.getElementById("acctab-invite");
+  if(inviteTab) inviteTab.style.display = empRolle==="owner" ? "block" : "none";
+}
+
+function setAccTab(tab){
+  ["team","invite","reports"].forEach(function(t){
+    var btn = document.getElementById("acctab-"+t);
+    var panel = document.getElementById("accpanel-"+t);
+    var isActive = t===tab;
+    if(btn){
+      btn.style.background = isActive?"var(--b3)":"none";
+      btn.style.color = isActive?"var(--acc)":"var(--w4)";
+      btn.style.borderBottom = isActive?"2px solid var(--acc)":"2px solid transparent";
+    }
+    if(panel) panel.style.display = isActive?"block":"none";
+  });
+}
+// closeAccModal replaced by Phase 2 version
+
+function loadServerAccounts(){
+  gasGet("getAccounts",{},function(r){
+    if(!r||!r.ok) return;
+    renderServerAccounts(r.data||[]);
+  },function(){});
+}
+
+
+
+
+function sendInvite(){
+  var name=document.getElementById("acc-name-in").value.trim();
+  var email=document.getElementById("acc-email-in").value.trim();
+  var rolle=document.getElementById("acc-rolle-in").value;
+  var diag=document.getElementById("acc-diag");
+  if(!name||!email){diag.className="diag derr";diag.textContent="Name und E-Mail erforderlich.";diag.style.display="block";return;}
+  var btn=document.querySelector("#acc-modal .btn-primary");setBL(btn,true);
+  gasGet("createAccount",{name:name,email:email,rolle:rolle},function(r){
+    setBL(btn,false);
+    if(r&&r.ok){
+      diag.className="diag dok";diag.textContent="✅ "+r.msg;diag.style.display="block";
+      document.getElementById("acc-name-in").value="";
+      document.getElementById("acc-email-in").value="";
+      loadServerAccounts();
+    } else {
+      diag.className="diag derr";diag.textContent="❌ "+(r?r.fehler:"Fehler");diag.style.display="block";
+    }
+  },function(e){setBL(btn,false);toast("Fehler: "+e,"err");});
+}
+
+function deleteServerAccount(email){
+  if(!confirm("Account von "+email+" wirklich löschen?")) return;
+  gasGet("deleteAccount",{email:email},function(r){
+    if(r&&r.ok){toast(r.msg,"ok");loadServerAccounts();}
+    else{toast("Fehler: "+(r?r.fehler:"?"),"err");}
+  },function(e){toast("Fehler: "+e,"err");});
+}
+
+function triggerPDFExport(){
+  var btn=event.target;var orig=btn.innerHTML;setBL(btn,true);
+  gasGet("triggerMonthlyExport",{},function(r){
+    setBL(btn,false,orig);
+    if(r&&r.ok)toast(r.msg,"ok",5000);
+    else toast("Fehler: "+(r?r.fehler:"?"),"err");
+  },function(e){setBL(btn,false,orig);toast("Fehler: "+e,"err");});
+}
+
+// ================================================================
+// PHASE 2: ACTIVATION FLOW
+// ================================================================
+function showActivationFlow(token){
+  document.getElementById("act-token").value=token;
+  var s=document.getElementById("emp-scr");if(s)s.classList.add("hidden");
+  var ao=document.getElementById("activation-overlay");if(ao)ao.style.display="block";
+}
+
+function doActivation(){
+  var token=document.getElementById("act-token").value;
+  var name=document.getElementById("act-name").value.trim();
+  var pw=document.getElementById("act-pw").value;
+  var pw2=document.getElementById("act-pw2").value;
+  var chk=document.getElementById("act-chk").checked;
+  var diag=document.getElementById("act-diag");
+  diag.style.display="none";
+  if(!name){diag.className="diag derr";diag.textContent="Bitte Namen eingeben.";diag.style.display="block";return;}
+  if(pw.length<6){diag.className="diag derr";diag.textContent="Passwort mind. 6 Zeichen.";diag.style.display="block";return;}
+  if(pw!==pw2){diag.className="diag derr";diag.textContent="Passwörter stimmen nicht überein.";diag.style.display="block";return;}
+  if(!chk){diag.className="diag derr";diag.textContent="Bitte Haftungserklärung akzeptieren.";diag.style.display="block";return;}
+  var btn=document.getElementById("act-btn");setBL(btn,true);
+  gasPost("activateAccount",{token:token,password:pw,name:name},function(r){
+    setBL(btn,false);
+    if(r&&r.ok){
+      diag.className="diag dok";
+      diag.textContent="✅ "+r.msg;
+      diag.style.display="block";
+      btn.innerHTML="<i class='bi bi-house-fill me-1'></i>Zur App";
+      btn.onclick=function(){
+        document.getElementById("activation-overlay").style.display="none";
+        // Auto-fill name and show login
+        var ni=document.getElementById("emp-in");if(ni)ni.value=r.name||name;
+        var s=document.getElementById("emp-scr");if(s)s.classList.remove("hidden");
+        // Clean URL
+        history.replaceState({},"",location.pathname);
+      };
+    } else {
+      diag.className="diag derr";diag.textContent="❌ "+(r?r.fehler:"Fehler.");diag.style.display="block";
+    }
+  },function(e){setBL(btn,false);var d=document.getElementById("act-diag");d.className="diag derr";d.textContent="Verbindungsfehler: "+e;d.style.display="block";});
+}
+
+// ================================================================
+// PHASE 2: PFLICHT-BENACHRICHTIGUNGEN
+// ================================================================
+var pendingNotifs=[], currentNotifIdx=0;
+
+function checkUnconfirmedNotifs(){
+  if(!emp) return;
+  gasGet("getUnconfirmed",{mitarbeiter:emp},function(r){
+    if(!r||!r.ok) return;
+    var unconf=(r.data||[]).filter(function(n){return n.typ!=="email"&&n.typ!=="success";});
+    if(!unconf.length) return;
+    pendingNotifs=unconf;
+    currentNotifIdx=0;
+    showNextMandatoryNotif();
+  },function(){});
+}
+
+function showNextMandatoryNotif(){
+  if(currentNotifIdx>=pendingNotifs.length){
+    document.getElementById("mandatory-notif-overlay").style.display="none";
+    return;
+  }
+  var n=pendingNotifs[currentNotifIdx];
+  document.getElementById("mn-titel").textContent=n.titel||"Benachrichtigung";
+  document.getElementById("mn-body").textContent=n.body||"";
+  document.getElementById("mn-date").textContent=n.erstellt||"";
+  document.getElementById("mn-counter").textContent=(currentNotifIdx+1)+" von "+pendingNotifs.length+" ausstehend";
+  document.getElementById("mandatory-notif-overlay").style.display="flex";
+}
+
+function confirmCurrentNotif(){
+  var n=pendingNotifs[currentNotifIdx];
+  if(!n) return;
+  gasGet("confirmNotification",{id:n.id},function(r){
+    if(r&&r.ok){
+      currentNotifIdx++;
+      showNextMandatoryNotif();
+    } else {
+      toast("Bestätigung fehlgeschlagen.","err");
+    }
+  },function(){currentNotifIdx++;showNextMandatoryNotif();});
+}
+
+// ================================================================
+// PHASE 2: PROFIL – CHANGE PASSWORD
+// ================================================================
+// addAccount handled in Phase 2
+
+function deleteAccount(idx){
+  var accs=getAccounts();
+  if(!confirm('"'+accs[idx].name+'" wirklich löschen?'))return;
+  accs.splice(idx,1);saveAccounts(accs);renderAccList();
+}
+
+function toggleAccPw(){
+  var i=document.getElementById("acc-pw-in"),e=document.getElementById("acc-pw-eye");
+  if(!i||!e)return;var h=i.type==="password";i.type=h?"text":"password";
+  e.innerHTML=h?'<i class="bi bi-eye-slash"></i>':'<i class="bi bi-eye"></i>';
+}
+
+// Login: lokale Accounts (name+pw) ODER Admin (beliebiger Name + Master-Passwort via GAS)
+function doLogin(){
+  var input=(document.getElementById("emp-in")||{value:""}).value.trim();
+  var pw=(document.getElementById("pw-in")||{value:""}).value.trim();
+  var btn=document.getElementById("btn-emp");
+  if(!input){showLoginErr("Bitte E-Mail oder Name eingeben.");return;}
+  if(!pw){showLoginErr("Bitte Passwort eingeben.");return;}
+  setBL(btn,true);
+  gasGet("checkPassword",{password:pw,name:input},
+    function(r){
+      setBL(btn,false);
+      if(r&&r.ok){
+        document.getElementById("pw-err").style.display="none";
+        var loginName=r.name||input;
+        if(r.name&&input.indexOf("@")>-1)loginName=r.name;
+        applyEmp(loginName,r.rolle||"mitarbeiter");
+        toast("Hey "+loginName+" 🚀","ok");
+        loadStats();
+        checkUnconfirmedNotifs();
+      } else {
+        showLoginErr("❌ "+(r&&r.fehler?r.fehler:"Falsches Passwort."));
+        var p=document.getElementById("pw-in");if(p)p.focus();
+      }
+    },
+    function(e){setBL(btn,false);showLoginErr("⚠️ Verbindungsfehler: "+String(e));}
+  );
+}
+
+// ── FEATURE: FOTO-ANLEITUNG je Kategorie (Fix 4) ──────────────────
+var FOTO_GUIDES={
+  konsole:[
+    "Vorderseite der Konsole (Gesamtbild)",
+    "Beschädigte Stelle aus nächster Nähe",
+    "Anschlüsse / Ports (HDMI, USB etc.)",
+    "Seriennummer-Aufkleber (Unterseite)"
+  ],
+  handy:[
+    "Display gerade von vorne (Kratzer sichtbar?)",
+    "Rückseite (Kamera-Bereich, Gehäuse)",
+    "Seiten / Rahmen (Dellen, Kratzer)",
+    "Lade-Port aus nächster Nähe"
+  ],
+  pc:[
+    "Gesamtbild des Geräts (Vorderseite)",
+    "Beschädigte Stelle aus nächster Nähe",
+    "Alle Anschlüsse / I/O-Ports",
+    "Seriennummer-Aufkleber"
+  ],
+  defekt:[
+    "Gesamtbild des defekten Geräts",
+    "Defekte Stelle aus nächster Nähe",
+    "Zweite Perspektive des Defekts"
+  ]
+};
+
+function showPhotoGuide(type){
+  var box=document.getElementById("photo-guide-box");if(!box)return;
+  var guide=FOTO_GUIDES[type]||FOTO_GUIDES.defekt;
+  box.innerHTML='<div class="photo-guide-title"><i class="bi bi-camera-fill" style="font-size:14px"></i>Foto-Anleitung für '+type.charAt(0).toUpperCase()+type.slice(1)+'</div>'+
+    guide.map(function(g,i){return'<div class="photo-guide-item"><div class="photo-guide-num">'+(i+1)+'</div><span>'+esc(g)+'</span></div>';}).join("");
+}
+
+// ── FEATURE: PREISVORSCHLAG (Fix 8a) ──────────────────────────────
+var PREISE={
+  konsole:{Neuwertig:[180,250],Sehrg:[120,180],"Sehr gut":[120,180],Gut:[80,130],Akzeptabel:[40,80],Defekt:[10,30]},
+  spiel:{Neuwertig:[25,45],"Sehr gut":[15,25],Gut:[8,15],Akzeptabel:[3,8],Defekt:[1,3]},
+  handy:{Neuwertig:[200,400],"Sehr gut":[120,200],Gut:[70,120],Akzeptabel:[30,70],Defekt:[10,30]},
+  pc:{Neuwertig:[400,800],"Sehr gut":[250,400],Gut:[150,250],Akzeptabel:[80,150],Defekt:[20,60]}
+};
+
+function updatePriceSuggest(){
+  var box=document.getElementById("price-suggest-box"),val=document.getElementById("price-suggest-val");
+  if(!box||!val)return;
+  var zustand=gv("f-zustand")||"";
+  var cat=curType;
+  var table=PREISE[cat];
+  if(!table||!zustand){box.style.display="none";return;}
+  var range=table[zustand]||null;
+  if(!range){box.style.display="none";return;}
+  val.textContent=range[0]+"€ – "+range[1]+"€";
+  box.style.display="flex";
+}
+
+// ── FEATURE: WÖCHENTLICHER MINI-CHART (Fix 9) ─────────────────────
+function buildWeekChart(){
+  var chartEl=document.getElementById("week-chart"),labelEl=document.getElementById("week-labels");
+  var totalEl=document.getElementById("chart-total");
+  if(!chartEl||!allItems.length)return;
+  var days=["Mo","Di","Mi","Do","Fr","Sa","So"];
+  var counts=[];
+  var now=new Date();
+  var todayIdx=(now.getDay()+6)%7; // 0=Mo
+  for(var i=6;i>=0;i--){
+    var d=new Date(now);d.setDate(d.getDate()-i);
+    var ds=d.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"});
+    var cnt=allItems.filter(function(item){return item.datum&&item.datum.startsWith(ds.split(".")[0]+"."+ds.split(".")[1]);}).length;
+    counts.push({cnt:cnt,day:days[(d.getDay()+6)%7],isToday:i===0});
+  }
+  var maxCnt=Math.max.apply(null,counts.map(function(c){return c.cnt;}));
+  chartEl.innerHTML=counts.map(function(c){
+    var h=maxCnt>0?Math.max(4,Math.round((c.cnt/maxCnt)*44)):4;
+    return'<div class="mini-bar'+(c.isToday?" today":"")+(maxCnt===0?" ":" ")+'" style="height:'+h+'px" title="'+c.cnt+' Artikel"></div>';
+  }).join("");
+  labelEl.innerHTML=counts.map(function(c){
+    return'<span style="flex:1;font-size:9px;color:'+(c.isToday?'var(--green)':'var(--text3)')+';text-align:center;font-weight:'+(c.isToday?'700':'400')+'">'+c.day+'</span>';
+  }).join("");
+  var total7=counts.reduce(function(s,c){return s+c.cnt;},0);
+  if(totalEl)totalEl.textContent=total7+" diese Woche";
+}
+
+// ── FEATURE: KLEINANZEIGEN FORTSCHRITT (Fix 9) ────────────────────
+function buildKAProgress(){
+  var bar=document.getElementById("kl-bar"),pct=document.getElementById("kl-pct");
+  var done=document.getElementById("kl-done"),todo=document.getElementById("kl-todo");
+  if(!bar||!allItems.length)return;
+  var relevant=allItems.filter(function(i){return i.type!=="defekt";});
+  var hochgeladen=relevant.filter(function(i){return String(i.verfuegbarkeit||"").indexOf("Nicht")===-1&&String(i.verfuegbarkeit||"").length>0;}).length;
+  var total=relevant.length;
+  var p=total>0?Math.round((hochgeladen/total)*100):0;
+  bar.style.width=p+"%";
+  if(pct)pct.textContent=p+"% hochgeladen";
+  if(done)done.textContent=hochgeladen+" hochgeladen";
+  if(todo)todo.textContent=(total-hochgeladen)+" ausstehend";
+}
+
+// ── FEATURE: SEARCH SCANNER (Fix 6) ───────────────────────────────
+var searchScanStream=null,searchScanRunning=false,searchScanFrame=null;
+
+function openSearchScanner(){
+  var overlay=document.getElementById("search-scan-overlay");
+  overlay.classList.remove("hidden");
+  var video=document.getElementById("search-scan-video");
+  var constraints={video:firstCamDeviceId?{deviceId:{exact:firstCamDeviceId}}:{facingMode:{ideal:"environment"}}};
+  navigator.mediaDevices.getUserMedia(constraints).then(function(stream){
+    searchScanStream=stream;searchScanRunning=true;
+    video.srcObject=stream;
+    video.onloadedmetadata=function(){video.play().then(function(){searchScanLoopStart();});};
+  }).catch(function(err){
+    toast("Kamera: "+String(err),"err");
+    closeSearchScanner();
+  });
+}
+
+function closeSearchScanner(){
+  searchScanRunning=false;
+  if(searchScanFrame){cancelAnimationFrame(searchScanFrame);searchScanFrame=null;}
+  if(searchScanStream){searchScanStream.getTracks().forEach(function(t){t.stop();});searchScanStream=null;}
+  var video=document.getElementById("search-scan-video");if(video)video.srcObject=null;
+  document.getElementById("search-scan-overlay").classList.add("hidden");
+}
+
+function searchScanLoopStart(){
+  var video=document.getElementById("search-scan-video"),canvas=document.getElementById("search-scan-canvas");
+  if(!searchScanRunning)return;
+  if(!video||video.readyState<2){searchScanFrame=requestAnimationFrame(searchScanLoopStart);return;}
+  canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+  var ctx=canvas.getContext("2d");ctx.drawImage(video,0,0,canvas.width,canvas.height);
+  var reader=getZxingReader();var detected=null;
+  if(reader){try{var res=reader.decodeFromCanvas(canvas);if(res&&res.getText())detected=res.getText().trim();}catch(e){}}
+  if(detected){
+    closeSearchScanner();
+    document.getElementById("s-bc-in").value=detected;
+    doSearch();
+    toast("✓ Barcode: "+detected,"ok",2500);
+    try{if(navigator.vibrate)navigator.vibrate([80]);}catch(e){}
+    return;
+  }
+  if(searchScanRunning)searchScanFrame=requestAnimationFrame(searchScanLoopStart);
+}
+
+// ── FEATURE: SMARTE BENACHRICHTIGUNGEN (Fix 5) ────────────────────
+function runSmartNotifications(){
+  if(!allItems||allItems.length===0)return;
+  var now=new Date();
+  var nichtHochgeladen=allItems.filter(function(i){return i.type!=="defekt"&&(String(i.verfuegbarkeit||"").indexOf("Nicht")>-1||String(i.verfuegbarkeit||"").length===0);}).length;
+  // Wenn 10+ Artikel noch nicht bei Kleinanzeigen
+  if(nichtHochgeladen>=10){
+    var already=notifications.find(function(n){return n.title.indexOf("Kleinanzeigen")>-1;});
+    if(!already){addNotification("📢 Kleinanzeigen ausstehend",nichtHochgeladen+" Artikel noch nicht bei Kleinanzeigen hochgeladen.","warn");}
+  }
+  // Wöchentliche Zusammenfassung (Samstag)
+  if(now.getDay()===6){
+    var woche=allItems.filter(function(i){
+      if(!i.datum)return false;
+      var parts=i.datum.split(".");if(parts.length<3)return false;
+      var d=new Date(parts[2].split(" ")[0],parts[1]-1,parts[0]);
+      return(now-d)<7*24*60*60*1000;
+    }).length;
+    var alreadyW=notifications.find(function(n){return n.title.indexOf("Woche")>-1&&n.time&&n.time.indexOf(now.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"}))>-1;});
+    if(!alreadyW&&woche>0){addNotification("📊 Wochenrückblick","Diese Woche wurden "+woche+" Artikel eingelagert. Weiter so!","info");}
+  }
+  // Defekte ohne Bearbeitung
+  var alteDefekte=allItems.filter(function(i){
+    if(i.type!=="defekt")return false;
+    if(!i.datum)return false;
+    var parts=i.datum.split(".");if(parts.length<3)return false;
+    var d=new Date(parts[2].split(" ")[0],parts[1]-1,parts[0]);
+    return(now-d)>14*24*60*60*1000;
+  }).length;
+  if(alteDefekte>0){
+    var alreadyD=notifications.find(function(n){return n.title.indexOf("Defekte")>-1&&n.title.indexOf("Bearbeitung")>-1;});
+    if(!alreadyD){addNotification("🔧 Defekte ohne Bearbeitung",alteDefekte+" defekte Geräte warten seit über 14 Tagen auf Bearbeitung.","alert");}
+  }
+}
+
+// ================================================================
+// CHINA ENTRIES - localStorage persistence
+// ================================================================
+function loadChinaEntries(){
+  try{var s=localStorage.getItem("smp_china");if(s)chinaEntries=JSON.parse(s)||[];}catch(e){}
+}
+
+
+// ================================================================
+// EINKAUF STEPPER
+// ================================================================
+var ekStep = 1, ekTotalSteps = 4;
+
+function openEinkaufForm(item) {
+  editEinkaufItem = item || null;
+  ekStep = 1;
+  ekTotalSteps = 2;
+  var title = document.getElementById("ek-modal-title");
+  if(title) title.textContent = item ? "✏️ EINKAUF BEARBEITEN" : "🛒 EINKAUF";
+  var delBtn = document.getElementById("ek-del-btn");
+  if(delBtn) delBtn.style.display = item ? "inline-flex" : "none";
+
+  // Init dynamic product list
+  window._ekProductLines = item ? (item.produkte||"").split(",").map(function(p){return p.trim();}).filter(Boolean) : [""];
+  if(!window._ekProductLines.length) window._ekProductLines = [""];
+  _renderEKProductList();
+
+  sv2("ek-kunde", item ? (item.kunde||item.lieferant||"") : "");
+  sv2("ek-preis", item ? item.preis : "");
+  sv2("ek-plattform", item ? item.plattform : "Kleinanzeigen");
+  sv2("ek-zimmer", item ? item.zimmer : "");
+  sv2("ek-sende", item ? item.sendenummer : "");
+  sv2("ek-vdl", item ? item.versanddienstleister : "");
+  sv2("ek-abholung", item ? item.abholung : "NEIN");
+  sv2("ek-ma", item ? item.mitarbeiter : emp);
+  sv2("ek-hinweise", item ? item.hinweise : "");
+  selEKVersand((item && item.abholung === "JA") ? "Abholung" : "Versand");
+  var stornoSec = document.getElementById("ek-storno-section");
+  if(stornoSec) stornoSec.style.display = item ? "block" : "none";
+  var d = document.getElementById("ek-diag"); if(d) d.style.display = "none";
+  _renderEKStep();
+  document.getElementById("ek-modal").classList.add("open");
+}
+
+function _renderEKProductList() {
+  var wrap = document.getElementById("ek-produkte-list"); if(!wrap) return;
+  if(!window._ekProductLines) window._ekProductLines = [""];
+  wrap.innerHTML = "";
+  window._ekProductLines.forEach(function(val, idx) {
+    var row = document.createElement("div");
+    row.style.cssText = "display:flex;gap:5px;margin-bottom:6px;align-items:center";
+    var inp = document.createElement("input");
+    inp.type = "text";
+    inp.className = "fc";
+    inp.placeholder = idx === 0 ? "Produktname eingeben..." : "Weiteres Produkt...";
+    inp.value = val;
+    inp.style.flex = "1";
+    inp.setAttribute("data-idx", idx);
+    inp.oninput = function() {
+      var i = parseInt(this.getAttribute("data-idx"));
+      window._ekProductLines[i] = this.value;
+      // Add new line if this is the last field and has content
+      if(i === window._ekProductLines.length - 1 && this.value.trim().length > 0) {
+        window._ekProductLines.push("");
+        _renderEKProductList();
+        // Focus the new input
+        setTimeout(function(){
+          var inputs = document.querySelectorAll("#ek-produkte-list input");
+          if(inputs.length) inputs[inputs.length-1].focus();
+        }, 50);
+      }
+    };
+    row.appendChild(inp);
+    // Remove button (not for first)
+    if(idx > 0) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.style.cssText = "background:none;border:1px solid var(--e2);color:var(--w4);border-radius:4px;padding:0 8px;height:40px;cursor:pointer;font-size:16px;flex-shrink:0";
+      btn.innerHTML = "×";
+      btn.onclick = (function(i){ return function(){
+        window._ekProductLines.splice(i,1);
+        if(!window._ekProductLines.length) window._ekProductLines = [""];
+        _renderEKProductList();
+      };})(idx);
+      row.appendChild(btn);
+    }
+    wrap.appendChild(row);
+  });
+}
+
+function _getEKProductsString() {
+  return (window._ekProductLines||[""]).map(function(p){return p.trim();}).filter(Boolean).join(", ");
+}
+
+function closeEKModal() {
+  document.getElementById("ek-modal").classList.remove("open");
+}
+
+function _renderEKStep() {
+  for(var i=1; i<=4; i++) {
+    var el = document.getElementById("eks-"+i);
+    if(el) el.style.display = (i===ekStep ? "block" : "none");
+  }
+  var pct = Math.round((ekStep/(ekTotalSteps||2))*100);
+  var pb = document.getElementById("ek-prog"); if(pb) pb.style.width = pct+"%";
+  var sl = document.getElementById("ek-step-lbl"); if(sl) sl.textContent = "STEP "+ekStep+"/"+(ekTotalSteps||2);
+  var snames = ["ARTIKEL","VERSAND"];
+  var sn = document.getElementById("ek-step-name"); if(sn) sn.textContent = snames[ekStep-1]||"";
+  var bb = document.getElementById("ek-back-btn"); if(bb) bb.disabled = (ekStep===1);
+  var nb = document.getElementById("ek-next-btn"); if(nb) nb.style.display = (ekStep<(ekTotalSteps||2) ? "inline-flex" : "none");
+  var sb = document.getElementById("ek-save-btn"); if(sb) sb.style.display = (ekStep===(ekTotalSteps||2) ? "inline-flex" : "none");
+}
+
+function ekStepNav(dir) {
+  var d = document.getElementById("ek-diag"); if(d) d.style.display = "none";
+  if(dir > 0) {
+    if(ekStep === 1) {
+      var produkte = _getEKProductsString();
+      if(!produkte) { showEKDiag("Bitte mind. 1 Produkt eingeben."); return; }
+      if(!gv("ek-kunde").trim()) { showEKDiag("Bitte Kunde eingeben."); return; }
+      // Show products summary in step 2
+      setTimeout(function(){
+        var s = document.getElementById("ek-products-summary");
+        if(s){
+          var lines = (window._ekProductLines||[]).map(function(p){return p.trim();}).filter(Boolean);
+          s.innerHTML = "<strong>ARTIKEL:</strong><br>" + lines.map(function(p,i){return (i+1)+". "+esc(p);}).join("<br>");
+          s.style.display = "block";
+        }
+      }, 50);
+    }
+  }
+  ekStep = Math.max(1, Math.min(ekTotalSteps, ekStep + dir));
+  _renderEKStep();
+}
+
+function showEKDiag(msg) {
+  var d = document.getElementById("ek-diag");
+  if(d) { d.className="diag derr"; d.textContent=msg; d.style.display="block"; }
+}
+
+function selEKVersand(type) {
+  sv2("ek-abholung", type==="Abholung" ? "JA" : "NEIN");
+  ["versand","abholung"].forEach(function(id){
+    var el = document.getElementById("ekv-"+id);
+    if(el) el.className = "cbtn";
+  });
+  var active = document.getElementById("ekv-"+(type==="Abholung"?"abholung":"versand"));
+  if(active) active.className = "cbtn vk-sel";
+  var vf = document.getElementById("ek-versand-fields");
+  var af = document.getElementById("ek-abholung-fields");
+  if(vf) vf.style.display = type==="Abholung" ? "none" : "block";
+  if(af) af.style.display = type==="Abholung" ? "block" : "none";
+}
+
+function selEKStatus(status) {
+  sv2("ek-status", status);
+  ["bestellt","bezahlt","versendet","angekommen"].forEach(function(id){
+    var el = document.getElementById("ekst-"+id);
+    if(el) el.className = "cbtn";
+  });
+  var map = {Bestellt:"bestellt",Bezahlt:"bezahlt",Versendet:"versendet",Angekommen:"angekommen"};
+  var el = document.getElementById("ekst-"+(map[status]||"bestellt"));
+  if(el) el.className = "cbtn vk-sel";
+}
+
+function selEKZustand(z) {
+  sv2("ek-zustand", z);
+  ["ok","beschaedigt"].forEach(function(id){
+    var el = document.getElementById("ek-zust-"+id);
+    if(el) el.className = "cbtn";
+  });
+  var map = {Einwandfrei:"ok",Beschädigt:"beschaedigt"};
+  var el = document.getElementById("ek-zust-"+(map[z]||"ok"));
+  if(el) el.className = "cbtn vk-sel";
+  var sf = document.getElementById("ek-schaden-field");
+  if(sf) sf.style.display = z==="Beschädigt" ? "block" : "none";
+}
+
+function onEKSendeInput() {
+  var sende = gv("ek-sende").trim();
+  var vdl = gv("ek-vdl");
+  // Auto-detect carrier
+  if(!vdl && sende.length > 5) {
+    var detected = "";
+    if(/^1Z[A-Z0-9]{16}$/.test(sende)) detected = "UPS";
+    else if(/^\d{20}$/.test(sende)) detected = "DHL";
+    else if(/^[0-9]{14,15}$/.test(sende)) detected = "Hermes";
+    else if(/^[0-9]{14}$/.test(sende)) detected = "DPD";
+    if(detected) sv2("ek-vdl", detected);
+  }
+  // Build tracking link
+  var links = {DHL:"https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode="+sende,Hermes:"https://www.myhermes.de/empfangen/sendungsverfolgung/sendungsinformation/#"+sende,DPD:"https://tracking.dpd.de/parcelstatus?query="+sende,UPS:"https://www.ups.com/track?tracknum="+sende,GLS:"https://gls-group.eu/track/"+sende};
+  var link = links[gv("ek-vdl")||vdl];
+  var tl = document.getElementById("ek-track-link");
+  var ta = document.getElementById("ek-track-a");
+  if(tl && ta && link && sende) { ta.href=link; tl.style.display="block"; }
+  else if(tl) { tl.style.display="none"; }
+}
+
+function _buildEKChecklist() {
+  var el = document.getElementById("ek-checklist-wrap"); if(!el) return;
+  var rawText = gv("ek-produkte");
+  var products = rawText.split("\n").map(function(p){return p.trim();}).filter(Boolean);
+  if(!products.length) { 
+    el.innerHTML='<div style="font-size:11px;color:var(--w4);font-family:monospace;padding:8px 0">Keine Artikel aus Schritt 1</div>'; 
+    return; 
+  }
+  el.innerHTML = products.map(function(p,i){
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--e1)">'
+      +'<div onclick="toggleEKCheck(this)" style="width:22px;height:22px;border-radius:4px;border:1.5px solid var(--e2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .12s" data-checked="0"></div>'
+      +'<span style="font-size:13px;font-weight:600;color:var(--w1)">'+esc(p)+'</span></div>';
+  }).join("");
+}
+
+function toggleEKCheck(el) {
+  var checked = el.getAttribute("data-checked")==="1";
+  el.setAttribute("data-checked", checked?"0":"1");
+  el.style.background = checked ? "" : "var(--acc)";
+  el.style.borderColor = checked ? "var(--e2)" : "var(--acc)";
+  el.innerHTML = checked ? "" : '<i class="bi bi-check" style="color:#000;font-size:13px"></i>';
+}
+
+function _buildEKSummary() {
+  var el = document.getElementById("ek-summary"); if(!el) return;
+  var rawProdukte = gv("ek-produkte");
+  var productLines = rawProdukte.split("\n").map(function(p){return p.trim();}).filter(Boolean);
+  var lines = [
+    "PRODUKT: " + (productLines.join(", ")||"–"),
+    "LIEFERANT: " + (gv("ek-kunde")||"–"),
+    "PREIS: " + (gv("ek-preis")||"–") + "€",
+    "PLATTFORM: " + (gv("ek-plattform")||"–"),
+    "ZIMMER: " + (gv("ek-zimmer")||"–"),
+    "STATUS: " + (gv("ek-status")||"–"),
+    "LIEFERART: " + (gv("ek-abholung")==="JA"?"Selbstabholung":"Versand"),
+  ];
+  if(gv("ek-sende")) lines.push("TRACKING: "+gv("ek-sende"));
+  el.innerHTML = lines.join("<br>");
+}
+
+function stornoEinkauf() {
+  var grund = gv("ek-storno-grund");
+  if(!grund) { showEKDiag("Bitte Storno-Grund wählen."); return; }
+  if(!editEinkaufItem) { showEKDiag("Kein Einkauf zum Stornieren."); return; }
+  var notiz = gv("ek-storno-notiz");
+  var alteHinweise = editEinkaufItem.hinweise || "";
+  var stornoText = "STORNO: " + grund + (notiz ? " - " + notiz : "");
+  var neueHinweise = alteHinweise ? alteHinweise + " | " + stornoText : stornoText;
+  var data = { rowIndex: editEinkaufItem.rowIndex, status: "Storniert", hinweise: neueHinweise };
+  gasPost("updateEinkauf", data, function(r){
+    if(r&&r.ok){ toast("Einkauf storniert","ok"); closeEKModal(); loadHandel(); }
+    else { showEKDiag(r?r.fehler:"Fehler"); }
+  }, function(e){ showEKDiag("Verbindungsfehler: "+e); });
+}
+
+function saveEKForm() {
+  var d = document.getElementById("ek-diag"); if(d) d.style.display = "none";
+  var produkte = _getEKProductsString();
+  if(!produkte) { showEKDiag("Bitte Produkte eingeben."); return; }
+  var data = {
+    produkte: produkte,
+    kunde: gv("ek-kunde"),
+    preis: gv("ek-preis"),
+    plattform: gv("ek-plattform"),
+    zimmer: gv("ek-zimmer"),
+    sendenummer: gv("ek-sende"),
+    versanddienstleister: gv("ek-vdl"),
+    abholung: gv("ek-abholung"),
+    status: "Vorgemerkt",
+    lieferstatus: "Ausstehend",
+    mitarbeiter: gv("ek-ma") || emp,
+    hinweise: gv("ek-hinweise"),
+    warentyp: "Gebrauchtware"
+  };
+  var btn = document.getElementById("ek-save-btn"); setBL(btn, true);
+  if(editEinkaufItem) {
+    data.rowIndex = editEinkaufItem.rowIndex;
+    data.status = editEinkaufItem.status || "Vorgemerkt";
+    gasPost("updateEinkauf", data, function(r){
+      setBL(btn, false);
+      if(r&&r.ok){ toast("Einkauf aktualisiert ✅","ok"); closeEKModal(); loadHandel(); }
+      else { showEKDiag(r ? r.fehler : "Fehler beim Speichern"); }
+    }, function(e){ setBL(btn,false); showEKDiag("Verbindungsfehler: "+e); });
+  } else {
+    gasPost("saveEinkauf", data, function(r){
+      setBL(btn, false);
+      if(r&&r.ok){
+        toast("📋 Einkauf vorgemerkt! Scanne Artikel beim Eintreffen über EINKAUF CHECK.","ok",4000);
+        closeEKModal(); loadHandel();
+      } else { showEKDiag(r ? r.fehler : "Fehler beim Speichern"); }
+    }, function(e){ setBL(btn,false); showEKDiag("Verbindungsfehler: "+e); });
+  }
+}
+
+
+// ================================================================
+// VERKAUF: SCAN-PER-ITEM + PER-ITEM PROFIT
+// ================================================================
+var vkScannedItems = [];  // [{name, scanId, ekPreis, vkPreis, rowIndex, type}]
+var vkScannerActive = false;
+var vkScannerStream = null;
+
+function openVKScannerAdd() {
+  var wrap = document.getElementById("vk-scan-add-wrap");
+  if(!wrap) return;
+  wrap.style.display = "block";
+  var video = document.getElementById("vk-scan-add-video");
+  if(!video) return;
+  navigator.mediaDevices.getUserMedia({video:{deviceId:firstCamDeviceId?{exact:firstCamDeviceId}:undefined,facingMode:"environment"}})
+    .then(function(stream){
+      vkScannerStream = stream;
+      video.srcObject = stream;
+      vkScannerActive = true;
+      _vkScanAddLoop();
+    }).catch(function(e){ toast("Kamera: "+e.message,"err"); wrap.style.display="none"; });
+}
+
+function stopVKScannerAdd() {
+  vkScannerActive = false;
+  if(vkScannerStream){ vkScannerStream.getTracks().forEach(function(t){t.stop();}); vkScannerStream=null; }
+  var wrap = document.getElementById("vk-scan-add-wrap");
+  if(wrap) wrap.style.display = "none";
+}
+
+function _vkScanAddLoop() {
+  if(!vkScannerActive) return;
+  var video = document.getElementById("vk-scan-add-video");
+  var canvas = document.getElementById("vk-scan-add-canvas");
+  if(!video||!canvas||video.readyState<2){ requestAnimationFrame(_vkScanAddLoop); return; }
+  canvas.width=video.videoWidth; canvas.height=video.videoHeight;
+  var ctx = canvas.getContext("2d"); ctx.drawImage(video,0,0);
+  try {
+    var bd = new BarcodeDetector({formats:["ean_13","ean_8","code_128","upc_a","upc_e"]});
+    bd.detect(canvas).then(function(codes){
+      if(codes.length>0 && vkScannerActive){
+        var bc = codes[0].rawValue;
+        stopVKScannerAdd();
+        sv2("vk-scan-add-input", bc);
+        vkScanAdd();
+      } else { requestAnimationFrame(_vkScanAddLoop); }
+    }).catch(function(){ requestAnimationFrame(_vkScanAddLoop); });
+  } catch(e) {
+    // Fallback: ZXing
+    try {
+      var reader = getZxingReader();
+      var img = new Image(); img.src = canvas.toDataURL();
+      img.onload = function(){
+        reader.decodeFromImage(img).then(function(res){
+          if(res && vkScannerActive){
+            stopVKScannerAdd();
+            sv2("vk-scan-add-input", res.getText());
+            vkScanAdd();
+          } else { requestAnimationFrame(_vkScanAddLoop); }
+        }).catch(function(){ requestAnimationFrame(_vkScanAddLoop); });
+      };
+    } catch(e2){ requestAnimationFrame(_vkScanAddLoop); }
+  }
+}
+
+function vkScanAdd() {
+  var input = (document.getElementById("vk-scan-add-input")||{value:""}).value.trim();
+  if(!input) return;
+  // Search in allItems
+  var found = allItems.filter(function(i){
+    return i.scanId && i.scanId.toLowerCase()===input.toLowerCase();
+  });
+  if(!found.length) {
+    // Try partial search
+    found = allItems.filter(function(i){
+      var nm = i.name||i.spiel||i.modell||"";
+      return nm.toLowerCase().includes(input.toLowerCase());
+    });
+  }
+  if(!found.length) {
+    // Try loading from GAS
+    gasGet("searchByBarcode",{barcode:input},function(r){
+      if(r&&r.ok){
+        var all=[].concat(r.konsolen||[],r.spiele||[],r.handys||[],r.pcs||[]);
+        if(all.length>0){ _addVKItem(all[0]); }
+        else { toast("Artikel nicht im Lager gefunden","err"); }
+      }
+    },function(){ toast("Verbindungsfehler","err"); });
+    return;
+  }
+  _addVKItem(found[0]);
+  sv2("vk-scan-add-input","");
+}
+
+function _addVKItem(item) {
+  var nm = item.name||item.spiel||item.modell||"–";
+  // Check if already added
+  if(vkScannedItems.some(function(x){return x.rowIndex===item.rowIndex&&x.type===item.type;})){
+    toast("Artikel bereits in der Liste","err"); return;
+  }
+  vkScannedItems.push({name:nm, scanId:item.scanId||"", ekPreis:parseFloat(item.einkaufspreis||0), vkPreis:0, rowIndex:item.rowIndex, type:item.type});
+  _renderVKItemsList();
+  toast(nm+" hinzugefügt ✓","ok",2000);
+}
+
+function _renderVKItemsList() {
+  var el = document.getElementById("vk-items-list"); if(!el) return;
+  if(!vkScannedItems.length){ el.innerHTML=""; _updateVKTotals(); return; }
+  el.innerHTML = '<div class="slabel" style="margin-bottom:6px">'+vkScannedItems.length+' ARTIKEL</div>'
+    + vkScannedItems.map(function(item,i){
+      var profit = item.vkPreis - item.ekPreis;
+      var profitColor = profit>0?"var(--acc)":profit<0?"var(--col-r)":"var(--w4)";
+      return '<div style="background:var(--b3);border:1px solid var(--e1);border-radius:var(--r);padding:9px 11px;margin-bottom:6px">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
+        +'<div style="font-size:13px;font-weight:700;color:var(--w1)">'+esc(item.name)+'</div>'
+        +'<button onclick="removeVKItem('+i+')" style="background:none;border:none;color:var(--w4);cursor:pointer;font-size:14px;padding:0"><i class="bi bi-x"></i></button></div>'
+        +'<div style="display:flex;gap:6px;align-items:center">'
+        +'<div style="flex:1"><div style="font-size:9px;color:var(--w4);font-family:monospace;margin-bottom:2px">EK-PREIS</div>'
+        +'<div style="font-size:12px;font-weight:700;color:var(--w3);font-family:monospace">'+item.ekPreis.toFixed(2)+'€</div></div>'
+        +'<div style="flex:1.5"><div style="font-size:9px;color:var(--w4);font-family:monospace;margin-bottom:2px">VK-PREIS (€)</div>'
+        +'<input type="number" class="fc" placeholder="0.00" step="0.01" value="'+(item.vkPreis||"")+'" '
+        +'style="padding:6px 8px;font-family:monospace;font-size:12px" '
+        +'data-idx="'+i+'" onchange="setVKItemPrice(this)" oninput="setVKItemPrice(this)"/></div>'
+        +(item.vkPreis>0?'<div style="text-align:right"><div style="font-size:9px;color:var(--w4);font-family:monospace;margin-bottom:2px">GEWINN</div>'
+        +'<div style="font-size:13px;font-weight:800;color:'+profitColor+';font-family:monospace">'+(profit>=0?"+":"")+profit.toFixed(2)+'€</div></div>':"")
+        +'</div></div>';
+    }).join("");
+  _updateVKTotals();
+}
+
+function setVKItemPrice(input) {
+  var idx = parseInt(input.getAttribute("data-idx"));
+  if(isNaN(idx)||!vkScannedItems[idx]) return;
+  vkScannedItems[idx].vkPreis = parseFloat(input.value)||0;
+  _updateVKTotals();
+  // Update profit display inline
+  var wrap = input.closest("div[style*='background:var(--b3)']");
+  if(wrap){
+    var item = vkScannedItems[idx];
+    var profit = item.vkPreis - item.ekPreis;
+    var profitDiv = wrap.querySelector("div[style*='GEWINN']");
+    // Re-render this item only
+    _renderVKItemsList();
+  }
+}
+
+function removeVKItem(idx) {
+  vkScannedItems.splice(idx,1);
+  _renderVKItemsList();
+}
+
+function updateVKTotals() { _updateVKTotals(); }
+
+function _updateVKTotals() {
+  // Sum from scanned items OR manual price
+  var totalVK = 0, totalEK = 0;
+  if(vkScannedItems.length > 0) {
+    vkScannedItems.forEach(function(item){ totalVK+=item.vkPreis; totalEK+=item.ekPreis; });
+    // Push sum to vk-preis field
+    if(totalVK>0) sv2("vk-preis", totalVK.toFixed(2));
+    if(totalEK>0) sv2("vk-ep", totalEK.toFixed(2));
+    // Fill vk-produkte and vk-scanid
+    var names = vkScannedItems.map(function(i){return i.name;}).join(", ");
+    var ids = vkScannedItems.map(function(i){return i.scanId;}).filter(Boolean).join(", ");
+    sv2("vk-produkte", names);
+    var scanEl = document.getElementById("vk-scanid");
+    if(scanEl){ scanEl.removeAttribute("readonly"); scanEl.value=ids; }
+  } else {
+    totalVK = parseFloat(gv("vk-preis")||0);
+    totalEK = parseFloat(gv("vk-ep")||0);
+  }
+  var vs = parseFloat(gv("vk-versand")||0);
+  var totalDisplay = document.getElementById("vk-total-display");
+  if(totalDisplay) totalDisplay.textContent = "∑ "+totalVK.toFixed(2)+"€";
+  calcAndShowMarge();
+}
+
+function openVerkaufForm(item, prefillScanId) {
+  editVerkaufItem = item || null;
+  vkStep = 1;
+  vkScannedItems = [];
+  var title = document.getElementById("vk-modal-title");
+  if(title) title.textContent = item ? "✏️ VERKAUF BEARBEITEN" : "💸 VERKAUF";
+  var delBtn = document.getElementById("vk-del-btn"); if(delBtn) delBtn.style.display = item?"inline-flex":"none";
+  sv2("vk-produkte", item?item.produkte:"");
+  sv2("vk-scanid", item?item.scanId:(prefillScanId||""));
+  sv2("vk-preis", item?(item.verkaufspreis||item.preis||""):"");
+  sv2("vk-versand", item?(item.versandkosten||item.versand||""):"");
+  sv2("vk-plattform", item?item.plattform:"");
+  sv2("vk-kunde", item?item.kunde:"");
+  sv2("vk-bestellnr", item?(item.angebotsnr||item.bestellnr||""):"");
+  sv2("vk-bezahlt", item?(item.bezahlMit||item.schonBezahlt||""):"");
+  sv2("vk-geld", item?item.geldErhalten:"");
+  sv2("vk-abholung", item?(item.abholung==="JA"?"Abholung":"Versand"):"Versand");
+  sv2("vk-status", item?item.status:"Vorgemerkt");
+  sv2("vk-lieferstatus", item?item.lieferstatus:"Ausstehend");
+  sv2("vk-sende", item?item.sendenummer:"");
+  sv2("vk-vdl", item?item.versanddienstleister:"");
+  sv2("vk-ma", item?item.mitarbeiter:emp);
+  sv2("vk-hinweise", item?item.hinweise:"");
+  sv2("vk-ep", item?(item.einkaufspreis||""):"");
+  var pi = document.getElementById("vk-product-info"); if(pi){pi.style.display="none";pi.textContent="";}
+  var chips = document.getElementById("vk-multi-chips"); if(chips) chips.innerHTML="";
+  var itemsList = document.getElementById("vk-items-list"); if(itemsList) itemsList.innerHTML="";
+  if(item&&item.plattform) _highlightVKPlattform(item.plattform);
+  if(item&&item.status) selVKStatus(item.status);
+  var d = document.getElementById("vk-diag"); if(d) d.style.display="none";
+  _renderVKStep();
+  document.getElementById("vk-modal").classList.add("open");
+}
+
+
+// ================================================================
+// FIX: SESSION PERSISTENCE (auto-login 8h)
+// ================================================================
+function saveSession(name, rolle) {
+  try {
+    var session = {name:name, rolle:rolle, ts:Date.now()};
+    localStorage.setItem("smp_session", JSON.stringify(session));
+  } catch(e){}
+}
+function loadSession() {
+  try {
+    var s = localStorage.getItem("smp_session");
+    if(!s) return null;
+    var session = JSON.parse(s);
+    var age = (Date.now() - session.ts) / 1000 / 3600;
+    if(age > 8) { localStorage.removeItem("smp_session"); return null; }
+    return session;
+  } catch(e){ return null; }
+}
+function clearSession() {
+  try { localStorage.removeItem("smp_session"); } catch(e){}
+}
+
+// ================================================================
+// FIX: ACCOUNT RESEND INVITE + DELETE IMPROVEMENTS
+// ================================================================
+function resendInvite(email, name) {
+  if(!confirm("Einladung erneut an " + email + " senden?")) return;
+  gasGet("resetPassword",{email:email}, function(r){
+    if(r&&r.ok){ toast("Einladung erneut gesendet ✓","ok"); }
+    else { toast("Fehler: "+(r?r.fehler:"?"),"err"); }
+  }, function(e){ toast("Verbindungsfehler","err"); });
+}
+
+function renderServerAccounts(accs) {
+  var list = document.getElementById("acc-list"); if(!list) return;
+  if(!accs||!accs.length){
+    list.innerHTML='<div style="text-align:center;padding:16px;color:var(--w4);font-family:monospace;font-size:10px">KEINE ACCOUNTS</div>';
+    return;
+  }
+  list.innerHTML = "";
+  accs.forEach(function(a){
+    var ini=(a.name||"?").split(" ").map(function(w){return w[0]||"";}).join("").toUpperCase().substring(0,2);
+    var statusColor = a.status==="aktiv"?"var(--acc)":a.status==="eingeladen"?"var(--col-y)":"var(--col-r)";
+    var statusLabel = a.status==="aktiv"?"AKTIV":a.status==="eingeladen"?"EINGELADEN":"GESPERRT";
+    var item = document.createElement("div");
+    item.className = "acc-item";
+    item.innerHTML = '<div style="display:flex;align-items:center;gap:10px">'
+      +'<div class="acc-avatar">'+esc(ini)+'</div>'
+      +'<div>'
+      +'<div style="font-size:13px;font-weight:700;color:var(--w1)">'+esc(a.name)+'</div>'
+      +'<div style="font-size:10px;color:var(--w4);font-family:monospace">'+esc(a.email||"")+'</div>'
+      +'<div style="display:flex;gap:6px;align-items:center;margin-top:2px">'
+      +'<span style="font-size:9px;font-weight:700;color:'+statusColor+';font-family:monospace">'+statusLabel+'</span>'
+      +'<span style="font-size:9px;color:var(--w4);font-family:monospace">'+esc(a.rolle||"mitarbeiter")+'</span>'
+      +'</div></div></div>'
+      +'<div style="display:flex;gap:5px"></div>';
+    // Add resend button if invited
+    var btnWrap = item.querySelector("div[style*='gap:5px']");
+    if(a.status==="eingeladen"){
+      var resendBtn = document.createElement("button");
+      resendBtn.className="btn btn-outline-primary btn-sm";
+      resendBtn.title="Erneut einladen";
+      resendBtn.innerHTML='<i class="bi bi-envelope-arrow-up"></i>';
+      resendBtn.onclick=(function(email,name){return function(){resendInvite(email,name);};})(a.email,a.name);
+      btnWrap.appendChild(resendBtn);
+    }
+    if(empRolle==="owner"){
+      var delBtn = document.createElement("button");
+      delBtn.className="btn btn-outline-danger btn-sm";
+      delBtn.title="Löschen";
+      delBtn.innerHTML='<i class="bi bi-trash3"></i>';
+      delBtn.onclick=(function(email){return function(){deleteServerAccount(email);};})(a.email);
+      btnWrap.appendChild(delBtn);
+    }
+    list.appendChild(item);
+  });
+}
+
+function renderAccList(accs){ renderServerAccounts(accs); }
+
+// ================================================================
+// FIX: LAGER ITEM AGE COLOR
+// ================================================================
+function getDaysOld(datum) {
+  if(!datum) return 0;
+  var parts = datum.split(".");
+  if(parts.length < 3) return 0;
+  var d = new Date(parts[2].split(" ")[0], parts[1]-1, parts[0]);
+  return Math.floor((Date.now() - d.getTime()) / 86400000);
+}
+
+// ================================================================
+// FIX: DEBOUNCED SEARCH
+// ================================================================
+var _searchTimeout = null;
+function liveSearch(q) {
+  clearTimeout(_searchTimeout);
+  _searchTimeout = setTimeout(function(){ doSearch(); }, 280);
+}
+
+// ================================================================
+// FIX: ENTER KEY IMPROVEMENTS
+// ================================================================
+function setupEnterKeys() {
+  // Login form
+  var pwIn = document.getElementById("pw-in");
+  if(pwIn) pwIn.addEventListener("keydown", function(e){
+    if(e.key==="Enter") doLogin();
+  });
+  var empIn = document.getElementById("emp-in");
+  if(empIn) empIn.addEventListener("keydown", function(e){
+    if(e.key==="Enter") document.getElementById("pw-in").focus();
+  });
+  // Search
+  var sIn = document.getElementById("s-bc-in");
+  if(sIn) sIn.addEventListener("keydown", function(e){
+    if(e.key==="Enter") doSearch();
+  });
+  var listQ = document.getElementById("list-q");
+  if(listQ) listQ.addEventListener("keydown", function(e){
+    if(e.key==="Enter") renderList();
+  });
+  // VK scan add
+  // Already handled inline
+}
+
+// ================================================================
+// FIX: KEYBOARD SHORTCUTS
+// ================================================================
+function setupKeyboardShortcuts() {
+  document.addEventListener("keydown", function(e){
+    // Escape closes any open modal
+    if(e.key==="Escape"){
+      var openModals = document.querySelectorAll(".moverlay.open, .detail-overlay.open");
+      openModals.forEach(function(m){ m.classList.remove("open"); });
+      var notif = document.getElementById("notif-overlay");
+      if(notif && notif.classList.contains("open")) closeNotifications();
+      return;
+    }
+    // Only if no input is focused
+    if(document.activeElement && ["INPUT","TEXTAREA","SELECT"].includes(document.activeElement.tagName)) return;
+    if(e.ctrlKey||e.metaKey){
+      if(e.key==="k"){ e.preventDefault(); goTabFn("search-panel"); setTimeout(function(){ var el=document.getElementById("s-bc-in"); if(el) el.focus(); },100); }
+    }
+  });
+}
+
+// ================================================================
+// FIX: PROFIL - SHOW ACCOUNT INFO
+// ================================================================
+function enrichProfilWithAccountInfo(name) {
+  // Get account info from server accounts list
+  gasGet("getAccounts",{},function(r){
+    if(!r||!r.ok) return;
+    var acc = (r.data||[]).find(function(a){ return a.name.toLowerCase()===name.toLowerCase(); });
+    if(!acc) return;
+    var sub = document.getElementById("profil-sub-info");
+    if(sub){
+      sub.innerHTML = '<div style="display:flex;gap:12px;justify-content:center;margin-top:8px;flex-wrap:wrap">'
+        +'<div style="text-align:center"><div style="font-size:9px;color:var(--w4);font-family:monospace;letter-spacing:.5px">ROLLE</div><div style="font-size:11px;font-weight:700;color:var(--acc);font-family:monospace">'+(acc.rolle||"mitarbeiter").toUpperCase()+'</div></div>'
+        +'<div style="text-align:center"><div style="font-size:9px;color:var(--w4);font-family:monospace;letter-spacing:.5px">STATUS</div><div style="font-size:11px;font-weight:700;color:var(--acc);font-family:monospace">'+(acc.status||"aktiv").toUpperCase()+'</div></div>'
+        +'<div style="text-align:center"><div style="font-size:9px;color:var(--w4);font-family:monospace;letter-spacing:.5px">EMAIL</div><div style="font-size:11px;color:var(--w2)">'+esc(acc.email||"–")+'</div></div>'
+        +'<div style="text-align:center"><div style="font-size:9px;color:var(--w4);font-family:monospace;letter-spacing:.5px">ERSTELLT</div><div style="font-size:11px;color:var(--w2)">'+esc(acc.erstellt||"–")+'</div></div>'
+        +'</div>';
+    }
+  },function(){});
+}
+
+// Session save is called directly in the load handler and login
+
+
+// ================================================================
+// EINKAUF CHECK FLOW
+// ================================================================
+var ekCheckStep = 1;
+var ekCheckItem = null;
+var ekCheckList = []; // [{name, checked, scanId}]
+var ekCheckCurrentIdx = -1;
+var ekCheckScanActive = false;
+var ekCheckScanStream = null;
+
+function openEKCheck() {
+  ekCheckStep = 1;
+  ekCheckItem = null;
+  ekCheckList = [];
+  ekCheckCurrentIdx = -1;
+  document.getElementById("mode-chooser").style.display = "none";
+  document.getElementById("ek-check-panel").style.display = "block";
+  _renderEKCheckStep();
+  _loadEKCheckList();
+}
+
+function closeEKCheck() {
+  stopEKCheckScanner();
+  document.getElementById("ek-check-panel").style.display = "none";
+  document.getElementById("mode-chooser").style.display = "block";
+  ekCheckStep = 1;
+  ekCheckItem = null;
+}
+
+function _renderEKCheckStep() {
+  var s1 = document.getElementById("ek-check-step1");
+  var s2 = document.getElementById("ek-check-step2");
+  if(s1) s1.style.display = ekCheckStep === 1 ? "block" : "none";
+  if(s2) s2.style.display = ekCheckStep === 2 ? "block" : "none";
+
+  var hdr = document.getElementById("ek-check-header-title");
+  if(hdr) hdr.textContent = ekCheckStep === 1 ? "EINKAUF WÄHLEN" : "ARTIKEL PRÜFEN";
+}
+
+function _loadEKCheckList() {
+  var listEl = document.getElementById("ek-check-einkauf-list");
+  if(!listEl) return;
+  listEl.innerHTML = '<div style="text-align:center;padding:20px"><span class="spin-b"></span></div>';
+
+  gasGet("getAllEinkauf", {}, function(r) {
+    if(!r || !r.ok || !r.data || !r.data.length) {
+      listEl.innerHTML = '<div class="empty"><i class="bi bi-inbox"></i><p>KEINE OFFENEN EINKÄUFE</p></div>';
+      return;
+    }
+    // Show all non-completed, non-cancelled
+    var pending = r.data.filter(function(e){
+      return e.status !== "Abgeschlossen" && e.status !== "Storniert";
+    });
+    if(!pending.length) {
+      listEl.innerHTML = '<div class="empty"><i class="bi bi-check-all"></i><p>ALLE ABGESCHLOSSEN ✅</p></div>';
+      return;
+    }
+    listEl.innerHTML = "";
+    pending.forEach(function(ek) {
+      var card = document.createElement("div");
+      card.className = "ic";
+      card.style.cssText = "cursor:pointer;margin-bottom:8px;border-left:3px solid var(--col-b)";
+      var statusColors = {
+        Vorgemerkt:"var(--w4)", Bestellt:"var(--col-y)",
+        Bezahlt:"var(--col-b)", Versendet:"var(--col-b)",
+        Angekommen:"var(--acc)"
+      };
+      var col = statusColors[ek.status] || "var(--w4)";
+      var products = (ek.produkte||"").split(",").map(function(p){return p.trim();}).filter(Boolean);
+      card.innerHTML =
+        '<div class="ic-top">'
+        +'<div class="ic-name">'+esc(ek.kunde||"Unbekannt")+'</div>'
+        +'<span style="font-size:9px;font-weight:700;color:'+col+';font-family:monospace">'+esc(ek.status||"–")+'</span>'
+        +'</div>'
+        +'<div class="chips">'
+        +(ek.zimmer?'<span class="chip" style="color:var(--col-b)">📍 '+esc(ek.zimmer)+'</span>':'')
+        +(ek.preis?'<span class="chip" style="font-family:monospace">'+esc(ek.preis)+'€</span>':'')
+        +'<span class="chip">'+products.length+' Artikel</span>'
+        +'</div>'
+        +'<div style="font-size:11px;color:var(--w3);margin-top:3px">'
+        +products.slice(0,3).map(function(p){return esc(p);}).join(" · ")
+        +(products.length>3?' + '+(products.length-3)+' weitere':'')
+        +'</div>';
+      card.onclick = (function(e){ return function(){ selectEKCheckItem(e); }; })(ek);
+      listEl.appendChild(card);
+    });
+  }, function() {
+    listEl.innerHTML = '<div class="empty"><i class="bi bi-wifi-off"></i><p>VERBINDUNGSFEHLER</p></div>';
+  });
+}
+
+function selectEKCheckItem(ek) {
+  ekCheckItem = ek;
+  ekCheckStep = 2;
+  // Build checklist from products
+  var products = (ek.produkte||"").split(",").map(function(p){return p.trim();}).filter(Boolean);
+  ekCheckList = products.map(function(name) {
+    return { name: name, checked: false, scanId: "" };
+  });
+  _renderEKCheckStep();
+  _renderEKCheckInfo();
+  _renderEKCheckItems();
+}
+
+function _renderEKCheckInfo() {
+  var el = document.getElementById("ek-check-info");
+  if(!el || !ekCheckItem) return;
+  var products = (ekCheckItem.produkte||"").split(",").map(function(p){return p.trim();}).filter(Boolean);
+  el.innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start">'
+    +'<div>'
+    +'<div style="font-size:10px;font-weight:700;color:var(--acc);font-family:monospace;letter-spacing:.5px">'
+    +(ekCheckItem.zimmer ? '📍 '+esc(ekCheckItem.zimmer) : 'KEIN ZIMMER')+'</div>'
+    +'<div style="font-size:14px;font-weight:700;color:var(--w1);margin-top:2px">'+esc(ekCheckItem.kunde||"–")+'</div>'
+    +(ekCheckItem.preis?'<div style="font-size:11px;color:var(--w3);font-family:monospace">Gesamt: '+esc(ekCheckItem.preis)+'€</div>':'')
+    +'</div>'
+    +'<div style="text-align:right">'
+    +'<div style="font-size:10px;font-weight:700;font-family:monospace" id="ek-check-progress-text">0/'+products.length+'</div>'
+    +'<div style="font-size:9px;color:var(--w4);font-family:monospace">GEPRÜFT</div>'
+    +'</div></div>'
+    +'<div style="background:var(--e1);border-radius:99px;height:3px;overflow:hidden;margin-top:8px">'
+    +'<div id="ek-check-progress-bar" style="height:100%;background:var(--acc);border-radius:99px;width:0%;transition:width .3s"></div>'
+    +'</div>';
+}
+
+function _renderEKCheckItems() {
+  var el = document.getElementById("ek-check-items");
+  var completeWrap = document.getElementById("ek-check-complete");
+  if(!el) return;
+  el.innerHTML = "";
+
+  var done = ekCheckList.filter(function(i){return i.checked;}).length;
+  var total = ekCheckList.length;
+
+  // Update progress
+  var pt = document.getElementById("ek-check-progress-text");
+  var pb = document.getElementById("ek-check-progress-bar");
+  if(pt) pt.textContent = done+"/"+total;
+  if(pb) pb.style.width = (total>0 ? Math.round(done/total*100) : 0)+"%";
+
+  ekCheckList.forEach(function(item, idx) {
+    var row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--e1);cursor:"+(item.checked?"default":"pointer");
+
+    if(item.checked) {
+      row.innerHTML =
+        '<div style="width:24px;height:24px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;flex-shrink:0">'
+        +'<i class="bi bi-check" style="color:#000;font-size:14px"></i></div>'
+        +'<div style="flex:1">'
+        +'<div style="font-size:13px;font-weight:600;color:var(--acc)">'+esc(item.name)+'</div>'
+        +(item.scanId?'<div style="font-size:10px;color:var(--w4);font-family:monospace">'+esc(item.scanId)+' · EINGELAGERT</div>':'')
+        +'</div>'
+        +'<span style="font-size:10px;font-weight:700;color:var(--acc);font-family:monospace">✅</span>';
+    } else {
+      row.innerHTML =
+        '<div style="width:24px;height:24px;border-radius:50%;border:2px solid var(--e2);flex-shrink:0"></div>'
+        +'<div style="flex:1">'
+        +'<div style="font-size:13px;font-weight:600;color:var(--w1)">'+esc(item.name)+'</div>'
+        +'<div style="font-size:10px;color:var(--w4);font-family:monospace">AUSSTEHEND → KLICKEN ZUM EINLAGERN</div>'
+        +'</div>'
+        +'<i class="bi bi-chevron-right" style="color:var(--w4);font-size:12px"></i>';
+      row.onclick = (function(i){ return function(){ startEKItemEinlagern(i); }; })(idx);
+      row.onmouseover = function(){this.style.background="var(--b3)";};
+      row.onmouseout = function(){this.style.background="";};
+    }
+    el.appendChild(row);
+  });
+
+  // Show complete button when all done
+  if(completeWrap) {
+    completeWrap.style.display = (done === total && total > 0) ? "block" : "none";
+  }
+}
+
+function startEKItemEinlagern(itemIdx) {
+  ekCheckCurrentIdx = itemIdx;
+  var item = ekCheckList[itemIdx];
+  if(!item) return;
+
+  // Store context - after successful einlagern, we come back here
+  window._ekCheckContext = { itemIdx: itemIdx, itemName: item.name };
+
+  // Navigate to scan panel - einlagern mode
+  // Pre-fill the item name in f-name field
+  closeEKCheck();
+  goTabFn("scan-panel");
+
+  setTimeout(function(){
+    // Set mode to einlagern
+    setMode("einlagern");
+    // Pre-fill name hint
+    var hint = document.getElementById("ek-check-item-hint");
+    if(hint) {
+      hint.textContent = "Einlagern: " + item.name;
+      hint.style.display = "block";
+    }
+    // Show a toast with the item name
+    toast('Jetzt einlagern: "'+esc(item.name)+'"', "inf", 5000);
+
+    // After save, hook into doSave callback to mark as checked
+    window._afterSaveCallback = function(savedScanId) {
+      if(window._ekCheckContext) {
+        var ctx = window._ekCheckContext;
+        ekCheckList[ctx.itemIdx].checked = true;
+        ekCheckList[ctx.itemIdx].scanId = savedScanId || "eingelagert";
+        window._ekCheckContext = null;
+        window._afterSaveCallback = null;
+        // Go back to EK check
+        toast(esc(ctx.itemName)+" eingelagert ✅","ok",3000);
+        goTabFn("scan-panel");
+        setTimeout(function(){
+          openEKCheck();
+          ekCheckItem = ekCheckItem;
+          ekCheckStep = 2;
+          _renderEKCheckStep();
+          _renderEKCheckInfo();
+          _renderEKCheckItems();
+        }, 200);
+      }
+    };
+  }, 200);
+}
+
+function completeEKCheck() {
+  if(!ekCheckItem) return;
+  var btn = document.getElementById("ek-check-complete-btn");
+  if(btn) setBL(btn, true);
+  gasPost("updateEinkauf", {
+    rowIndex: ekCheckItem.rowIndex,
+    status: "Abgeschlossen",
+    lieferstatus: "Zugestellt"
+  }, function(r) {
+    if(btn) setBL(btn, false);
+    if(r && r.ok) {
+      toast("🎉 Einkauf komplett abgeschlossen!","ok",4000);
+      closeEKCheck();
+      loadHandel();
+    } else { toast("Fehler: "+(r?r.fehler:"?"),"err"); }
+  }, function(){ if(btn) setBL(btn,false); toast("Verbindungsfehler","err"); });
+}
+
+function stopEKCheckScanner() {
+  ekCheckScanActive = false;
+  if(ekCheckScanStream){ ekCheckScanStream.getTracks().forEach(function(t){t.stop();}); ekCheckScanStream=null; }
+}
+
+
+
+// ================================================================
+// REKLAMATION STEPPER
+// ================================================================
+var rtStep = 1, rtTotalSteps = 3;
+
+function openRTModal(item, prefillVerkauf) {
+  window.editRTItem = item || null;
+  rtStep = 1;
+  sv2("rt-produkt", item ? item.produkt : (prefillVerkauf ? prefillVerkauf.produkte||"" : ""));
+  sv2("rt-kunde",   item ? item.kunde   : (prefillVerkauf ? prefillVerkauf.kunde||""   : ""));
+  sv2("rt-scanid",  item ? (item.scanId||item.scanIds||"") : "");
+  sv2("rt-grund",   item ? item.grund   : "");
+  sv2("rt-status",  item ? item.status  : "Offen");
+  sv2("rt-erstattung", item ? (item.erstattung||"") : "");
+  sv2("rt-hinweise",   item ? (item.hinweise||"")   : "");
+  sv2("rt-ma",         item ? (item.mitarbeiter||emp) : emp);
+  sv2("rt-verkauf-zeile", item ? (item.verkaufZeile||"") : (prefillVerkauf ? prefillVerkauf.rowIndex||"" : ""));
+  // Reset grund buttons
+  ["defekt","falsch","beschaedigt","nonfunc","sonstiges"].forEach(function(id){
+    var el=document.getElementById("rtg-"+id); if(el) el.className="cbtn";
+  });
+  if(item && item.grund) selRTGrund(item.grund);
+  var d=document.getElementById("rt-diag"); if(d) d.style.display="none";
+  _renderRTStep();
+  document.getElementById("rt-modal").classList.add("open");
+}
+
+function closeRTModal() {
+  document.getElementById("rt-modal").classList.remove("open");
+  window.editRTItem = null;
+}
+
+function _renderRTStep() {
+  for(var i=1;i<=rtTotalSteps;i++){
+    var el=document.getElementById("rts-"+i);
+    if(el) el.style.display=(i===rtStep?"block":"none");
+  }
+  var pct=Math.round((rtStep/rtTotalSteps)*100);
+  var pb=document.getElementById("rt-prog"); if(pb) pb.style.width=pct+"%";
+  var sl=document.getElementById("rt-step-lbl"); if(sl) sl.textContent="STEP "+rtStep+"/"+rtTotalSteps;
+  var snames=["PRODUKT","GRUND & STATUS","ABSCHLUSS"];
+  var sn=document.getElementById("rt-step-name"); if(sn) sn.textContent=snames[rtStep-1]||"";
+  var bb=document.getElementById("rt-back-btn"); if(bb) bb.disabled=(rtStep===1);
+  var nb=document.getElementById("rt-next-btn"); if(nb) nb.style.display=(rtStep<rtTotalSteps?"inline-flex":"none");
+  var sb=document.getElementById("rt-save-btn"); if(sb) sb.style.display=(rtStep===rtTotalSteps?"inline-flex":"none");
+  if(rtStep===3) _buildRTSummary();
+}
+
+function rtStepNav(dir) {
+  var d=document.getElementById("rt-diag"); if(d) d.style.display="none";
+  if(dir>0){
+    if(rtStep===1 && !gv("rt-produkt").trim()){
+      var dg=document.getElementById("rt-diag");
+      dg.className="diag derr"; dg.textContent="Bitte Produkt eingeben."; dg.style.display="block"; return;
+    }
+    if(rtStep===2 && !gv("rt-grund")){
+      var dg=document.getElementById("rt-diag");
+      dg.className="diag derr"; dg.textContent="Bitte Reklamationsgrund wählen."; dg.style.display="block"; return;
+    }
+  }
+  rtStep=Math.max(1,Math.min(rtTotalSteps,rtStep+dir));
+  _renderRTStep();
+}
+
+function _buildRTSummary() {
+  var el=document.getElementById("rt-summary"); if(!el) return;
+  el.innerHTML=
+    "PRODUKT: "+(gv("rt-produkt")||"–")+"<br>"+
+    "KUNDE: "+(gv("rt-kunde")||"–")+"<br>"+
+    "GRUND: "+(gv("rt-grund")||"–")+"<br>"+
+    "STATUS: "+(gv("rt-status")||"–")+"<br>"+
+    (gv("rt-erstattung")?"ERSTATTUNG: "+gv("rt-erstattung")+"€<br>":"")+
+    "MITARBEITER: "+(gv("rt-ma")||emp||"–");
+}
+
+function selRTGrund(grund) {
+  sv2("rt-grund", grund);
+  ["defekt","falsch","beschaedigt","nonfunc","sonstiges"].forEach(function(id){
+    var el=document.getElementById("rtg-"+id); if(el) el.className="cbtn";
+  });
+  var map={
+    "Defekt erhalten":"defekt","Falsches Produkt":"falsch",
+    "Beschädigte Verpackung":"beschaedigt","Nicht funktionsfähig":"nonfunc","Sonstiges":"sonstiges"
+  };
+  var el=document.getElementById("rtg-"+(map[grund]||"sonstiges"));
+  if(el) el.className="cbtn vk-sel";
+}
+
+function openRTScanner() {
+  var el=document.getElementById("rt-scanid"); if(el) el.focus();
+  toast("Barcode scannen oder manuell eingeben","inf",2000);
+}
+
+function saveRTForm() {
+  var d=document.getElementById("rt-diag"); if(d) d.style.display="none";
+  var grund=gv("rt-grund");
+  if(!gv("rt-produkt").trim()){
+    var dg=document.getElementById("rt-diag");
+    dg.className="diag derr"; dg.textContent="Bitte Produkt eingeben."; dg.style.display="block"; return;
+  }
+  if(!grund){
+    var dg=document.getElementById("rt-diag");
+    dg.className="diag derr"; dg.textContent="Bitte Grund wählen."; dg.style.display="block"; return;
+  }
+  var data={
+    produkt:     gv("rt-produkt"),
+    kunde:       gv("rt-kunde"),
+    scanId:      gv("rt-scanid"),
+    grund:       grund,
+    status:      gv("rt-status"),
+    erstattung:  gv("rt-erstattung"),
+    hinweise:    gv("rt-hinweise"),
+    mitarbeiter: gv("rt-ma")||emp,
+    verkaufZeile:gv("rt-verkauf-zeile")||""
+  };
+  var btn=document.getElementById("rt-save-btn"); setBL(btn,true);
+  if(window.editRTItem){
+    data.rowIndex=window.editRTItem.rowIndex;
+    gasPost("updateRetoure",data,function(r){
+      setBL(btn,false);
+      if(r&&r.ok){ toast(r.msg||"Aktualisiert","ok"); closeRTModal(); }
+      else{ var dg=document.getElementById("rt-diag"); dg.className="diag derr"; dg.textContent=r?r.fehler:"Fehler"; dg.style.display="block"; }
+    },function(e){ setBL(btn,false); toast("Fehler: "+e,"err"); });
+  } else {
+    gasPost("saveRetoure",data,function(r){
+      setBL(btn,false);
+      if(r&&r.ok){
+        toast(r.msg||"Reklamation gespeichert","ok");
+        addNotification("⚠️ Reklamation",data.produkt+" – "+grund,"alert");
+        closeRTModal();
+      } else {
+        var dg=document.getElementById("rt-diag"); dg.className="diag derr"; dg.textContent=r?r.fehler:"Fehler"; dg.style.display="block";
+      }
+    },function(e){ setBL(btn,false); toast("Fehler: "+e,"err"); });
+  }
+}
+
+window.addEventListener("load",function(){
+  var no=document.getElementById("notif-overlay");if(no)no.addEventListener("click",function(e){if(e.target===this)closeNotifications();});
+  var dm=document.getElementById("del-modal");if(dm)dm.addEventListener("click",function(e){if(e.target===this)closeDelModal();});
+  var am=document.getElementById("acc-modal");if(am)am.addEventListener("click",function(e){if(e.target===this)closeAccModal();});
+  var vm2=document.getElementById("vk-modal");if(vm2)vm2.addEventListener("click",function(e){if(e.target===this)closeVKModal();});
+  var em=document.getElementById("ek-modal");if(em)em.addEventListener("click",function(e){if(e.target===this)closeEKModal();});
+  var rt=document.getElementById("rt-modal");if(rt)rt.addEventListener("click",function(e){if(e.target===this)closeRTModal();});
+  var cm=document.getElementById("china-modal");if(cm)cm.addEventListener("click",function(e){if(e.target===this)closeChinaModal();});
+  var vmo=document.getElementById("vk-multi-overlay");if(vmo)vmo.addEventListener("click",function(e){if(e.target===this)closeVKMulti();});
+  // Check for saved session (auto-login)
+  var savedSession = loadSession();
+  if(savedSession && savedSession.name) {
+    applyEmp(savedSession.name, savedSession.rolle||"mitarbeiter");
+    loadStats();
+    checkUnconfirmedNotifs();
+  } else {
+    initEmp();
+  }
+  initSearch();loadNotifications();loadChinaEntries();
+  setupEnterKeys();
+  setupKeyboardShortcuts();
+  setTimeout(initGlobalCamList,300);
+  setTimeout(runSmartNotifications,3000);
+  setInterval(runSmartNotifications,24*60*60*1000);
+});
+
+
+// ================================================================
+// ANALYSE + CHINA + MULTISELECT
+// ================================================================
+var analyseTab="guv",chinaEntries=[],editChinaIdx=-1;
+
+function setAnalyseTab(tab){
+  analyseTab=tab;
+  ["guv","china","ka","rt"].forEach(function(t){
+    var b=document.getElementById("atab-"+t);var e=document.getElementById("an-"+t);
+    if(b)b.className="ltab"+(t===tab?" on":"");
+    if(e)e.style.display=t===tab?"block":"none";
+  });
+  if(tab==="guv")buildGUV();
+  if(tab==="china")buildChinaList();
+  if(tab==="ka"){if(!allItems.length)loadAll();setTimeout(function(){renderKAPanel();_buildKAPanel();},allItems.length?0:1500);}
+  if(tab==="rt")buildRetourenList();
+}
+function renderAnalysePanel(){
+  if(!allVerkauf||!allVerkauf.length){gasGet("getAllVerkauf",{},function(r){if(r&&r.ok){allVerkauf=r.data||[];setAnalyseTab(analyseTab||"guv");}},function(){});}
+  else{setAnalyseTab(analyseTab||"guv");}
+}
+function fmtEur(v){var n=parseFloat(v||0);return isNaN(n)?"–":n.toFixed(2)+"€";}
+function buildGUV(){
+  function _el(id){return document.getElementById(id);}
+  var filter=(document.getElementById("an-filter-month")||{value:"all"}).value;
+  var vkData=(allVerkauf||[]).filter(function(v){
+    if(filter==="all")return true;if(!v.datum)return false;
+    var now=new Date(),m=now.getMonth()+1,y=now.getFullYear();
+    var pts=v.datum.split(".");var vm=parseInt(pts[1]||0),vy=parseInt((pts[2]||"").split(" ")[0]);
+    if(filter==="thismonth")return vm===m&&vy===y;
+    if(filter==="lastmonth"){var lm=m===1?12:m-1,ly=m===1?y-1:y;return vm===lm&&vy===ly;}
+    return true;
+  });
+  var totalVP=0,totalMarge=0;
+  vkData.forEach(function(v){totalVP+=parseFloat(v.verkaufspreis||0);totalMarge+=parseFloat(v.marge||0);});
+  if(_el("an-gewinn"))elG("an-gewinn").textContent=fmtEur(totalMarge>0?totalMarge:0);
+  if(elG("an-verlust"))elG("an-verlust").textContent=fmtEur(totalMarge<0?Math.abs(totalMarge):0);
+  if(elG("an-umsatz"))elG("an-umsatz").textContent=fmtEur(totalVP);
+  if(elG("an-marge-avg"))elG("an-marge-avg").textContent=vkData.length>0?(totalMarge/vkData.length).toFixed(2)+"€":"–";
+  buildMonthlyChart();
+  var tbody=elG("an-vk-table");
+  if(tbody){
+    if(!vkData.length){tbody.innerHTML='<div class="empty" style="padding:20px"><i class="bi bi-inbox"></i><p>Keine Verkäufe</p></div>';return;}
+    tbody.innerHTML='<table class="an-table"><thead><tr><th>Produkt</th><th>VK</th><th>EK</th><th>Marge</th><th>Plattform</th></tr></thead><tbody>'
+      +vkData.slice().sort(function(a,b){return parseFloat(b.marge||0)-parseFloat(a.marge||0);}).map(function(v){var m=parseFloat(v.marge||0);return'<tr><td style="max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(v.produkte||"–")+'</td><td>'+fmtEur(v.verkaufspreis)+'</td><td>'+fmtEur(v.einkaufspreis)+'</td><td class="'+(m>=0?"an-pos":"an-neg")+'">'+(m>=0?"+":"")+m.toFixed(2)+'€</td><td>'+esc(v.plattform||"–")+'</td></tr>';}).join("")+'</tbody></table>';
+  }
+  var vld=elG("an-verlust-detail");
+  if(vld){
+    var neg=vkData.filter(function(v){return parseFloat(v.marge||0)<0;});
+    var noEK=vkData.filter(function(v){return !parseFloat(v.einkaufspreis||0);});
+    var h="";
+    if(neg.length)h+=neg.map(function(v){return'<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--b1);font-size:12px"><span>'+esc(v.produkte||"–")+'</span><span class="an-neg">'+parseFloat(v.marge||0).toFixed(2)+'€</span></div>';}).join("");
+    if(noEK.length)h+='<div style="font-size:12px;color:var(--amber);margin-top:7px">⚠️ '+noEK.length+' Verkäufe ohne EK</div>';
+    vld.innerHTML=h||'<div style="font-size:12px;color:var(--green)">✅ Keine Verluste</div>';
+  }
+}
+function buildMonthlyChart(){
+  var bE=document.getElementById("an-chart-bars"),lE=document.getElementById("an-chart-labels");
+  if(!bE||!lE)return;
+  var months=[],now=new Date();
+  for(var i=5;i>=0;i--){var d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push({m:d.getMonth()+1,y:d.getFullYear(),label:["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"][d.getMonth()],marge:0});}
+  (allVerkauf||[]).forEach(function(v){if(!v.datum)return;var pts=v.datum.split(".");months.forEach(function(mo){if(mo.m===parseInt(pts[1]||0)&&mo.y===parseInt((pts[2]||"").split(" ")[0]))mo.marge+=parseFloat(v.marge||0);});});
+  var maxA=Math.max.apply(null,months.map(function(m){return Math.abs(m.marge)||0;}).concat([1]));
+  bE.innerHTML=months.map(function(mo){var pct=Math.max(4,Math.round((Math.abs(mo.marge)/maxA)*76));return'<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:80px"><div style="font-size:9px;color:var(--t3);margin-bottom:2px">'+(mo.marge>=0?"+":"")+Math.round(mo.marge)+'</div><div class="an-bar" style="background:'+(mo.marge>=0?"var(--blue)":"var(--red)")+';height:'+pct+'px;width:100%"></div></div>';}).join("");
+  lE.innerHTML=months.map(function(mo){return'<span style="flex:1;font-size:9px;color:var(--t3);text-align:center">'+mo.label+'</span>';}).join("");
+}
+function buildRetourenList(){
+  gasGet("getAllRetouren",{},function(r){
+    var el=document.getElementById("an-rt-list");if(!el)return;
+    if(!r||!r.ok||!r.data||!r.data.length){el.innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Keine Reklamationen</p></div>';return;}
+    var data=r.data;
+    el.innerHTML=data.map(function(rt){
+      var sC={"Offen":"var(--amber)","In Bearbeitung":"var(--blue)",Erstattet:"var(--green)",Abgelehnt:"var(--red)"}[rt.status]||"var(--t3)";
+      return'<div class="ic" style="cursor:pointer"><div class="ic-top"><div class="ic-name">'+esc(rt.produkt||"–")+'</div><span style="font-size:11px;font-weight:600;color:'+sC+'">'+esc(rt.status||"–")+'</span></div><div class="chips"><span class="chip"><b>'+esc(rt.kunde||"–")+'</b></span><span class="chip">'+esc(rt.datum||"–")+'</span>'+(rt.erstattung?'<span class="chip" style="color:var(--red)">'+esc(rt.erstattung)+'€</span>':"")+' <span class="chip">'+esc(rt.grund||"–")+'</span></div></div>';
+    }).join("");
+    Array.from(el.querySelectorAll(".ic")).forEach(function(node,i){node.onclick=function(){openRTModal(data[i]);};});
+  },function(){});
+}
+function openChinaForm(idx){
+  editChinaIdx=(idx!==undefined)?idx:-1;var item=idx!==undefined?chinaEntries[idx]:null;
+  sv2("cn-desc",item?item.desc:"");sv2("cn-qty",item?item.qty:"");sv2("cn-wert",item?item.wert:"");
+  sv2("cn-fracht",item?item.fracht:"");sv2("cn-zoll",item?item.zoll:"");sv2("cn-supplier",item?item.supplier:"");
+  sv2("cn-status",item?item.status:"Bestellt");sv2("cn-date",item?item.date:new Date().toISOString().split("T")[0]);
+  sv2("cn-track",item?item.track:"");sv2("cn-notes",item?item.notes:"");
+  var d=document.getElementById("china-diag");if(d)d.style.display="none";
+  var db=document.getElementById("cn-del-btn");if(db)db.style.display=item?"inline-flex":"none";
+  calcChinaCosts();document.getElementById("china-modal").classList.add("open");
+}
+function closeChinaModal(){document.getElementById("china-modal").classList.remove("open");}
+function calcChinaCosts(){
+  var w=parseFloat(gv("cn-wert")||0),f=parseFloat(gv("cn-fracht")||0),z=parseFloat(gv("cn-zoll")||0),q=parseInt(gv("cn-qty")||1)||1,t=w+f+z;
+  var box=document.getElementById("cn-cost-summary");if(box)box.style.display=t>0?"block":"none";
+  var tp=document.getElementById("cn-total-preview");if(tp)tp.textContent=t.toFixed(2)+"€";
+  var pi=document.getElementById("cn-per-item");if(pi)pi.textContent=(t/q).toFixed(2)+"€/Stück";
+}
+function saveChinaEntry(){
+  var desc=gv("cn-desc").trim();if(!desc){var d=document.getElementById("china-diag");d.className="diag derr";d.textContent="Beschreibung erforderlich.";d.style.display="block";return;}
+  var w=parseFloat(gv("cn-wert")||0),f=parseFloat(gv("cn-fracht")||0),z=parseFloat(gv("cn-zoll")||0);
+  var e={desc:desc,qty:gv("cn-qty"),wert:w,fracht:f,zoll:z,total:w+f+z,supplier:gv("cn-supplier"),status:gv("cn-status"),date:gv("cn-date"),track:gv("cn-track"),notes:gv("cn-notes")};
+  if(editChinaIdx>-1){chinaEntries[editChinaIdx]=e;}else{chinaEntries.push(e);}
+  try{localStorage.setItem("smp_china",JSON.stringify(chinaEntries));}catch(ex){}
+  closeChinaModal();buildChinaList();toast("Gespeichert ✅","ok");
+}
+function deleteChinaEntry(){
+  if(editChinaIdx<0||!confirm("Import löschen?"))return;
+  chinaEntries.splice(editChinaIdx,1);
+  try{localStorage.setItem("smp_china",JSON.stringify(chinaEntries));}catch(e){}
+  closeChinaModal();buildChinaList();
+}
+function buildChinaList(){
+  var tC=0,tZ=0,tF=0;chinaEntries.forEach(function(c){tC+=c.total||0;tZ+=c.zoll||0;tF+=c.fracht||0;});
+  function elG(id){return document.getElementById(id);}
+  if(elC("cn-total-cost"))elC("cn-total-cost").textContent=tC.toFixed(2)+"€";
+  if(elC("cn-total-zoll"))elC("cn-total-zoll").textContent=tZ.toFixed(2)+"€";
+  if(elC("cn-total-fracht"))elC("cn-total-fracht").textContent=tF.toFixed(2)+"€";
+  var list=elC("an-china-list");if(!list)return;
+  if(!chinaEntries.length){list.innerHTML='<div class="empty"><i class="bi bi-box-seam"></i><p>Keine China-Importe</p></div>';return;}
+  var sC={Bestellt:"var(--amber)",Unterwegs:"var(--blue)",Angekommen:"var(--teal)",Eingelagert:"var(--green)"};
+  list.innerHTML=chinaEntries.map(function(c,i){
+    return'<div class="china-item" onclick="openChinaForm('+i+')">'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:13px;font-weight:600;color:var(--t1)">'+esc(c.desc||"–")+'</span><span style="font-size:10px;font-weight:600;color:'+(sC[c.status]||"var(--t3)")+'">'+esc(c.status||"–")+'</span></div>'
+      +'<div class="chips">'+(c.qty?'<span class="chip"><b>'+esc(c.qty)+'×</b></span>':"")+'<span class="chip"><b>'+((c.total||0).toFixed(2))+'€</b></span>'+(c.zoll?'<span class="chip" style="color:var(--amber)">Zoll '+c.zoll.toFixed(2)+'€</span>':"")+( c.supplier?'<span class="chip">'+esc(c.supplier)+'</span>':"")+'</div></div>';
+  }).join("");
+}
+var vkmSelected=[];
+function openVKMultiSelect(){vkmSelected=[];var items=allItems.filter(function(i){return i.type!=="defekt";});if(!items.length){loadAll();setTimeout(function(){_renderVKMList(allItems.filter(function(i){return i.type!=="defekt";}));},1500);}else{_renderVKMList(items);}document.getElementById("vk-multi-overlay").classList.add("open");_updateVKMCount();}
+function closeVKMulti(){document.getElementById("vk-multi-overlay").classList.remove("open");}
+function filterVKMulti(){var q=(document.getElementById("vkm-search")||{value:""}).value.toLowerCase();var items=allItems.filter(function(i){return i.type!=="defekt";});_renderVKMList(q?items.filter(function(i){var n=i.name||i.spiel||i.modell||"";return n.toLowerCase().includes(q)||(i.scanId||"").toLowerCase().includes(q);}):items);}
+function _renderVKMList(items){var el=document.getElementById("vkm-list");if(!el)return;if(!items.length){el.innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Keine Artikel</p></div>';return;}el.innerHTML=items.map(function(item){var nm=item.name||item.spiel||item.modell||"–";var isSel=vkmSelected.some(function(s){return s.rowIndex===item.rowIndex&&s.type===item.type;});return'<div class="vkm-item'+(isSel?" selected":"")+'" data-type="'+esc(item.type)+'" data-row="'+item.rowIndex+'" onclick="toggleVKMItem(this)"><div class="vkm-check">'+(isSel?"✓":"")+'</div><div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--t1)">'+esc(nm)+'</div><div style="font-size:10px;color:var(--t3)">'+esc(item.datum||"")+(item.einkaufspreis?" · EK: "+item.einkaufspreis+"€":"")+'</div></div></div>';}).join("");}
+function toggleVKMItem(el){var type=el.getAttribute("data-type"),row=parseInt(el.getAttribute("data-row"));var item=allItems.find(function(i){return i.type===type&&i.rowIndex===row;});if(!item)return;var idx=vkmSelected.findIndex(function(s){return s.rowIndex===row&&s.type===type;});if(idx>-1){vkmSelected.splice(idx,1);el.className="vkm-item";el.querySelector(".vkm-check").textContent="";}else{vkmSelected.push(item);el.className="vkm-item selected";el.querySelector(".vkm-check").textContent="✓";}_updateVKMCount();}
+function _updateVKMCount(){var cnt=document.getElementById("vkm-cnt");if(cnt)cnt.textContent=vkmSelected.length;var ek=vkmSelected.reduce(function(s,i){return s+parseFloat(i.einkaufspreis||0);},0);var et=document.getElementById("vkm-ek-total");if(et)et.textContent=ek.toFixed(2)+"€";}
+function applyVKMulti(){if(!vkmSelected.length){toast("Mind. 1 Artikel wählen","err");return;}var names=vkmSelected.map(function(i){return i.name||i.spiel||i.modell||"–";}).join(", ");var scanIds=vkmSelected.map(function(i){return i.scanId||"";}).filter(Boolean).join(", ");var totalEK=vkmSelected.reduce(function(s,i){return s+parseFloat(i.einkaufspreis||0);},0);sv2("vk-produkte",names);var sEl=document.getElementById("vk-scanid");if(sEl){sEl.removeAttribute("readonly");sEl.value=scanIds;}var epEl=document.getElementById("vk-ep");if(epEl)epEl.value=totalEK.toFixed(2);var chips=document.getElementById("vk-multi-chips");if(chips)chips.innerHTML=vkmSelected.map(function(item){var nm=item.name||item.spiel||item.modell||"–";return'<span style="background:var(--s3);border:1px solid var(--b2);border-radius:4px;padding:2px 7px;font-size:11px;color:var(--t2)">'+esc(nm)+'</span>';}).join("");var pi=document.getElementById("vk-product-info");if(pi){pi.textContent=vkmSelected.length+" Artikel · EK: "+totalEK.toFixed(2)+"€";pi.style.display="block";}closeVKMulti();toast(vkmSelected.length+" Artikel übernommen","ok",2500);}
+
+
+// ── Compatibility aliases ─────────────────────────
+function closeAccModal(){document.getElementById("acc-modal").classList.remove("open");}
+function openDelModal(msg,fn){
+  var d=document.getElementById("del-modal");
+  var t=document.getElementById("del-modal-text");
+  var c=document.getElementById("del-modal-confirm");
+  if(t)t.textContent=msg||"Wirklich löschen?";
+  if(c){c.onclick=function(){if(fn)fn();closeDelModal();};}
+  if(d)d.classList.add("open");
+}
