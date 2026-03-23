@@ -1,4 +1,4 @@
-var GAS_URL = "https://script.google.com/macros/s/AKfycbyZ87_4-pkS6MCZp4D1Zcq_RXpuVvLLvyhmUsP1Jqh-1calaSDsXK2r1rk7_QjxVg/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbw4olw3YFpvm9cGPz53GgwOtLLVPSuiz8aJ9JM_ItFbaEExaCAN7rX7U4SAplAd1g/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -166,7 +166,10 @@ function updateProgress(){
 }
 function showStep(n){for(var i=1;i<=stepTotal;i++){var el=document.getElementById("st-s"+i);if(el){el.classList.remove("on");if(i===n)el.classList.add("on");}}}
 function stepNext(){
-  if(stepCur===1){if(!document.getElementById("f-scanid").value.trim()){showD("s1-diag","Barcode eingeben oder scannen.","derr");return;}hideD("s1-diag");}
+  if(stepCur===1){if(!document.getElementById("f-scanid").value.trim()){showD("s1-diag","Barcode eingeben oder scannen.","derr");return;}hideD("s1-diag");
+    // Pre-fill name from EK check context
+    if(window._ekCheckPreFillName){setTimeout(function(){var nEl=document.getElementById("f-name");if(nEl&&!nEl.value)nEl.value=window._ekCheckPreFillName;window._ekCheckPreFillName=null;},50);}
+  }
   if(stepCur===2&&!document.getElementById("f-name").value.trim()){toast("Name eingeben.","err");return;}
   if(stepCur===4){if(!probChoice){toast("Mängel auswählen.","err");return;}if(probChoice==="ja"&&!probType){toast("Mangeltyp auswählen.","err");return;}if(probType==="physisch"&&photos.length===0){toast("Mindestens 1 Foto erforderlich.","err");return;}}
   if(stepCur<stepTotal){stepCur++;updateProgress();showStep(stepCur);window.scrollTo({top:0,behavior:"smooth"});
@@ -1063,7 +1066,7 @@ function openDetail(rIdx){
     }
   }
   var _detailFotoMode="anzeige";
-  window.detailShowFotoTab=function(mode){
+  function detailShowFotoTab(mode){
     _detailFotoMode=mode;
     ["anzeige","defekt"].forEach(function(t){
       var btn=document.getElementById("ftab-"+t);
@@ -2635,249 +2638,175 @@ function enrichProfilWithAccountInfo(name) {
 // ================================================================
 // EINKAUF CHECK FLOW
 // ================================================================
-var ekCheckStep = 1;
-var ekCheckItem = null;
-var ekCheckList = []; // [{name, checked, scanId}]
-var ekCheckCurrentIdx = -1;
-var ekCheckScanActive = false;
-var ekCheckScanStream = null;
+var ekCheckStep=1,ekCheckItem=null,ekCheckList=[],ekCheckCurrentIdx=-1;
 
-function openEKCheck() {
-  ekCheckStep = 1;
-  ekCheckItem = null;
-  ekCheckList = [];
-  ekCheckCurrentIdx = -1;
-  document.getElementById("mode-chooser").style.display = "none";
-  document.getElementById("ek-check-panel").style.display = "block";
+function openEKCheck(){
+  ekCheckStep=1;ekCheckItem=null;ekCheckList=[];ekCheckCurrentIdx=-1;
+  window._afterSaveCallback=null;
+  var mc=document.getElementById("mode-chooser");
+  var ep=document.getElementById("ek-check-panel");
+  if(mc)mc.style.display="none";
+  if(ep)ep.style.display="block";
   _renderEKCheckStep();
   _loadEKCheckList();
 }
 
-function closeEKCheck() {
-  stopEKCheckScanner();
-  document.getElementById("ek-check-panel").style.display = "none";
-  document.getElementById("mode-chooser").style.display = "block";
-  ekCheckStep = 1;
-  ekCheckItem = null;
+function closeEKCheck(){
+  var mc=document.getElementById("mode-chooser");
+  var ep=document.getElementById("ek-check-panel");
+  if(mc)mc.style.display="block";
+  if(ep)ep.style.display="none";
+  ekCheckStep=1;ekCheckItem=null;
+  window._afterSaveCallback=null;
 }
 
-function _renderEKCheckStep() {
-  var s1 = document.getElementById("ek-check-step1");
-  var s2 = document.getElementById("ek-check-step2");
-  if(s1) s1.style.display = ekCheckStep === 1 ? "block" : "none";
-  if(s2) s2.style.display = ekCheckStep === 2 ? "block" : "none";
-
-  var hdr = document.getElementById("ek-check-header-title");
-  if(hdr) hdr.textContent = ekCheckStep === 1 ? "EINKAUF WÄHLEN" : "ARTIKEL PRÜFEN";
+function _renderEKCheckStep(){
+  var s1=document.getElementById("ek-check-step1");
+  var s2=document.getElementById("ek-check-step2");
+  var hdr=document.getElementById("ek-check-header-title");
+  if(s1)s1.style.display=ekCheckStep===1?"block":"none";
+  if(s2)s2.style.display=ekCheckStep===2?"block":"none";
+  if(hdr)hdr.textContent=ekCheckStep===1?"EINKAUF WÄHLEN":"ARTIKEL EINLAGERN";
 }
 
-function _loadEKCheckList() {
-  var listEl = document.getElementById("ek-check-einkauf-list");
-  if(!listEl) return;
-  listEl.innerHTML = '<div style="text-align:center;padding:20px"><span class="spin-b"></span></div>';
-
-  gasGet("getAllEinkauf", {}, function(r) {
-    if(!r || !r.ok || !r.data || !r.data.length) {
-      listEl.innerHTML = '<div class="empty"><i class="bi bi-inbox"></i><p>KEINE OFFENEN EINKÄUFE</p></div>';
-      return;
-    }
-    // Show all non-completed, non-cancelled
-    var pending = r.data.filter(function(e){
-      return e.status !== "Abgeschlossen" && e.status !== "Storniert";
-    });
-    if(!pending.length) {
-      listEl.innerHTML = '<div class="empty"><i class="bi bi-check-all"></i><p>ALLE ABGESCHLOSSEN ✅</p></div>';
-      return;
-    }
-    listEl.innerHTML = "";
-    pending.forEach(function(ek) {
-      var card = document.createElement("div");
-      card.className = "ic";
-      card.style.cssText = "cursor:pointer;margin-bottom:8px;border-left:3px solid var(--col-b)";
-      var statusColors = {
-        Vorgemerkt:"var(--w4)", Bestellt:"var(--col-y)",
-        Bezahlt:"var(--col-b)", Versendet:"var(--col-b)",
-        Angekommen:"var(--acc)"
-      };
-      var col = statusColors[ek.status] || "var(--w4)";
-      var products = (ek.produkte||"").split(",").map(function(p){return p.trim();}).filter(Boolean);
-      card.innerHTML =
-        '<div class="ic-top">'
-        +'<div class="ic-name">'+esc(ek.kunde||"Unbekannt")+'</div>'
-        +'<span style="font-size:9px;font-weight:700;color:'+col+';font-family:monospace">'+esc(ek.status||"–")+'</span>'
-        +'</div>'
+function _loadEKCheckList(){
+  var listEl=document.getElementById("ek-check-einkauf-list");
+  if(!listEl)return;
+  listEl.innerHTML='<div style="text-align:center;padding:24px"><span class="spin-b"></span><div style="font-size:10px;color:var(--w4);margin-top:8px;font-family:monospace">LADE...</div></div>';
+  gasGet("getAllEinkauf",{},function(r){
+    if(!r||!r.ok){listEl.innerHTML='<div class="empty"><i class="bi bi-wifi-off"></i><p>VERBINDUNGSFEHLER</p></div>';return;}
+    var pending=(r.data||[]).filter(function(e){return e.status!=="Abgeschlossen"&&e.status!=="Storniert";});
+    if(!pending.length){listEl.innerHTML='<div class="empty"><i class="bi bi-check-circle"></i><p>ALLE ABGESCHLOSSEN ✅</p></div>';return;}
+    listEl.innerHTML="";
+    pending.forEach(function(ek){
+      var products=(ek.produkte||"").split(",").map(function(p){return p.trim();}).filter(Boolean);
+      var card=document.createElement("div");
+      card.className="ic";
+      card.style.cssText="cursor:pointer;margin-bottom:8px;border-left:3px solid var(--col-b)";
+      var sc={Vorgemerkt:"#666",Bestellt:"var(--col-y)",Bezahlt:"var(--col-b)",Versendet:"var(--col-b)",Angekommen:"var(--acc)"}[ek.status]||"#666";
+      card.innerHTML='<div class="ic-top"><div class="ic-name">'+esc(ek.kunde||"Unbekannt")+'</div>'
+        +'<span style="font-size:9px;font-weight:700;color:'+sc+';font-family:monospace">'+esc(ek.status||"–")+'</span></div>'
         +'<div class="chips">'
-        +(ek.zimmer?'<span class="chip" style="color:var(--col-b)">📍 '+esc(ek.zimmer)+'</span>':'')
-        +(ek.preis?'<span class="chip" style="font-family:monospace">'+esc(ek.preis)+'€</span>':'')
-        +'<span class="chip">'+products.length+' Artikel</span>'
-        +'</div>'
-        +'<div style="font-size:11px;color:var(--w3);margin-top:3px">'
+        +(ek.zimmer?'<span class="chip" style="color:var(--col-b);border-color:rgba(77,159,255,.3)">📍 '+esc(ek.zimmer)+'</span>':"")
+        +(ek.preis?'<span class="chip" style="font-family:monospace">'+esc(ek.preis)+'€</span>':"")
+        +'<span class="chip">'+products.length+' Artikel</span></div>'
+        +'<div style="font-size:11px;color:var(--w3);margin-top:4px">'
         +products.slice(0,3).map(function(p){return esc(p);}).join(" · ")
-        +(products.length>3?' + '+(products.length-3)+' weitere':'')
+        +(products.length>3?' <span style="color:var(--w4)">+'+( products.length-3)+' weitere</span>':"")
         +'</div>';
-      card.onclick = (function(e){ return function(){ selectEKCheckItem(e); }; })(ek);
+      card.onclick=(function(e){return function(){_selectEKCheckItem(e);};})(ek);
+      card.onmouseover=function(){this.style.background="var(--b3)";};
+      card.onmouseout=function(){this.style.background="";};
       listEl.appendChild(card);
     });
-  }, function() {
-    listEl.innerHTML = '<div class="empty"><i class="bi bi-wifi-off"></i><p>VERBINDUNGSFEHLER</p></div>';
-  });
+  },function(){listEl.innerHTML='<div class="empty"><i class="bi bi-wifi-off"></i><p>VERBINDUNGSFEHLER</p></div>';});
 }
 
-function selectEKCheckItem(ek) {
-  ekCheckItem = ek;
-  ekCheckStep = 2;
-  // Build checklist from products
-  var products = (ek.produkte||"").split(",").map(function(p){return p.trim();}).filter(Boolean);
-  ekCheckList = products.map(function(name) {
-    return { name: name, checked: false, scanId: "" };
-  });
+function _selectEKCheckItem(ek){
+  ekCheckItem=ek;
+  ekCheckStep=2;
+  var products=(ek.produkte||"").split(",").map(function(p){return p.trim();}).filter(Boolean);
+  if(!ekCheckList.length||!ekCheckList[0]||ekCheckList[0]._eid!==ek.rowIndex){
+    ekCheckList=products.map(function(name){return{name:name,eingelagert:false,scanId:"",_eid:ek.rowIndex};});
+  }
   _renderEKCheckStep();
-  _renderEKCheckInfo();
+  _renderEKCheckInfoBar();
   _renderEKCheckItems();
 }
 
-function _renderEKCheckInfo() {
-  var el = document.getElementById("ek-check-info");
-  if(!el || !ekCheckItem) return;
-  var products = (ekCheckItem.produkte||"").split(",").map(function(p){return p.trim();}).filter(Boolean);
-  el.innerHTML =
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start">'
-    +'<div>'
-    +'<div style="font-size:10px;font-weight:700;color:var(--acc);font-family:monospace;letter-spacing:.5px">'
-    +(ekCheckItem.zimmer ? '📍 '+esc(ekCheckItem.zimmer) : 'KEIN ZIMMER')+'</div>'
-    +'<div style="font-size:14px;font-weight:700;color:var(--w1);margin-top:2px">'+esc(ekCheckItem.kunde||"–")+'</div>'
-    +(ekCheckItem.preis?'<div style="font-size:11px;color:var(--w3);font-family:monospace">Gesamt: '+esc(ekCheckItem.preis)+'€</div>':'')
-    +'</div>'
-    +'<div style="text-align:right">'
-    +'<div style="font-size:10px;font-weight:700;font-family:monospace" id="ek-check-progress-text">0/'+products.length+'</div>'
-    +'<div style="font-size:9px;color:var(--w4);font-family:monospace">GEPRÜFT</div>'
-    +'</div></div>'
-    +'<div style="background:var(--e1);border-radius:99px;height:3px;overflow:hidden;margin-top:8px">'
-    +'<div id="ek-check-progress-bar" style="height:100%;background:var(--acc);border-radius:99px;width:0%;transition:width .3s"></div>'
-    +'</div>';
+function _renderEKCheckInfoBar(){
+  var el=document.getElementById("ek-check-info");if(!el||!ekCheckItem)return;
+  var done=ekCheckList.filter(function(i){return i.eingelagert;}).length;
+  var total=ekCheckList.length;
+  var pct=total>0?Math.round(done/total*100):0;
+  el.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+    +'<div><div style="font-size:10px;font-weight:700;color:var(--acc);font-family:monospace;letter-spacing:.5px">'
+    +(ekCheckItem.zimmer?"📍 "+esc(ekCheckItem.zimmer):"KEIN ZIMMER")+'</div>'
+    +'<div style="font-size:14px;font-weight:700;color:var(--w1);margin-top:1px">'+esc(ekCheckItem.kunde||"–")+'</div></div>'
+    +'<div style="text-align:right"><div style="font-size:22px;font-weight:800;color:'+(done===total&&total>0?"var(--acc)":"var(--w1)")+';font-family:monospace">'+done+"/"+total+'</div>'
+    +'<div style="font-size:9px;color:var(--w4);font-family:monospace">EINGELAGERT</div></div></div>'
+    +'<div style="background:var(--e1);border-radius:99px;height:3px;overflow:hidden">'
+    +'<div style="height:100%;background:var(--acc);border-radius:99px;width:'+pct+'%;transition:width .4s"></div></div>';
 }
 
-function _renderEKCheckItems() {
-  var el = document.getElementById("ek-check-items");
-  var completeWrap = document.getElementById("ek-check-complete");
-  if(!el) return;
-  el.innerHTML = "";
-
-  var done = ekCheckList.filter(function(i){return i.checked;}).length;
-  var total = ekCheckList.length;
-
-  // Update progress
-  var pt = document.getElementById("ek-check-progress-text");
-  var pb = document.getElementById("ek-check-progress-bar");
-  if(pt) pt.textContent = done+"/"+total;
-  if(pb) pb.style.width = (total>0 ? Math.round(done/total*100) : 0)+"%";
-
-  ekCheckList.forEach(function(item, idx) {
-    var row = document.createElement("div");
-    row.style.cssText = "display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--e1);cursor:"+(item.checked?"default":"pointer");
-
-    if(item.checked) {
-      row.innerHTML =
-        '<div style="width:24px;height:24px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;flex-shrink:0">'
-        +'<i class="bi bi-check" style="color:#000;font-size:14px"></i></div>'
-        +'<div style="flex:1">'
-        +'<div style="font-size:13px;font-weight:600;color:var(--acc)">'+esc(item.name)+'</div>'
+function _renderEKCheckItems(){
+  var el=document.getElementById("ek-check-items");
+  var cb=document.getElementById("ek-check-complete");
+  if(!el)return;
+  el.innerHTML="";
+  var done=ekCheckList.filter(function(i){return i.eingelagert;}).length;
+  ekCheckList.forEach(function(item,idx){
+    var row=document.createElement("div");
+    row.style.cssText="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--e1)";
+    if(item.eingelagert){
+      row.innerHTML='<div style="width:26px;height:26px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;flex-shrink:0">'
+        +'<i class="bi bi-check" style="color:#000;font-size:15px"></i></div>'
+        +'<div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--acc)">'+esc(item.name)+'</div>'
         +(item.scanId?'<div style="font-size:10px;color:var(--w4);font-family:monospace">'+esc(item.scanId)+' · EINGELAGERT</div>':'')
-        +'</div>'
-        +'<span style="font-size:10px;font-weight:700;color:var(--acc);font-family:monospace">✅</span>';
+        +'</div><i class="bi bi-check-circle-fill" style="color:var(--acc);font-size:18px"></i>';
     } else {
-      row.innerHTML =
-        '<div style="width:24px;height:24px;border-radius:50%;border:2px solid var(--e2);flex-shrink:0"></div>'
-        +'<div style="flex:1">'
-        +'<div style="font-size:13px;font-weight:600;color:var(--w1)">'+esc(item.name)+'</div>'
-        +'<div style="font-size:10px;color:var(--w4);font-family:monospace">AUSSTEHEND → KLICKEN ZUM EINLAGERN</div>'
-        +'</div>'
-        +'<i class="bi bi-chevron-right" style="color:var(--w4);font-size:12px"></i>';
-      row.onclick = (function(i){ return function(){ startEKItemEinlagern(i); }; })(idx);
-      row.onmouseover = function(){this.style.background="var(--b3)";};
-      row.onmouseout = function(){this.style.background="";};
+      row.style.cursor="pointer";
+      row.innerHTML='<div style="width:26px;height:26px;border-radius:50%;border:2px solid var(--e3);flex-shrink:0"></div>'
+        +'<div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--w1)">'+esc(item.name)+'</div>'
+        +'<div style="font-size:10px;color:var(--col-b);font-family:monospace">ANTIPPEN → EINLAGERN</div></div>'
+        +'<i class="bi bi-chevron-right" style="color:var(--w4);font-size:13px"></i>';
+      row.onclick=(function(i){return function(){_startEKItemEinlagern(i);};})(idx);
+      row.onmouseover=function(){this.style.background="var(--b3)";};
+      row.onmouseout=function(){this.style.background="";};
     }
     el.appendChild(row);
   });
-
-  // Show complete button when all done
-  if(completeWrap) {
-    completeWrap.style.display = (done === total && total > 0) ? "block" : "none";
-  }
+  if(cb)cb.style.display=(done===ekCheckList.length&&ekCheckList.length>0)?"block":"none";
+  _renderEKCheckInfoBar();
 }
 
-function startEKItemEinlagern(itemIdx) {
-  ekCheckCurrentIdx = itemIdx;
-  var item = ekCheckList[itemIdx];
-  if(!item) return;
-
-  // Store context - after successful einlagern, we come back here
-  window._ekCheckContext = { itemIdx: itemIdx, itemName: item.name };
-
-  // Navigate to scan panel - einlagern mode
-  // Pre-fill the item name in f-name field
-  closeEKCheck();
+function _startEKItemEinlagern(itemIdx){
+  ekCheckCurrentIdx=itemIdx;
+  var item=ekCheckList[itemIdx];
+  if(!item||item.eingelagert)return;
+  // Register callback for after doSave
+  window._afterSaveCallback=function(savedScanId){
+    ekCheckList[ekCheckCurrentIdx].eingelagert=true;
+    ekCheckList[ekCheckCurrentIdx].scanId=savedScanId||"";
+    window._afterSaveCallback=null;
+    toast(esc(item.name)+" eingelagert ✅","ok",2500);
+    // Return to EK check list
+    goTabFn("scan-panel");
+    setTimeout(function(){
+      var mc=document.getElementById("mode-chooser");
+      var ep=document.getElementById("ek-check-panel");
+      if(mc)mc.style.display="none";
+      if(ep)ep.style.display="block";
+      ekCheckStep=2;
+      _renderEKCheckStep();
+      _renderEKCheckInfoBar();
+      _renderEKCheckItems();
+    },200);
+  };
+  // Store name to pre-fill
+  window._ekCheckPreFillName=item.name;
+  // Navigate to scan panel einlagern
   goTabFn("scan-panel");
-
   setTimeout(function(){
-    // Set mode to einlagern
+    resetToMode();
     setMode("einlagern");
-    // Pre-fill name hint
-    var hint = document.getElementById("ek-check-item-hint");
-    if(hint) {
-      hint.textContent = "Einlagern: " + item.name;
-      hint.style.display = "block";
-    }
-    // Show a toast with the item name
-    toast('Jetzt einlagern: "'+esc(item.name)+'"', "inf", 5000);
-
-    // After save, hook into doSave callback to mark as checked
-    window._afterSaveCallback = function(savedScanId) {
-      if(window._ekCheckContext) {
-        var ctx = window._ekCheckContext;
-        ekCheckList[ctx.itemIdx].checked = true;
-        ekCheckList[ctx.itemIdx].scanId = savedScanId || "eingelagert";
-        window._ekCheckContext = null;
-        window._afterSaveCallback = null;
-        // Go back to EK check
-        toast(esc(ctx.itemName)+" eingelagert ✅","ok",3000);
-        goTabFn("scan-panel");
-        setTimeout(function(){
-          openEKCheck();
-          ekCheckItem = ekCheckItem;
-          ekCheckStep = 2;
-          _renderEKCheckStep();
-          _renderEKCheckInfo();
-          _renderEKCheckItems();
-        }, 200);
-      }
-    };
-  }, 200);
+    toast('📦 Einlagern: "'+esc(item.name)+'" dann Kategorie wählen',"inf",7000);
+  },200);
 }
 
-function completeEKCheck() {
-  if(!ekCheckItem) return;
-  var btn = document.getElementById("ek-check-complete-btn");
-  if(btn) setBL(btn, true);
-  gasPost("updateEinkauf", {
-    rowIndex: ekCheckItem.rowIndex,
-    status: "Abgeschlossen",
-    lieferstatus: "Zugestellt"
-  }, function(r) {
-    if(btn) setBL(btn, false);
-    if(r && r.ok) {
-      toast("🎉 Einkauf komplett abgeschlossen!","ok",4000);
-      closeEKCheck();
-      loadHandel();
-    } else { toast("Fehler: "+(r?r.fehler:"?"),"err"); }
-  }, function(){ if(btn) setBL(btn,false); toast("Verbindungsfehler","err"); });
+function completeEKCheck(){
+  if(!ekCheckItem)return;
+  var allDone=ekCheckList.every(function(i){return i.eingelagert;});
+  if(!allDone&&!confirm("Nicht alle Artikel eingelagert. Trotzdem abschließen?"))return;
+  var btn=document.getElementById("ek-check-complete-btn");
+  if(btn)setBL(btn,true);
+  gasPost("updateEinkauf",{rowIndex:ekCheckItem.rowIndex,status:"Abgeschlossen",lieferstatus:"Zugestellt"},
+    function(r){
+      if(btn)setBL(btn,false);
+      if(r&&r.ok){toast("🎉 Einkauf abgeschlossen!","ok",4000);closeEKCheck();loadHandel();}
+      else{toast("Fehler: "+(r?r.fehler:"?"),"err");}
+    },function(){if(btn)setBL(btn,false);toast("Verbindungsfehler","err");});
 }
-
-function stopEKCheckScanner() {
-  ekCheckScanActive = false;
-  if(ekCheckScanStream){ ekCheckScanStream.getTracks().forEach(function(t){t.stop();}); ekCheckScanStream=null; }
-}
-
 
 
 // ================================================================
