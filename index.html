@@ -830,16 +830,16 @@ textarea.fc{resize:vertical;min-height:66px}
     <div id="mode-chooser">
       <div style="background:var(--b2);border:1px solid var(--e1);border-radius:var(--r-lg);overflow:hidden">
         <div style="padding:14px 13px;border-bottom:1px solid var(--e1)">
-          <div style="font-family:sans-serif;font-size:22px;font-weight:800;letter-spacing:2px;color:var(--w1)">SCANNER</div>
-          <div style="font-size:11px;color:var(--w3);margin-top:2px;font-weight:500">Aktion wählen</div>
+          <div style="font-size:20px;font-weight:800;color:var(--w1);letter-spacing:1px">SCANNER</div>
+          <div style="font-size:11px;color:var(--w3);margin-top:2px">Aktion wählen</div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
-          <button onclick="setMode('einlagern')" style="padding:22px 8px;border:none;background:none;font-family:sans-serif;font-weight:700;font-size:13px;color:var(--w4);cursor:pointer;border-right:1px solid var(--e1);transition:all .12s;display:flex;flex-direction:column;align-items:center;gap:8px;letter-spacing:.5px" onmouseover="this.style.background='var(--b3)';this.style.color='var(--acc)'" onmouseout="this.style.background='none';this.style.color='var(--w4)'">
-            <span style="font-size:30px">📦</span>EINLAGERN
+          <button onclick="setMode('einlagern')" style="padding:22px 8px;border:none;background:none;font-weight:700;font-size:12px;color:var(--w4);cursor:pointer;border-right:1px solid var(--e1);display:flex;flex-direction:column;align-items:center;gap:8px;letter-spacing:.5px;transition:all .12s" onmouseover="this.style.background='var(--b3)';this.style.color='var(--acc)'" onmouseout="this.style.background='none';this.style.color='var(--w4)'">
+            <span style="font-size:30px">📦</span><span>EINLAGERN</span>
             <span style="font-size:9px;color:var(--w4);font-family:monospace">NEUES PRODUKT</span>
           </button>
-          <button onclick="openEKCheck()" style="padding:22px 8px;border:none;background:none;font-family:sans-serif;font-weight:700;font-size:13px;color:var(--w4);cursor:pointer;transition:all .12s;display:flex;flex-direction:column;align-items:center;gap:8px;letter-spacing:.5px" onmouseover="this.style.background='var(--b3)';this.style.color='var(--col-b)'" onmouseout="this.style.background='none';this.style.color='var(--w4)'">
-            <span style="font-size:30px">📋</span>EINKAUF CHECK
+          <button onclick="openEKCheck()" style="padding:22px 8px;border:none;background:none;font-weight:700;font-size:12px;color:var(--w4);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;letter-spacing:.5px;transition:all .12s" onmouseover="this.style.background='var(--b3)';this.style.color='var(--col-b)'" onmouseout="this.style.background='none';this.style.color='var(--w4)'">
+            <span style="font-size:30px">📋</span><span>EINKAUF CHECK</span>
             <span style="font-size:9px;color:var(--w4);font-family:monospace">PAKET PRÜFEN</span>
           </button>
         </div>
@@ -849,53 +849,33 @@ textarea.fc{resize:vertical;min-height:66px}
     <div id="ek-check-panel" style="display:none">
       <div style="background:var(--b2);border:1px solid var(--e1);border-radius:var(--r-lg);overflow:hidden">
         <div style="padding:11px 13px;border-bottom:1px solid var(--e1);display:flex;align-items:center;justify-content:space-between">
-          <div>
-            <div style="font-family:sans-serif;font-size:16px;font-weight:800;letter-spacing:1px;color:var(--w1)">EINKAUF CHECK</div>
-            <div id="ek-check-progress" style="margin-top:4px"></div>
+          <div style="flex:1">
+            <div id="ek-check-header-title" style="font-size:16px;font-weight:800;letter-spacing:1px;color:var(--w1)">EINKAUF WÄHLEN</div>
           </div>
-          <button onclick="closeEKCheck()" style="background:none;border:1px solid var(--e2);color:var(--w3);border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;font-family:monospace">✕</button>
+          <button onclick="closeEKCheck()" style="background:none;border:1px solid var(--e2);color:var(--w3);border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;font-family:monospace">✕ ZURÜCK</button>
         </div>
         <div style="padding:12px 13px">
-
           <!-- Step 1: Select Einkauf -->
           <div id="ek-check-step1">
-            <div class="slabel">EINKAUF AUSWÄHLEN</div>
-            <div style="font-size:11px;color:var(--w3);margin-bottom:10px">Welches Paket ist angekommen? Zimmer-Nummer steht auf dem Label.</div>
+            <div style="font-size:11px;color:var(--w3);margin-bottom:10px">Welches Paket ist angekommen? Die Zimmer-Nummer steht auf dem Paket-Label.</div>
             <div id="ek-check-einkauf-list"></div>
           </div>
-
-          <!-- Step 2: Checklist + Scan -->
+          <!-- Step 2: Checklist + Einlagern -->
           <div id="ek-check-step2" style="display:none">
             <div id="ek-check-info" style="background:var(--b3);border:1px solid var(--e1);border-radius:var(--r);padding:10px 12px;margin-bottom:12px"></div>
-
-            <div class="slabel">ARTIKEL PRÜFEN</div>
-            <div style="font-size:11px;color:var(--w3);margin-bottom:10px">Jeden Artikel scannen um zu bestätigen dass er angekommen ist.</div>
-
-            <!-- Scan overlay -->
-            <div id="ek-check-scan-wrap" style="display:none;margin-bottom:10px;border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--acc)">
-              <video id="ek-check-scan-video" autoplay playsinline muted style="width:100%;display:block;max-height:180px;object-fit:cover"></video>
-              <canvas id="ek-check-scan-canvas" style="display:none"></canvas>
-              <div style="padding:7px 10px;background:var(--b4);display:flex;justify-content:space-between;align-items:center">
-                <input type="text" id="ek-check-manual-input" class="fc" placeholder="Manuell eingeben..." style="flex:1;margin-right:7px;font-family:monospace;font-size:12px"/>
-                <button onclick="stopEKCheckScanner()" class="btn btn-outline-danger btn-sm"><i class="bi bi-x"></i></button>
-              </div>
-            </div>
-
-            <div id="ek-check-items" style="margin-bottom:12px"></div>
-
-            <div id="ek-check-complete" style="display:none">
-              <div style="background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.2);border-radius:var(--r);padding:12px 13px;margin-bottom:10px;text-align:center">
-                <div style="font-family:sans-serif;font-size:16px;font-weight:800;letter-spacing:1px;color:var(--acc);margin-bottom:5px">✅ ALLE ARTIKEL GEPRÜFT!</div>
-                <div style="font-size:11px;color:var(--w3)">Einkauf als abgeschlossen markieren?</div>
+            <div class="slabel">ARTIKEL PRÜFEN & EINLAGERN</div>
+            <div style="font-size:11px;color:var(--w3);margin-bottom:10px">Artikel anklicken → einlagern → automatisch abhaken</div>
+            <div id="ek-check-items"></div>
+            <div id="ek-check-complete" style="display:none;margin-top:12px">
+              <div style="background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.2);border-radius:var(--r);padding:11px 13px;text-align:center;margin-bottom:10px">
+                <div style="font-size:16px;font-weight:800;color:var(--acc);letter-spacing:1px">✅ ALLE ARTIKEL EINGELAGERT!</div>
+                <div style="font-size:11px;color:var(--w3);margin-top:3px">Einkauf als abgeschlossen markieren?</div>
               </div>
               <button id="ek-check-complete-btn" class="btn btn-primary w-100 fw-bold" onclick="completeEKCheck()" style="letter-spacing:1px">EINKAUF ABSCHLIESSEN →</button>
             </div>
           </div>
-
         </div>
       </div>
-    </div>
-
     </div>
 
     <!-- Cat Chooser -->
@@ -1319,55 +1299,22 @@ textarea.fc{resize:vertical;min-height:66px}
     </div>
     <div class="mbody">
       <div class="diag" id="vk-diag"></div>
-      <!-- Step 1: Produkt mit Scan-per-Item -->
+      <!-- Step 1 -->
       <div id="vks-1">
-        <div class="step-title">ARTIKEL WÄHLEN</div>
-        <div class="step-sub">Barcode scannen oder aus dem Lager wählen.</div>
-
-        <!-- Scan-Zeile: Barcode scannen für direktes Hinzufügen -->
-        <div style="background:var(--b3);border:1px solid var(--e1);border-radius:var(--r);padding:10px 12px;margin-bottom:12px">
-          <div style="font-size:10px;font-weight:700;color:var(--acc);margin-bottom:7px;font-family:'Space Mono',monospace;letter-spacing:.5px">📱 ARTIKEL PER BARCODE HINZUFÜGEN</div>
-          <div style="display:flex;gap:6px">
-            <input type="text" id="vk-scan-add-input" class="fc" placeholder="Barcode scannen oder eingeben..." style="flex:1;font-family:'Space Mono',monospace" onkeydown="if(event.key==='Enter')vkScanAdd()"/>
-            <button class="btn btn-primary btn-sm" onclick="openVKScannerAdd()" title="Kamera"><i class="bi bi-upc-scan"></i></button>
-            <button class="btn btn-outline-success btn-sm" onclick="vkScanAdd()" title="Hinzufügen"><i class="bi bi-plus-lg"></i></button>
-          </div>
-          <!-- Scan overlay for adding items -->
-          <div id="vk-scan-add-wrap" style="display:none;margin-top:8px;border-radius:var(--r);overflow:hidden;border:1px solid var(--acc)">
-            <video id="vk-scan-add-video" autoplay playsinline muted style="width:100%;display:block;max-height:180px;object-fit:cover"></video>
-            <canvas id="vk-scan-add-canvas" style="display:none"></canvas>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--b4)">
-              <span style="font-size:10px;color:var(--acc);font-family:'Space Mono',monospace">BARCODE HALTEN → AUTO-ERKANNT</span>
-              <button class="btn btn-outline-danger btn-sm" onclick="stopVKScannerAdd()"><i class="bi bi-x"></i></button>
-            </div>
-          </div>
+        <div class="step-title">PRODUKT</div>
+        <div class="step-sub">Welchen Artikel verkaufst du?</div>
+        <div style="display:flex;gap:6px;margin-bottom:7px">
+          <input type="text" id="vk-produkte" class="fc" placeholder="produktname..." style="flex:1"/>
+          <button type="button" onclick="openVKMultiSelect()" class="btn btn-outline-success btn-sm" title="Mehrere Artikel"><i class="bi bi-collection"></i></button>
+          <button type="button" onclick="openVKProductPicker()" class="btn btn-outline-primary btn-sm" title="Aus Lager"><i class="bi bi-box-seam"></i></button>
+          <button type="button" onclick="openVKScanner()" class="btn btn-outline-secondary btn-sm" title="Scannen"><i class="bi bi-upc-scan"></i></button>
         </div>
-
-        <!-- Added items list with per-item pricing -->
-        <div id="vk-items-list" style="margin-bottom:10px"></div>
-
-        <!-- Manual add -->
-        <div style="border-top:1px solid var(--e1);padding-top:10px;margin-top:2px">
-          <div style="font-size:9px;color:var(--w4);font-family:'Space Mono',monospace;letter-spacing:.5px;margin-bottom:7px">ODER MANUELL</div>
-          <div style="display:flex;gap:6px;margin-bottom:7px">
-            <input type="text" id="vk-produkte" class="fc" placeholder="Produktname manuell eingeben..." style="flex:1"/>
-            <button type="button" onclick="openVKMultiSelect()" class="btn btn-outline-success btn-sm" title="Aus Lager wählen"><i class="bi bi-collection"></i></button>
-          </div>
-          <div id="vk-multi-chips" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:7px"></div>
-          <div id="vk-product-info" style="display:none;background:var(--b3);border:1px solid var(--e2);border-radius:var(--r);padding:7px 10px;font-size:10px;color:var(--w3);margin-bottom:8px;font-family:'Space Mono',monospace"></div>
-          <input type="hidden" id="vk-scanid"/>
-        </div>
-
-        <!-- Gesamtpreis -->
-        <div style="background:var(--b3);border:1px solid var(--e1);border-radius:var(--r);padding:10px 12px;margin-top:8px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <span style="font-size:10px;font-weight:700;color:var(--w4);font-family:'Space Mono',monospace;letter-spacing:.5px">VERKAUFSPREISE</span>
-            <span style="font-size:12px;font-weight:700;color:var(--acc);font-family:'Space Mono',monospace" id="vk-total-display">∑ 0.00€</span>
-          </div>
-          <div class="row g-2">
-            <div class="col-6"><label class="fl">VERKAUFSPREIS (€) *</label><input type="number" id="vk-preis" class="fc" placeholder="0.00" style="font-family:'Space Mono',monospace" oninput="updateVKTotals()"/></div>
-            <div class="col-6"><label class="fl">VERSANDKOSTEN (€)</label><input type="number" id="vk-versand" class="fc" placeholder="0.00" style="font-family:'Space Mono',monospace"/></div>
-          </div>
+        <div id="vk-multi-chips" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:7px"></div>
+        <div id="vk-product-info" style="display:none;background:var(--b3);border:1px solid var(--e2);border-radius:var(--r);padding:7px 10px;font-size:10px;color:var(--w3);margin-bottom:8px;font-family:'Space Mono',monospace"></div>
+        <input type="hidden" id="vk-scanid"/>
+        <div class="row g-2">
+          <div class="col-6"><label class="fl">PREIS (€) *</label><input type="number" id="vk-preis" class="fc" placeholder="0.00" style="font-family:'Space Mono',monospace"/></div>
+          <div class="col-6"><label class="fl">VERSAND (€)</label><input type="number" id="vk-versand" class="fc" placeholder="0.00" style="font-family:'Space Mono',monospace"/></div>
         </div>
       </div>
       <!-- Step 2 -->
@@ -1464,17 +1411,17 @@ textarea.fc{resize:vertical;min-height:66px}
   </div>
 </div>
 
-<!-- Einkauf Modal - Full Stepper like Verkauf -->
+<!-- Einkauf Modal - 2 Steps -->
 <div class="moverlay" id="ek-modal">
   <div class="msheet">
     <div class="mhead">
       <div style="flex:1">
         <h3 id="ek-modal-title">EINKAUF</h3>
         <div style="margin-top:3px">
-          <div class="progress"><div class="progress-bar" id="ek-prog" style="width:25%"></div></div>
+          <div class="progress"><div class="progress-bar" id="ek-prog" style="width:50%"></div></div>
           <div style="display:flex;justify-content:space-between;margin-top:2px">
-            <span style="font-size:9px;color:var(--w4);font-family:'Space Mono',monospace" id="ek-step-lbl">STEP 1/4</span>
-            <span style="font-size:9px;color:var(--acc);font-family:'Space Mono',monospace" id="ek-step-name">ARTIKEL</span>
+            <span style="font-size:9px;color:var(--w4);font-family:monospace" id="ek-step-lbl">STEP 1/2</span>
+            <span style="font-size:9px;color:var(--acc);font-family:monospace" id="ek-step-name">ARTIKEL</span>
           </div>
         </div>
       </div>
@@ -1482,20 +1429,14 @@ textarea.fc{resize:vertical;min-height:66px}
     </div>
     <div class="mbody">
       <div class="diag" id="ek-diag"></div>
-
-      <!-- EK Step 1: Artikel & Lieferant -->
       <div id="eks-1">
-        <div class="step-title">ARTIKEL & LIEFERANT</div>
-        <div class="step-sub">Was wird eingekauft? Von wem?</div>
-        <div class="mb-2">
-          <label class="fl">PRODUKT(E) *</label>
-          <div style="display:flex;gap:6px;margin-bottom:6px">
-            <textarea id="ek-produkte" class="fc" rows="2" placeholder="z.B. iPhone 14, PS5 Controller...&#10;Mehrere Artikel pro Zeile"></textarea>
-          </div>
-        </div>
+        <div class="step-title">ARTIKEL & KUNDE</div>
+        <div class="step-sub">Welche Artikel? Von wem?</div>
+        <label class="fl">PRODUKTE *</label>
+        <div id="ek-produkte-list" style="margin-bottom:10px"></div>
         <div class="row g-2 mb-2">
-          <div class="col-6"><label class="fl">LIEFERANT *</label><input type="text" id="ek-kunde" class="fc" placeholder="Name oder Nutzername"/></div>
-          <div class="col-6"><label class="fl">GESAMTPREIS (€) *</label><input type="number" id="ek-preis" class="fc" placeholder="0.00" step="0.01" style="font-family:'Space Mono',monospace"/></div>
+          <div class="col-6"><label class="fl">KUNDE *</label><input type="text" id="ek-kunde" class="fc" placeholder="Name des Verkäufers"/></div>
+          <div class="col-6"><label class="fl">GESAMTPREIS (€)</label><input type="number" id="ek-preis" class="fc" placeholder="0.00" step="0.01" style="font-family:monospace"/></div>
         </div>
         <div class="row g-2 mb-2">
           <div class="col-6"><label class="fl">PLATTFORM</label>
@@ -1503,26 +1444,26 @@ textarea.fc{resize:vertical;min-height:66px}
           </div>
           <div class="col-6"><label class="fl">ZIMMER / LAGERORT</label><input type="text" id="ek-zimmer" class="fc" placeholder="z.B. Zimmer 001"/></div>
         </div>
-        <div class="mb-2"><label class="fl">ADRESSE DES LIEFERANTEN</label><input type="text" id="ek-adresse" class="fc" placeholder="optional – für Selbstabholung"/></div>
       </div>
-
-      <!-- EK Step 2: Versand & Tracking -->
       <div id="eks-2" style="display:none">
         <div class="step-title">VERSAND & TRACKING</div>
-        <div class="step-sub">Wie kommt die Ware zu dir?</div>
+        <div class="step-sub">Sendung tracken → Einkauf wird als Vorgemerkt gespeichert.</div>
+        <div style="background:rgba(0,255,136,.05);border:1px solid rgba(0,255,136,.15);border-radius:var(--r);padding:10px 12px;margin-bottom:12px;font-size:11px;color:var(--w3)">
+          💡 Nach dem Speichern: Paket abwarten → über <strong style="color:var(--acc)">EINKAUF CHECK</strong> einlagern.
+        </div>
         <div class="mb-3">
           <label class="fl mb-2">LIEFERART</label>
           <div class="cg2">
-            <button class="cbtn" id="ekv-versand" onclick="selEKVersand('Versand')"><span class="ci">📦</span>VERSAND</button>
-            <button class="cbtn" id="ekv-abholung" onclick="selEKVersand('Abholung')"><span class="ci">🚶</span>SELBSTABHOLUNG</button>
+            <button class="cbtn sel" id="ekv-versand" onclick="selEKVersand('Versand')"><span class="ci">📦</span>VERSAND</button>
+            <button class="cbtn" id="ekv-abholung" onclick="selEKVersand('Abholung')"><span class="ci">🚶</span>ABHOLUNG</button>
           </div>
           <input type="hidden" id="ek-abholung" value="NEIN"/>
         </div>
         <div id="ek-versand-fields">
           <div class="row g-2 mb-2">
-            <div class="col-7"><label class="fl">SENDENUMMER</label><input type="text" id="ek-sende" class="fc" placeholder="Tracking-Nummer" style="font-family:'Space Mono',monospace" oninput="onEKSendeInput()"/></div>
+            <div class="col-7"><label class="fl">SENDENUMMER</label><input type="text" id="ek-sende" class="fc" placeholder="Tracking-Nr." style="font-family:monospace" oninput="onEKSendeInput()"/></div>
             <div class="col-5"><label class="fl">DIENSTLEISTER</label>
-              <select id="ek-vdl" class="fc"><option value=""></option><option>DHL</option><option>Hermes</option><option>DPD</option><option>UPS</option><option>GLS</option><option>Deutsche Post</option></select>
+              <select id="ek-vdl" class="fc"><option value=""></option><option>DHL</option><option>Hermes</option><option>DPD</option><option>UPS</option><option>GLS</option></select>
             </div>
           </div>
           <div id="ek-track-link" style="display:none;margin-bottom:8px">
@@ -1535,74 +1476,14 @@ textarea.fc{resize:vertical;min-height:66px}
             <div class="col-6"><label class="fl">ABHOLORT</label><input type="text" id="ek-abhol-ort" class="fc" placeholder="Adresse"/></div>
           </div>
         </div>
-        <div class="mb-2">
-          <label class="fl">LIEFERSTATUS</label>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
-            <button class="cbtn" id="ekst-bestellt" onclick="selEKStatus('Bestellt')"><span class="ci" style="font-size:15px">🛒</span>BESTELLT</button>
-            <button class="cbtn" id="ekst-bezahlt" onclick="selEKStatus('Bezahlt')"><span class="ci" style="font-size:15px">💳</span>BEZAHLT</button>
-            <button class="cbtn" id="ekst-versendet" onclick="selEKStatus('Versendet')"><span class="ci" style="font-size:15px">📦</span>VERSENDET</button>
-            <button class="cbtn" id="ekst-angekommen" onclick="selEKStatus('Angekommen')"><span class="ci" style="font-size:15px">✅</span>ANGEKOMMEN</button>
-          </div>
-          <input type="hidden" id="ek-status" value="Bestellt"/>
-        </div>
-      </div>
-
-      <!-- EK Step 3: Wareneingang Checkliste -->
-      <div id="eks-3" style="display:none">
-        <div class="step-title">WARENEINGANG</div>
-        <div class="step-sub">Paket erhalten? Artikel prüfen und abhaken.</div>
-        <!-- Dynamic checklist based on products entered -->
-        <div id="ek-checklist-wrap" style="margin-bottom:12px"></div>
-        <div style="background:rgba(0,255,136,.05);border:1px solid rgba(0,255,136,.2);border-radius:var(--r);padding:10px 12px;margin-bottom:12px">
-          <div style="font-size:10px;font-weight:700;color:var(--acc);margin-bottom:5px;font-family:'Space Mono',monospace;letter-spacing:.5px">💡 PRÜF-PROTOKOLL</div>
-          <div style="font-size:11px;color:var(--w3);line-height:1.8">
-            1. Paket auf äußere Schäden prüfen<br>
-            2. Alle bestellten Artikel vorhanden?<br>
-            3. Elektronik kurz testen<br>
-            4. Fotos machen (Pflicht)
-          </div>
-        </div>
-        <label class="fl">ZUSTAND BEI EINGANG</label>
-        <div class="cg2 mb-2">
-          <button class="cbtn" id="ek-zust-ok" onclick="selEKZustand('Einwandfrei')"><span class="ci">✅</span>EINWANDFREI</button>
-          <button class="cbtn" id="ek-zust-beschaedigt" onclick="selEKZustand('Beschädigt')"><span class="ci">⚠️</span>BESCHÄDIGT</button>
-        </div>
-        <input type="hidden" id="ek-zustand" value=""/>
-        <div id="ek-schaden-field" style="display:none;margin-bottom:8px">
-          <label class="fl">SCHADENSBESCHREIBUNG</label>
-          <textarea id="ek-schaden" class="fc" rows="2" placeholder="Schaden genau beschreiben..."></textarea>
-        </div>
-        <div class="mb-2"><label class="fl">HINWEISE</label><textarea id="ek-hinweise" class="fc" rows="2" placeholder="Notizen zum Wareneingang..."></textarea></div>
-      </div>
-
-      <!-- EK Step 4: Abschluss -->
-      <div id="eks-4" style="display:none">
-        <div class="step-title">ABSCHLUSS</div>
-        <div class="step-sub">Letzte Details und Speichern.</div>
-        <div class="row g-2 mb-2">
-          <div class="col-6"><label class="fl">MITARBEITER</label><input type="text" id="ek-ma" class="fc"/></div>
-          <div class="col-6"><label class="fl">LIEFERSTATUS</label>
-            <select id="ek-lieferstatus" class="fc"><option>Ausstehend</option><option>In Bearbeitung</option><option>Versendet</option><option>Unterwegs</option><option>Zugestellt</option><option>Problem</option></select>
-          </div>
-        </div>
-        <!-- Summary box -->
-        <div id="ek-summary" style="background:var(--b3);border:1px solid var(--e2);border-radius:var(--r);padding:11px 12px;font-size:11px;color:var(--w3);font-family:'Space Mono',monospace;margin-bottom:10px"></div>
-        <!-- Storno option for existing entries -->
-        <div id="ek-storno-section" style="display:none;border-top:1px solid var(--e1);padding-top:10px;margin-top:4px">
+        <div class="row g-2 mb-2"><div class="col-6"><label class="fl">MITARBEITER</label><input type="text" id="ek-ma" class="fc"/></div></div>
+        <div class="mb-2"><label class="fl">HINWEISE</label><textarea id="ek-hinweise" class="fc" rows="2"></textarea></div>
+        <div id="ek-products-summary" style="display:none;background:var(--b3);border:1px solid var(--e1);border-radius:var(--r);padding:10px 12px;font-size:11px;color:var(--w3);font-family:monospace;margin-top:8px"></div>
+        <div id="ek-storno-section" style="display:none;border-top:1px solid var(--e1);padding-top:10px;margin-top:10px">
           <div class="slabel" style="color:var(--col-r)">STORNIERUNG</div>
-          <div class="mb-2"><label class="fl">STORNO-GRUND *</label>
-            <select id="ek-storno-grund" class="fc">
-              <option value="">– Grund wählen –</option>
-              <option>Artikel nicht erhalten</option>
-              <option>Falscher Artikel</option>
-              <option>Qualitätsmängel</option>
-              <option>Lieferant unzuverlässig</option>
-              <option>Preis nicht akzeptabel</option>
-              <option>Sonstiges</option>
-            </select>
-          </div>
-          <div class="mb-2"><label class="fl">STORNO-NOTIZ</label><textarea id="ek-storno-notiz" class="fc" rows="2" placeholder="Details zum Storno..."></textarea></div>
-          <button class="btn btn-danger w-100 fw-bold" onclick="stornoEinkauf()"><i class="bi bi-x-circle me-1"></i>EINKAUF STORNIEREN</button>
+          <select id="ek-storno-grund" class="fc mb-2"><option value="">– Storno-Grund –</option><option>Artikel nicht erhalten</option><option>Falscher Artikel</option><option>Qualitätsmängel</option><option>Preis nicht akzeptabel</option><option>Sonstiges</option></select>
+          <textarea id="ek-storno-notiz" class="fc mb-2" rows="2" placeholder="Details..."></textarea>
+          <button class="btn btn-danger w-100 fw-bold" onclick="stornoEinkauf()"><i class="bi bi-x-circle me-1"></i>STORNIEREN</button>
         </div>
       </div>
     </div>
@@ -1610,7 +1491,166 @@ textarea.fc{resize:vertical;min-height:66px}
       <button class="btn btn-outline-secondary" id="ek-back-btn" onclick="ekStepNav(-1)" disabled><i class="bi bi-arrow-left"></i></button>
       <button class="btn btn-outline-danger btn-sm" id="ek-del-btn" onclick="deleteHandelEntry('einkauf')" style="display:none"><i class="bi bi-trash3"></i></button>
       <button class="btn btn-primary px-4 fw-bold" id="ek-next-btn" onclick="ekStepNav(1)">WEITER <i class="bi bi-arrow-right ms-1"></i></button>
-      <button class="btn btn-primary px-4 fw-bold" id="ek-save-btn" style="display:none" onclick="saveEKForm()"><i class="bi bi-check-lg me-1"></i>SPEICHERN</button>
+      <button class="btn btn-success px-4 fw-bold" id="ek-save-btn" style="display:none" onclick="saveEKForm()"><i class="bi bi-bookmark-check me-1"></i>VORMERKEN</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm -->
+<div class="moverlay" id="del-modal">
+  <div class="msheet">
+    <div class="mhead"><h3>LÖSCHEN?</h3><button class="btn btn-sm btn-outline-secondary" onclick="closeDelModal()"><i class="bi bi-x-lg"></i></button></div>
+    <div class="mbody"><p id="del-modal-text" style="color:var(--w3);font-size:13px;margin:0;font-family:'Space Mono',monospace"></p></div>
+    <div class="mfoot">
+      <button class="btn btn-outline-secondary btn-sm" onclick="closeDelModal()">ABBRECHEN</button>
+      <button class="btn btn-danger fw-bold" id="del-modal-confirm"><i class="bi bi-trash3 me-1"></i>LÖSCHEN</button>
+    </div>
+  </div>
+</div>
+
+<!-- Account Modal -->
+<div class="moverlay" id="acc-modal">
+  <div class="msheet">
+    <div class="mhead"><h3>TEAM & ACCOUNTS</h3><button class="btn btn-sm btn-outline-secondary" onclick="closeAccModal()"><i class="bi bi-x-lg"></i></button></div>
+    <div class="mbody" style="padding:0">
+      <div style="display:flex;border-bottom:1px solid var(--e1)">
+        <button id="acctab-team"    onclick="setAccTab('team')"    style="flex:1;padding:10px 6px;border:none;background:var(--b3);font-family:'Space Mono',monospace;font-size:10px;font-weight:700;color:var(--acc);cursor:pointer;border-bottom:2px solid var(--acc);letter-spacing:.5px;text-transform:uppercase">TEAM</button>
+        <button id="acctab-invite"  onclick="setAccTab('invite')"  style="flex:1;padding:10px 6px;border:none;background:none;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;color:var(--w4);cursor:pointer;border-bottom:2px solid transparent;letter-spacing:.5px;text-transform:uppercase">EINLADEN</button>
+        <button id="acctab-reports" onclick="setAccTab('reports')" style="flex:1;padding:10px 6px;border:none;background:none;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;color:var(--w4);cursor:pointer;border-bottom:2px solid transparent;letter-spacing:.5px;text-transform:uppercase">BERICHTE</button>
+      </div>
+      <div style="padding:13px">
+        <div class="diag" id="acc-diag"></div>
+        <div id="accpanel-team"><div class="slabel">MITARBEITER</div><div id="acc-list"><div style="text-align:center;padding:16px;color:var(--w4);font-family:'Space Mono',monospace;font-size:10px"><span class="spin-b"></span></div></div></div>
+        <div id="accpanel-invite" style="display:none">
+          <div class="slabel">EINLADEN PER EMAIL</div>
+          <div class="mb-2"><label class="fl">NAME *</label><input type="text" id="acc-name-in" class="fc" placeholder="vorname nachname" autocomplete="off"/></div>
+          <div class="mb-2"><label class="fl">E-MAIL *</label><input type="email" id="acc-email-in" class="fc" placeholder="mitarbeiter@email.de"/></div>
+          <div class="mb-3"><label class="fl">ROLLE</label>
+            <select id="acc-rolle-in" class="fc"><option value="mitarbeiter">Mitarbeiter</option><option value="senior">Senior</option><option value="owner">Inhaber</option></select>
+          </div>
+          <button class="btn btn-primary w-100 fw-bold mb-2" onclick="sendInvite()"><i class="bi bi-envelope me-2"></i>EINLADUNG SENDEN</button>
+          <div style="background:var(--b3);border-radius:var(--r);padding:9px 11px;font-size:10px;color:var(--w4);line-height:1.7;font-family:'Space Mono',monospace">Der Mitarbeiter erhält einen Aktivierungslink + Haftungsklausel.</div>
+        </div>
+        <div id="accpanel-reports" style="display:none">
+          <div class="slabel">BERICHTE</div>
+          <div style="background:var(--b3);border:1px solid var(--e1);border-radius:var(--r);padding:12px;margin-bottom:9px">
+            <div style="font-size:12px;font-weight:700;color:var(--w1);margin-bottom:3px;font-family:'Space Mono',monospace">PDF MONATSBERICHT</div>
+            <div style="font-size:10px;color:var(--w4);margin-bottom:9px;font-family:'Space Mono',monospace">Verkauf + Einkauf → ReTechnologies42@gmail.com</div>
+            <button class="btn btn-outline-secondary w-100 btn-sm" onclick="triggerPDFExport()"><i class="bi bi-file-pdf me-2" style="color:var(--col-r)"></i>JETZT SENDEN</button>
+          </div>
+          <div style="background:var(--b3);border:1px solid var(--e1);border-radius:var(--r);padding:12px">
+            <div style="font-size:10px;color:var(--w3);font-family:'Space Mono',monospace">Auto: jeden 1. des Monats via GAS-Trigger</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Reklamation Modal - Stepper -->
+<div class="moverlay" id="rt-modal">
+  <div class="msheet">
+    <div class="mhead">
+      <div style="flex:1">
+        <h3>REKLAMATION</h3>
+        <div style="margin-top:3px">
+          <div class="progress"><div class="progress-bar" id="rt-prog" style="width:33%"></div></div>
+          <div style="display:flex;justify-content:space-between;margin-top:2px">
+            <span style="font-size:9px;color:var(--w4);font-family:monospace" id="rt-step-lbl">STEP 1/3</span>
+            <span style="font-size:9px;color:var(--acc);font-family:monospace" id="rt-step-name">PRODUKT</span>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-sm btn-outline-secondary" onclick="closeRTModal()" style="margin-left:10px"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="mbody">
+      <div class="diag" id="rt-diag"></div>
+      <input type="hidden" id="rt-verkauf-zeile" value=""/>
+      <div id="rts-1">
+        <div class="step-title">PRODUKT & KUNDE</div>
+        <div class="step-sub">Was wird reklamiert? Von wem?</div>
+        <div class="mb-2"><label class="fl">PRODUKT *</label><input type="text" id="rt-produkt" class="fc" placeholder="Produktname"/></div>
+        <div class="row g-2 mb-2">
+          <div class="col-6"><label class="fl">KUNDE</label><input type="text" id="rt-kunde" class="fc" placeholder="Name"/></div>
+          <div class="col-6"><label class="fl">SCAN-ID</label>
+            <div style="display:flex;gap:5px">
+              <input type="text" id="rt-scanid" class="fc" placeholder="optional" style="font-family:monospace"/>
+              <button class="btn btn-outline-secondary btn-sm" onclick="openRTScanner()"><i class="bi bi-upc-scan"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="rts-2" style="display:none">
+        <div class="step-title">REKLAMATIONSGRUND</div>
+        <div class="step-sub">Was ist der Grund der Reklamation?</div>
+        <div class="mb-3">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px">
+            <button class="cbtn" id="rtg-defekt" onclick="selRTGrund('Defekt erhalten')"><span class="ci" style="font-size:17px">🔧</span>DEFEKT</button>
+            <button class="cbtn" id="rtg-falsch" onclick="selRTGrund('Falsches Produkt')"><span class="ci" style="font-size:17px">❌</span>FALSCHES PRODUKT</button>
+            <button class="cbtn" id="rtg-beschaedigt" onclick="selRTGrund('Beschädigte Verpackung')"><span class="ci" style="font-size:17px">📦</span>BESCHÄDIGT</button>
+            <button class="cbtn" id="rtg-nonfunc" onclick="selRTGrund('Nicht funktionsfähig')"><span class="ci" style="font-size:17px">⚠️</span>NICHT FUNKTIONSFÄHIG</button>
+            <button class="cbtn" id="rtg-sonstiges" onclick="selRTGrund('Sonstiges')" style="grid-column:1/-1"><span class="ci" style="font-size:17px">💬</span>SONSTIGES</button>
+          </div>
+          <input type="hidden" id="rt-grund" value=""/>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col-6"><label class="fl">STATUS</label>
+            <select id="rt-status" class="fc"><option>Offen</option><option>In Bearbeitung</option><option>Erstattet</option><option>Abgelehnt</option></select>
+          </div>
+          <div class="col-6"><label class="fl">ERSTATTUNG (€)</label><input type="number" id="rt-erstattung" class="fc" placeholder="0.00" style="font-family:monospace"/></div>
+        </div>
+        <div class="mb-2"><label class="fl">HINWEISE</label><textarea id="rt-hinweise" class="fc" rows="2"></textarea></div>
+      </div>
+      <div id="rts-3" style="display:none">
+        <div class="step-title">ABSCHLUSS</div>
+        <div class="step-sub">Zusammenfassung und speichern.</div>
+        <div id="rt-summary" style="background:var(--b3);border:1px solid var(--e2);border-radius:var(--r);padding:11px 12px;font-size:11px;color:var(--w3);font-family:monospace;margin-bottom:12px;line-height:1.8"></div>
+        <div class="mb-2"><label class="fl">MITARBEITER</label><input type="text" id="rt-ma" class="fc"/></div>
+      </div>
+    </div>
+    <div style="padding:10px 13px;border-top:1px solid var(--e1);display:flex;gap:7px;justify-content:space-between">
+      <button class="btn btn-outline-secondary" id="rt-back-btn" onclick="rtStepNav(-1)" disabled><i class="bi bi-arrow-left"></i></button>
+      <button class="btn btn-primary px-4 fw-bold" id="rt-next-btn" onclick="rtStepNav(1)">WEITER <i class="bi bi-arrow-right ms-1"></i></button>
+      <button class="btn btn-danger px-4 fw-bold" id="rt-save-btn" style="display:none" onclick="saveRTForm()"><i class="bi bi-check-lg me-1"></i>SPEICHERN</button>
+    </div>
+  </div>
+</div>
+
+<!-- China Modal -->
+<div class="moverlay" id="china-modal">
+  <div class="msheet">
+    <div class="mhead"><h3>CHINA IMPORT</h3><button class="btn btn-sm btn-outline-secondary" onclick="closeChinaModal()"><i class="bi bi-x-lg"></i></button></div>
+    <div class="mbody">
+      <div class="diag" id="china-diag"></div>
+      <div class="row g-2 mb-2">
+        <div class="col-8"><label class="fl">BESCHREIBUNG *</label><input type="text" id="cn-desc" class="fc" placeholder="z.B. 50x iphone hüllen"/></div>
+        <div class="col-4"><label class="fl">ANZAHL</label><input type="number" id="cn-qty" class="fc" placeholder="50" style="font-family:'Space Mono',monospace"/></div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-4"><label class="fl">WARENWERT (€)</label><input type="number" id="cn-wert" class="fc" placeholder="0.00" oninput="calcChinaCosts()" style="font-family:'Space Mono',monospace"/></div>
+        <div class="col-4"><label class="fl">FRACHT (€)</label><input type="number" id="cn-fracht" class="fc" placeholder="0.00" oninput="calcChinaCosts()" style="font-family:'Space Mono',monospace"/></div>
+        <div class="col-4"><label class="fl">ZOLL (€)</label><input type="number" id="cn-zoll" class="fc" placeholder="0.00" oninput="calcChinaCosts()" style="font-family:'Space Mono',monospace"/></div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-6"><label class="fl">LIEFERANT</label><input type="text" id="cn-supplier" class="fc" placeholder="z.B. alibaba"/></div>
+        <div class="col-6"><label class="fl">STATUS</label>
+          <select id="cn-status" class="fc"><option>Bestellt</option><option>Unterwegs</option><option>Angekommen</option><option>Eingelagert</option></select>
+        </div>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-6"><label class="fl">BESTELLDATUM</label><input type="date" id="cn-date" class="fc"/></div>
+        <div class="col-6"><label class="fl">TRACKING-NR.</label><input type="text" id="cn-track" class="fc" placeholder="optional" style="font-family:'Space Mono',monospace"/></div>
+      </div>
+      <div id="cn-cost-summary" style="display:none;background:var(--b3);border:1px solid var(--e2);border-radius:var(--r);padding:9px 11px;margin-top:7px;font-family:'Space Mono',monospace;font-size:11px">
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--w3)">GESAMT:</span><span style="font-weight:700;color:var(--w1)" id="cn-total-preview">–</span></div>
+        <div style="display:flex;justify-content:space-between;margin-top:3px"><span style="color:var(--w3)">PRO STÜCK:</span><span style="font-weight:700;color:var(--col-y)" id="cn-per-item">–</span></div>
+      </div>
+      <div class="mb-2 mt-2"><label class="fl">HINWEISE</label><textarea id="cn-notes" class="fc" rows="2"></textarea></div>
+    </div>
+    <div class="mfoot">
+      <button class="btn btn-outline-danger btn-sm" id="cn-del-btn" style="display:none" onclick="deleteChinaEntry()"><i class="bi bi-trash3"></i></button>
+      <button class="btn btn-outline-secondary btn-sm" onclick="closeChinaModal()">ABBRECHEN</button>
+      <button class="btn btn-primary fw-bold" onclick="saveChinaEntry()"><i class="bi bi-check-lg me-1"></i>SPEICHERN</button>
     </div>
   </div>
 </div>
@@ -1850,86 +1890,5 @@ textarea.fc{resize:vertical;min-height:66px}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="app.js"></script>
-<!-- Reklamation Modal - Stepper -->
-<div class="moverlay" id="rt-modal">
-  <div class="msheet">
-    <div class="mhead">
-      <div style="flex:1">
-        <h3>REKLAMATION</h3>
-        <div style="margin-top:3px">
-          <div class="progress"><div class="progress-bar" id="rt-prog" style="width:33%"></div></div>
-          <div style="display:flex;justify-content:space-between;margin-top:2px">
-            <span style="font-size:9px;color:var(--w4);font-family:monospace" id="rt-step-lbl">STEP 1/3</span>
-            <span style="font-size:9px;color:var(--acc);font-family:monospace" id="rt-step-name">PRODUKT</span>
-          </div>
-        </div>
-      </div>
-      <button class="btn btn-sm btn-outline-secondary" onclick="closeRTModal()" style="margin-left:10px"><i class="bi bi-x-lg"></i></button>
-    </div>
-    <div class="mbody">
-      <div class="diag" id="rt-diag"></div>
-      <input type="hidden" id="rt-verkauf-zeile" value=""/>
-
-      <!-- Step 1: Produkt & Kunde -->
-      <div id="rts-1">
-        <div class="step-title">PRODUKT & KUNDE</div>
-        <div class="step-sub">Was wird reklamiert? Von wem?</div>
-        <div class="row g-2 mb-2"><div class="col-12"><label class="fl">PRODUKT *</label><input type="text" id="rt-produkt" class="fc" placeholder="Produktname"/></div></div>
-        <div class="row g-2 mb-2">
-          <div class="col-6"><label class="fl">KUNDE</label><input type="text" id="rt-kunde" class="fc" placeholder="Name"/></div>
-          <div class="col-6"><label class="fl">SCAN-ID</label>
-            <div style="display:flex;gap:5px">
-              <input type="text" id="rt-scanid" class="fc" placeholder="optional" style="font-family:monospace"/>
-              <button class="btn btn-outline-secondary btn-sm" onclick="openRTScanner()" title="Scannen"><i class="bi bi-upc-scan"></i></button>
-            </div>
-          </div>
-        </div>
-        <div class="mb-2"><label class="fl">PRODUKT IM LAGER SUCHEN</label>
-          <div style="background:var(--b3);border:1px solid var(--e1);border-radius:var(--r);padding:8px 11px;font-size:11px;color:var(--w3)">
-            Scan-ID eingeben oder <span style="color:var(--acc);cursor:pointer" onclick="goTabFn('list-panel');closeRTModal()">im Lager suchen</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Step 2: Grund & Status -->
-      <div id="rts-2" style="display:none">
-        <div class="step-title">GRUND & STATUS</div>
-        <div class="step-sub">Was ist der Reklamationsgrund?</div>
-        <div class="mb-3">
-          <label class="fl mb-2">REKLAMATIONSGRUND *</label>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
-            <button class="cbtn" id="rtg-defekt" onclick="selRTGrund('Defekt erhalten')"><span class="ci" style="font-size:17px">🔧</span>DEFEKT ERHALTEN</button>
-            <button class="cbtn" id="rtg-falsch" onclick="selRTGrund('Falsches Produkt')"><span class="ci" style="font-size:17px">❌</span>FALSCHES PRODUKT</button>
-            <button class="cbtn" id="rtg-beschaedigt" onclick="selRTGrund('Beschädigte Verpackung')"><span class="ci" style="font-size:17px">📦</span>BESCHÄDIGT</button>
-            <button class="cbtn" id="rtg-nonfunc" onclick="selRTGrund('Nicht funktionsfähig')"><span class="ci" style="font-size:17px">⚠️</span>NICHT FUNKTIONSFÄHIG</button>
-            <button class="cbtn" id="rtg-sonstiges" onclick="selRTGrund('Sonstiges')" style="grid-column:1/-1"><span class="ci" style="font-size:17px">💬</span>SONSTIGES</button>
-          </div>
-          <input type="hidden" id="rt-grund" value=""/>
-        </div>
-        <div class="row g-2 mb-2">
-          <div class="col-6"><label class="fl">STATUS</label>
-            <select id="rt-status" class="fc"><option>Offen</option><option>In Bearbeitung</option><option>Erstattet</option><option>Abgelehnt</option></select>
-          </div>
-          <div class="col-6"><label class="fl">ERSTATTUNG (€)</label><input type="number" id="rt-erstattung" class="fc" placeholder="0.00" style="font-family:monospace"/></div>
-        </div>
-        <div class="mb-2"><label class="fl">HINWEISE</label><textarea id="rt-hinweise" class="fc" rows="2" placeholder="Details zur Reklamation..."></textarea></div>
-      </div>
-
-      <!-- Step 3: Abschluss -->
-      <div id="rts-3" style="display:none">
-        <div class="step-title">ABSCHLUSS</div>
-        <div class="step-sub">Zusammenfassung und speichern.</div>
-        <div id="rt-summary" style="background:var(--b3);border:1px solid var(--e2);border-radius:var(--r);padding:11px 12px;font-size:11px;color:var(--w3);font-family:monospace;margin-bottom:12px;line-height:1.8"></div>
-        <div class="mb-2"><label class="fl">MITARBEITER</label><input type="text" id="rt-ma" class="fc"/></div>
-      </div>
-    </div>
-    <div style="padding:10px 13px;border-top:1px solid var(--e1);display:flex;gap:7px;justify-content:space-between">
-      <button class="btn btn-outline-secondary" id="rt-back-btn" onclick="rtStepNav(-1)" disabled><i class="bi bi-arrow-left"></i></button>
-      <button class="btn btn-primary px-4 fw-bold" id="rt-next-btn" onclick="rtStepNav(1)">WEITER <i class="bi bi-arrow-right ms-1"></i></button>
-      <button class="btn btn-danger px-4 fw-bold" id="rt-save-btn" style="display:none" onclick="saveRTForm()"><i class="bi bi-check-lg me-1"></i>SPEICHERN</button>
-    </div>
-  </div>
-</div>
-
 </body>
 </html>
