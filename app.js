@@ -1,4 +1,4 @@
-var GAS_URL = "https://script.google.com/macros/s/AKfycbxt8GfGWKLeeWs1OPMc3rJOmWwsCL3BHYFePag-kUPes5PJV6L7y5nNycHycGQf/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbx1e8kPvxZfNCHCVrHmDoFJT7kS47J-7iJKOnXsv_yxhaoG3DvRaopjATkkaie-lA/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
