@@ -106,8 +106,21 @@ function normalizePanelHierarchy(){
   }
 }
 
+function normalizeOverlayHierarchy(){
+  var ids=[
+    "vk-modal","ek-modal","del-modal","acc-modal","rt-modal","china-modal","vk-multi-overlay","upload-wizard",
+    "profil-overlay","detail-overlay","notif-overlay","search-scan-overlay","mandatory-notif-overlay","activation-overlay","global-cam-bar"
+  ];
+  for(var i=0;i<ids.length;i++){
+    var el=document.getElementById(ids[i]);
+    if(!el)continue;
+    if(el.parentElement!==document.body)document.body.appendChild(el);
+  }
+}
+
 // ── TABS ─────────────────────────────────────────────────────────
 normalizePanelHierarchy();
+normalizeOverlayHierarchy();
 document.querySelectorAll(".bnav-btn").forEach(function(b){b.addEventListener("click",function(){document.querySelectorAll(".bnav-btn").forEach(function(x){x.classList.remove("on");});document.querySelectorAll(".panel").forEach(function(x){x.classList.remove("on");});b.classList.add("on");var p=document.getElementById(b.dataset.tab);if(p)p.classList.add("on");if(b.dataset.tab==="home-panel"){setGreeting();loadStats();}if(b.dataset.tab==="list-panel"&&allItems.length===0)loadAll();if(b.dataset.tab==="search-panel"){initSearch();if(allItems.length===0){loadAll();setTimeout(function(){if(allItems.length>0)renderSearchResults(allItems);},2500);}else{renderSearchResults(allItems);}}if(b.dataset.tab==="handel-panel"){loadHandel();}if(b.dataset.tab==="analyse-panel"){renderAnalysePanel();}});});
 function goTabFn(id,lfMode){document.querySelectorAll(".bnav-btn").forEach(function(b){b.classList.toggle("on",b.dataset.tab===id);});document.querySelectorAll(".panel").forEach(function(p){p.classList.toggle("on",p.id===id);});if(lfMode){lf=lfMode;renderList();}if(id==="list-panel"&&allItems.length===0)loadAll();if(id==="home-panel"){setGreeting();loadStats();}}
 
