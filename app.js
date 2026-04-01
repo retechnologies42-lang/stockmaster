@@ -512,7 +512,19 @@ function closeNotifications(){var ov=document.getElementById("notif-overlay");if
 function renderNotifList(){var list=document.getElementById("notif-list");if(!list)return;var notifArr=Array.isArray(notifications)?notifications:[];if(!notifArr.length){list.innerHTML='<div class="notif-empty"><i class="bi bi-bell-slash"></i><p>Keine Benachrichtigungen</p></div>';return;}list.innerHTML=notifArr.map(function(n){var cls=n.type==="alert"?"alert":n.type==="warn"?"warn":"";return'<div class="notif-item '+cls+'"><div class="notif-title">'+esc(n.title)+'</div><div class="notif-body">'+esc(n.body)+'</div><div class="notif-time">'+esc(n.time)+'</div><button class="notif-rm" onclick="removeNotif('+n.id+')">✕</button></div>';}).join("");}
 function removeNotif(id){if(!Array.isArray(notifications))notifications=[];notifications=notifications.filter(function(n){return n.id!==id;});saveNotifications();renderNotifList();updateNotifBadge();}
 function clearAllNotifications(){if(!confirm("Alle Benachrichtigungen löschen?"))return;notifications=[];saveNotifications();renderNotifList();updateNotifBadge();}
-function checkLongStorageItems(){if(!Array.isArray(allItems)||allItems.length===0)return;if(!Array.isArray(notifications))notifications=[];var now=new Date(),threshold=30;allItems.forEach(function(item){if(!item.datum)return;var parts=item.datum.split(".");if(parts.length<3)return;var d=new Date(parts[2].split(" ")[0],parts[1]-1,parts[0]);if(isNaN(d))return;var days=Math.floor((now-d)/(1000*60*60*24));if(days>=threshold){var nm=item.name||item.spiel||item.modell||item.geraet||"Unbekannt";var already=notifications.find(function(n){return n.body&&n.body.indexOf(nm)>-1&&n.title.indexOf("Lager")>-1;});if(!already)addNotification("⏳ Lange im Lager",'"'+nm+'" lagert seit '+days+' Tagen.',"warn");}});}
+function checkLongStorageItems(){if(!Array.isArray(allItems)||allItems.length===0)return;if(!Array.isArray(notifications))notifications=[];var now=new Date(),threshold=30;allItems.forEach(function(item){if(!item.datum)return;var parts=item.datum.split(".");if(parts.length<3)return;var d=new Date(parts[2].split(" ")[0],parts[1]-1,parts[0]);if(isNaN(d))return;var days=Math.floor((now-d)/(1000*60*60*24));if(days>=threshold){var nm=item.name||item.spiel||item.modell||item.geraet||"Unbekannt";var already=notifications.find(function(n){return n.body&&n.body.indexOf(nm)>-1&&n.title.indexOf("Lager")>-1;});if(!already)addNotification("⏳ Lange im Lager",'"'+nm+'" lagert seit '+days+' Tagen.',"warn");}});
+try{
+  var key="smp_audit_last";
+  var last=parseInt(localStorage.getItem(key)||"0",10)||0;
+  var everyMs=1000*60*60*24*7; // weekly audit reminder
+  if((Date.now()-last)>everyMs){
+    var alreadyAudit=notifications.find(function(n){return n.title&&n.title.indexOf("Bestandskontrolle")>-1&&n.time&&n.time.indexOf(now.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"}))>-1;});
+    if(!alreadyAudit){
+      addNotification("📋 Bestandskontrolle", "Bitte Lagerfächer und aktive Zimmer auf Differenzen prüfen.", "alert");
+      localStorage.setItem(key,String(Date.now()));
+    }
+  }
+}catch(e){}}
 
 // ================================================================
 // SCAN MODE
@@ -710,7 +722,9 @@ function onVKSendeInput(){
 var vkPickerActive=false;
 function openVKProductPicker(){
   // Build picker overlay
-  var items=allItems.filter(function(i){return i.type!=="defekt"&&i.type!=="verkauf";});
+  var items=allItems
+    .filter(function(i){return i.type!=="defekt"&&i.type!=="verkauf";})
+    .sort(function(a,b){return _normDateValue(a.datum)-_normDateValue(b.datum);});
   var overlay=document.createElement("div");
   overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9999;display:flex;flex-direction:column;padding:16px;overflow:hidden";
   overlay.id="vk-picker-overlay";
@@ -744,15 +758,11 @@ function filterVKPicker(){
 }
 function selectVKProduct(idx){
   var item=(window._vkPickerItems||[])[idx]; if(!item)return;
-  var nm=item.name||item.spiel||item.modell||"";
-  sv2("vk-produkte",nm);
-  // scanId is editable now
-  var scanEl=document.getElementById("vk-scanid");
-  if(scanEl){scanEl.removeAttribute("readonly");scanEl.value=item.scanId||"";}
+  _addVKItem(item);
   var pi=document.getElementById("vk-product-info");
   if(pi){
-    var info=[item.datum,item.mitarbeiter,"Zustand: "+(item.zustand||"–")].filter(Boolean).join(" · ");
-    pi.textContent="✓ Aus Lager: "+info; pi.style.display="block";
+    var info=[item.datum,item.mitarbeiter,"FIFO aktiv (ältester zuerst)"].filter(Boolean).join(" · ");
+    pi.textContent="✓ Artikel zur Pick-Liste hinzugefügt · "+info; pi.style.display="block";
   }
   var ol=document.getElementById("vk-picker-overlay");if(ol)ol.remove();
 }
@@ -839,6 +849,20 @@ function saveVKForm() {
     datum: new Date().toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"})
       +" "+new Date().toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})
   };
+  var vpNum = parseFloat(data.verkaufspreis||0);
+  var epNum = parseFloat(data.einkaufspreis||0);
+  var vsNum = parseFloat(data.versandkosten||0);
+  var feeRates = {"eBay":0.13,"Kleinanzeigen":0,"Facebook":0,"Abholung":0,"Sonstiges":0};
+  var fees = Math.round(vpNum * (feeRates[data.plattform]||0) * 100) / 100;
+  data.fees = fees.toFixed(2);
+  data.profitNet = (Math.round((vpNum - epNum - vsNum - fees) * 100) / 100).toFixed(2);
+  if(vkScannedItems.length){
+    var fifoSorted = vkScannedItems.slice().sort(function(a,b){return _normDateValue(a.lagerDatum)-_normDateValue(b.lagerDatum);});
+    data.pickedItems = vkScannedItems.map(function(i){
+      return {rowIndex:i.rowIndex,type:i.type,scanId:i.scanId,grade:i.conditionGrade};
+    });
+    data.fifoSource = fifoSorted.map(function(i){return i.scanId||i.name;}).join(", ");
+  }
   var btn = document.getElementById("vk-save-btn"); setBL(btn,true);
   var action = editVerkaufItem ? "updateVerkauf" : "saveVerkauf";
   if(editVerkaufItem) data.rowIndex = editVerkaufItem.rowIndex;
@@ -1069,13 +1093,18 @@ function selVKStatus(v){
 
 function _buildVKSummary(){
   var s=document.getElementById("vk-summary");if(!s)return;
+  var vp=parseFloat(gv("vk-preis")||0), ep=parseFloat(gv("vk-ep")||0), vs=parseFloat(gv("vk-versand")||0);
+  var feeRates={"eBay":0.13,"Kleinanzeigen":0,"Facebook":0,"Abholung":0,"Sonstiges":0};
+  var fees=Math.round(vp*(feeRates[gv("vk-plattform")]||0)*100)/100;
+  var profit=Math.round((vp-ep-vs-fees)*100)/100;
   var items=[
     ["Produkt",gv("vk-produkte")],["Preis",gv("vk-preis")?"€"+gv("vk-preis"):"–"],
     ["Plattform",gv("vk-plattform")],["Käufer",gv("vk-kunde")||"–"],
     ["Bezahlt mit",gv("vk-bezahlt")||"–"],["Status",gv("vk-status")],
-    ["Versand",gv("vk-abholung")]
+    ["Versand",gv("vk-abholung")],["Gebühren",fees.toFixed(2)+"€"],["Netto-Profit",(profit>=0?"+":"")+profit.toFixed(2)+"€"]
   ];
   if(gv("vk-sende"))items.push(["Sendenummer",gv("vk-sende")]);
+  if(vkScannedItems.length)items.push(["FIFO Pick",vkScannedItems.slice().sort(function(a,b){return _normDateValue(a.lagerDatum)-_normDateValue(b.lagerDatum);}).map(function(i){return i.scanId||i.name;}).join(", ")]);
   s.innerHTML=items.map(function(r){return'<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--text2)">'+esc(r[0])+'</span><span style="font-weight:700;color:var(--text)">'+esc(r[1])+'</span></div>';}).join("");
 }
 
@@ -2060,6 +2089,36 @@ function loadChinaEntries(){
 // ================================================================
 var ekStep = 1, ekTotalSteps = 4;
 
+function _normDateValue(dateStr){
+  if(!dateStr) return 0;
+  var raw = String(dateStr).split(" ")[0];
+  var parts = raw.split(".");
+  if(parts.length < 3) return 0;
+  var d = new Date(parseInt(parts[2],10), parseInt(parts[1],10)-1, parseInt(parts[0],10));
+  return isNaN(d.getTime()) ? 0 : d.getTime();
+}
+
+function _getNextZimmerId(){
+  var used = {};
+  (allEinkauf||[]).forEach(function(e){
+    var z = String((e&&e.zimmer)||"").trim();
+    if(!z) return;
+    var m = z.match(/(\d+)/);
+    if(m) used[parseInt(m[1],10)] = true;
+  });
+  var next = 1;
+  while(used[next]) next++;
+  return "Zimmer " + String(next).padStart(3,"0");
+}
+
+function _deriveEinkaufPhase(){
+  var sende = gv("ek-sende").trim();
+  var abholung = gv("ek-abholung")==="JA";
+  if(sende) return {status:"Transit", lieferstatus:"Unterwegs", phase:"Transit"};
+  if(abholung) return {status:"Gezahlt", lieferstatus:"Abholung geplant", phase:"Gezahlt"};
+  return {status:"Entwurf", lieferstatus:"Ausstehend", phase:"Entwurf"};
+}
+
 function openEinkaufForm(item) {
   editEinkaufItem = item || null;
   ekStep = 1;
@@ -2077,7 +2136,8 @@ function openEinkaufForm(item) {
   sv2("ek-kunde", item ? (item.kunde||item.lieferant||"") : "");
   sv2("ek-preis", item ? item.preis : "");
   sv2("ek-plattform", item ? item.plattform : "Kleinanzeigen");
-  sv2("ek-zimmer", item ? item.zimmer : "");
+  sv2("ek-zimmer", item ? item.zimmer : _getNextZimmerId());
+  sv2("ek-status", item ? (item.status||"Entwurf") : "Entwurf");
   sv2("ek-sende", item ? item.sendenummer : "");
   sv2("ek-vdl", item ? item.versanddienstleister : "");
   sv2("ek-abholung", item ? item.abholung : "NEIN");
@@ -2305,17 +2365,28 @@ function saveEKForm() {
   var d = document.getElementById("ek-diag"); if(d) d.style.display = "none";
   var produkte = _getEKProductsString();
   if(!produkte) { showEKDiag("Bitte Produkte eingeben."); return; }
+  var roomVal = gv("ek-zimmer").trim() || _getNextZimmerId();
+  sv2("ek-zimmer", roomVal);
+  var productsList = produkte.split(",").map(function(p){return p.trim();}).filter(Boolean);
+  var phaseData = _deriveEinkaufPhase();
+  var nowStamp = new Date().toLocaleString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
   var data = {
     produkte: produkte,
     kunde: gv("ek-kunde"),
     preis: gv("ek-preis"),
     plattform: gv("ek-plattform"),
-    zimmer: gv("ek-zimmer"),
+    zimmer: roomVal,
     sendenummer: gv("ek-sende"),
     versanddienstleister: gv("ek-vdl"),
     abholung: gv("ek-abholung"),
-    status: "Vorgemerkt",
-    lieferstatus: "Ausstehend",
+    status: phaseData.status,
+    lieferstatus: phaseData.lieferstatus,
+    phase: phaseData.phase,
+    phaseChangedAt: nowStamp,
+    expectedCount: productsList.length,
+    receivedCount: editEinkaufItem ? parseInt(editEinkaufItem.receivedCount||0,10)||0 : 0,
+    expectedItems: productsList,
+    platformOrderId: gv("ek-sende")||"",
     mitarbeiter: gv("ek-ma") || emp,
     hinweise: gv("ek-hinweise"),
     warentyp: "Gebrauchtware"
@@ -2323,7 +2394,8 @@ function saveEKForm() {
   var btn = document.getElementById("ek-save-btn"); setBL(btn, true);
   if(editEinkaufItem) {
     data.rowIndex = editEinkaufItem.rowIndex;
-    data.status = editEinkaufItem.status || "Vorgemerkt";
+    data.status = editEinkaufItem.status || phaseData.status;
+    data.phase = data.status;
     gasPost("updateEinkauf", data, function(r){
       setBL(btn, false);
       if(r&&r.ok){ toast("Einkauf aktualisiert ✅","ok"); closeEKModal(); loadHandel(); }
@@ -2333,7 +2405,7 @@ function saveEKForm() {
     gasPost("saveEinkauf", data, function(r){
       setBL(btn, false);
       if(r&&r.ok){
-        toast("📋 Einkauf vorgemerkt! Scanne Artikel beim Eintreffen über EINKAUF CHECK.","ok",4000);
+        toast("📋 Einkauf gespeichert. Zimmer automatisch vergeben, Check-In bei Ankunft starten.","ok",4500);
         closeEKModal(); loadHandel();
       } else { showEKDiag(r ? r.fehler : "Fehler beim Speichern"); }
     }, function(e){ setBL(btn,false); showEKDiag("Verbindungsfehler: "+e); });
@@ -2440,7 +2512,18 @@ function _addVKItem(item) {
   if(vkScannedItems.some(function(x){return x.rowIndex===item.rowIndex&&x.type===item.type;})){
     toast("Artikel bereits in der Liste","err"); return;
   }
-  vkScannedItems.push({name:nm, scanId:item.scanId||"", ekPreis:parseFloat(item.einkaufspreis||0), vkPreis:0, rowIndex:item.rowIndex, type:item.type});
+  var zust = (item.zustand||"").toLowerCase();
+  var grade = zust.indexOf("defekt")>-1 ? "C" : (zust.indexOf("neu")>-1 ? "A" : "B");
+  vkScannedItems.push({
+    name:nm,
+    scanId:item.scanId||"",
+    ekPreis:parseFloat(item.einkaufspreis||0),
+    vkPreis:0,
+    rowIndex:item.rowIndex,
+    type:item.type,
+    lagerDatum:item.datum||"",
+    conditionGrade:grade
+  });
   _renderVKItemsList();
   toast(nm+" hinzugefügt ✓","ok",2000);
 }
@@ -2765,7 +2848,7 @@ function _loadEKCheckList(){
   listEl.innerHTML='<div style="text-align:center;padding:24px"><span class="spin-b"></span><div style="font-size:10px;color:var(--w4);margin-top:8px;font-family:monospace">LADE...</div></div>';
   gasGet("getAllEinkauf",{},function(r){
     if(!r||!r.ok){listEl.innerHTML='<div class="empty"><i class="bi bi-wifi-off"></i><p>VERBINDUNGSFEHLER</p></div>';return;}
-    var pending=(r.data||[]).filter(function(e){return e.status!=="Abgeschlossen"&&e.status!=="Storniert";});
+    var pending=(r.data||[]).filter(function(e){return e.status!=="Abgeschlossen"&&e.status!=="Bestand"&&e.status!=="Storniert";});
     if(!pending.length){listEl.innerHTML='<div class="empty"><i class="bi bi-check-circle"></i><p>ALLE ABGESCHLOSSEN ✅</p></div>';return;}
     listEl.innerHTML="";
     pending.forEach(function(ek){
@@ -2773,7 +2856,7 @@ function _loadEKCheckList(){
       var card=document.createElement("div");
       card.className="ic";
       card.style.cssText="cursor:pointer;margin-bottom:8px;border-left:3px solid var(--col-b)";
-      var sc={Vorgemerkt:"#666",Bestellt:"var(--col-y)",Bezahlt:"var(--col-b)",Versendet:"var(--col-b)",Angekommen:"var(--acc)"}[ek.status]||"#666";
+      var sc={Entwurf:"#666",Gezahlt:"var(--col-b)",Transit:"var(--col-b)",Vorgemerkt:"#666",Bestellt:"var(--col-y)",Bezahlt:"var(--col-b)",Versendet:"var(--col-b)",Angekommen:"var(--acc)",Bestand:"var(--acc)"}[ek.status]||"#666";
       card.innerHTML='<div class="ic-top"><div class="ic-name">'+esc(ek.kunde||"Unbekannt")+'</div>'
         +'<span style="font-size:9px;font-weight:700;color:'+sc+';font-family:monospace">'+esc(ek.status||"–")+'</span></div>'
         +'<div class="chips">'
@@ -2797,7 +2880,7 @@ function _selectEKCheckItem(ek){
   ekCheckStep=2;
   var products=(ek.produkte||"").split(",").map(function(p){return p.trim();}).filter(Boolean);
   if(!ekCheckList.length||!ekCheckList[0]||ekCheckList[0]._eid!==ek.rowIndex){
-    ekCheckList=products.map(function(name){return{name:name,eingelagert:false,scanId:"",_eid:ek.rowIndex};});
+    ekCheckList=products.map(function(name){return{name:name,eingelagert:false,scanId:"",expectedQty:1,receivedQty:0,_eid:ek.rowIndex};});
   }
   _renderEKCheckStep();
   _renderEKCheckInfoBar();
@@ -2822,6 +2905,7 @@ function _renderEKCheckInfoBar(){
 function _renderEKCheckItems(){
   var el=document.getElementById("ek-check-items");
   var cb=document.getElementById("ek-check-complete");
+  var completeBtn=document.getElementById("ek-check-complete-btn");
   if(!el)return;
   el.innerHTML="";
   var done=ekCheckList.filter(function(i){return i.eingelagert;}).length;
@@ -2846,7 +2930,8 @@ function _renderEKCheckItems(){
     }
     el.appendChild(row);
   });
-  if(cb)cb.style.display=(done===ekCheckList.length&&ekCheckList.length>0)?"block":"none";
+  if(cb)cb.style.display=(ekCheckList.length>0)?"block":"none";
+  if(completeBtn)completeBtn.disabled=!(done===ekCheckList.length&&ekCheckList.length>0);
   _renderEKCheckInfoBar();
 }
 
@@ -2858,6 +2943,7 @@ function _startEKItemEinlagern(itemIdx){
   window._afterSaveCallback=function(savedScanId){
     ekCheckList[ekCheckCurrentIdx].eingelagert=true;
     ekCheckList[ekCheckCurrentIdx].scanId=savedScanId||"";
+    ekCheckList[ekCheckCurrentIdx].receivedQty=1;
     window._afterSaveCallback=null;
     toast(esc(item.name)+" eingelagert ✅","ok",2500);
     // Return to EK check list
@@ -2887,13 +2973,18 @@ function _startEKItemEinlagern(itemIdx){
 function completeEKCheck(){
   if(!ekCheckItem)return;
   var allDone=ekCheckList.every(function(i){return i.eingelagert;});
-  if(!allDone&&!confirm("Nicht alle Artikel eingelagert. Trotzdem abschließen?"))return;
+  if(!allDone){toast("Check-In gesperrt: Bitte alle Artikel scannen (Soll = Ist).","err",3500);return;}
   var btn=document.getElementById("ek-check-complete-btn");
   if(btn)setBL(btn,true);
-  gasPost("updateEinkauf",{rowIndex:ekCheckItem.rowIndex,status:"Abgeschlossen",lieferstatus:"Zugestellt"},
+  gasPost("updateEinkauf",{
+      rowIndex:ekCheckItem.rowIndex,status:"Bestand",lieferstatus:"Zugestellt",
+      phase:"Bestand",phaseChangedAt:new Date().toLocaleString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}),
+      expectedCount:ekCheckList.length,receivedCount:ekCheckList.length,
+      diffCount:0,checkBy:emp||"",checkCompletedAt:new Date().toISOString()
+    },
     function(r){
       if(btn)setBL(btn,false);
-      if(r&&r.ok){toast("🎉 Einkauf abgeschlossen!","ok",4000);closeEKCheck();loadHandel();}
+      if(r&&r.ok){toast("🎉 Check-In abgeschlossen. Ware in Bestand übernommen!","ok",4200);closeEKCheck();loadHandel();}
       else{toast("Fehler: "+(r?r.fehler:"?"),"err");}
     },function(){if(btn)setBL(btn,false);toast("Verbindungsfehler","err");});
 }
