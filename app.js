@@ -466,7 +466,7 @@ function mkCard(item){
 
 function openLightbox(itemIdx,fotoIdx){var item=cardRegistry[itemIdx];if(!item||!item.fotos||!item.fotos[fotoIdx])return;var lb=document.createElement("div");lb.className="lightbox";lb.innerHTML='<img src="'+esc(item.fotos[fotoIdx])+'" alt="Foto"/>';lb.onclick=function(){lb.remove();};document.body.appendChild(lb);}
 
-function openEditStepper(rIdx){var item=cardRegistry[rIdx];if(!item)return;document.querySelectorAll(".bnav-btn").forEach(function(b){b.classList.toggle("on",b.dataset.tab==="scan-panel");});document.querySelectorAll(".panel").forEach(function(p){p.classList.toggle("on",p.id==="scan-panel");});document.getElementById("mode-chooser").style.display="none";document.getElementById("cat-chooser").style.display="none";document.getElementById("sw-sub").style.display="none";curCat=item.type==="konsole"||item.type==="spiel"?"spielwaren":item.type;startStepper(item.type,item);}
+function openEditStepper(rIdx){var item=cardRegistry[rIdx];if(!item)return;document.querySelectorAll(".bnav-btn").forEach(function(b){b.classList.toggle("on",b.dataset.tab==="scan-panel");});document.querySelectorAll(".panel").forEach(function(p){p.classList.toggle("on",p.id==="scan-panel");});document.getElementById("mode-chooser").style.display="none";document.getElementById("cat-chooser").style.display="none";document.getElementById("sw-sub").style.display="none";curCat=item.type==="konsole"||item.type==="spiel"?"spielwaren":item.type;startStepper(item.type,item);try{window.scrollTo({top:0,behavior:"smooth"});}catch(e){window.scrollTo(0,0);}}
 
 function confirmDelete(rIdx){var item=cardRegistry[rIdx];if(!item)return;var nm=item.name||item.spiel||item.modell||"?";document.getElementById("del-modal-text").textContent='"'+nm+'" wirklich löschen?';document.getElementById("del-modal-confirm").onclick=function(){closeDelModal();doDelete(item);};document.getElementById("del-modal").classList.add("open");}
 function confirmDeleteDefekt(rIdx){var item=cardRegistry[rIdx];if(!item)return;document.getElementById("del-modal-text").textContent='"'+(item.geraet||"?")+'" wirklich löschen?';document.getElementById("del-modal-confirm").onclick=function(){closeDelModal();doDeleteDefekt(item);};document.getElementById("del-modal").classList.add("open");}
@@ -609,6 +609,7 @@ function initCamPreselect(){
 // HANDEL: VERKAUF + EINKAUF
 // ================================================================
 var allVerkauf=[], allEinkauf=[], currentHandelTab="verkauf";
+var handelVkRegistry=[], handelEkRegistry=[];
 var editVerkaufItem=null, editEinkaufItem=null;
 
 function ensureHandelEkFilterUI(){
@@ -658,6 +659,7 @@ function filterHandel(type){
 function renderVerkaufList(){
   var q=(document.getElementById("vk-search")||{value:""}).value.toLowerCase();
   var items=q?allVerkauf.filter(function(r){return(r.kunde||"").toLowerCase().includes(q)||(r.produkte||"").toLowerCase().includes(q)||(r.scanId||"").toLowerCase().includes(q)||(r.sendenummer||"").toLowerCase().includes(q);}):allVerkauf;
+  handelVkRegistry = items.slice();
   var el=document.getElementById("vk-body");
   if(!items.length){el.innerHTML='<div class="empty"><i class="bi bi-cash-coin"></i><p>Keine Verkäufe gefunden</p></div>';return;}
   el.innerHTML=items.map(function(v,i){return mkHandelCard(v,"verkauf",i);}).join("");
@@ -679,6 +681,7 @@ function renderEinkaufList(){
     });
   }
   var el=document.getElementById("ek-body");
+  handelEkRegistry = items.slice();
   if(!items.length){el.innerHTML='<div class="empty"><i class="bi bi-cart"></i><p>Keine Einkäufe gefunden</p></div>';return;}
   el.innerHTML=items.map(function(v,i){return mkHandelCard(v,"einkauf",i);}).join("");
 }
@@ -729,8 +732,8 @@ function getTrackingUrl(vdl,nr){
 }
 
 function openHandelEdit(type,idx){
-  if(type==="verkauf"){openVerkaufForm(allVerkauf[idx]);}
-  else{openEinkaufForm(allEinkauf[idx]);}
+  if(type==="verkauf"){openVerkaufForm((handelVkRegistry||[])[idx]||allVerkauf[idx]);}
+  else{openEinkaufForm((handelEkRegistry||[])[idx]||allEinkauf[idx]);}
 }
 
 // VERKAUF FORM
@@ -2038,6 +2041,7 @@ function buildKAProgress(){
 
 // ── FEATURE: SEARCH SCANNER (Fix 6) ───────────────────────────────
 var searchScanStream=null,searchScanRunning=false,searchScanFrame=null;
+var searchScanOnDetected=null;
 
 function openSearchScanner(){
   var overlay=document.getElementById("search-scan-overlay");
@@ -2060,6 +2064,7 @@ function closeSearchScanner(){
   if(searchScanStream){searchScanStream.getTracks().forEach(function(t){t.stop();});searchScanStream=null;}
   var video=document.getElementById("search-scan-video");if(video)video.srcObject=null;
   document.getElementById("search-scan-overlay").classList.add("hidden");
+  searchScanOnDetected=null;
 }
 
 function searchScanLoopStart(){
@@ -2072,8 +2077,12 @@ function searchScanLoopStart(){
   if(reader){try{var res=reader.decodeFromCanvas(canvas);if(res&&res.getText())detected=res.getText().trim();}catch(e){}}
   if(detected){
     closeSearchScanner();
-    document.getElementById("s-bc-in").value=detected;
-    doSearch();
+    if(typeof searchScanOnDetected==="function"){
+      try{searchScanOnDetected(detected);}catch(e){}
+    } else {
+      document.getElementById("s-bc-in").value=detected;
+      doSearch();
+    }
     toast("✓ Barcode: "+detected,"ok",2500);
     try{if(navigator.vibrate)navigator.vibrate([80]);}catch(e){}
     return;
@@ -2659,6 +2668,7 @@ function _updateVKTotals() {
 function openVerkaufForm(item, prefillScanId) {
   editVerkaufItem = item || null;
   vkStep = 1;
+  vkTotalSteps = 5;
   vkScannedItems = [];
   var title = document.getElementById("vk-modal-title");
   if(title) title.textContent = item ? "✏️ VERKAUF BEARBEITEN" : "💸 VERKAUF";
@@ -2686,6 +2696,11 @@ function openVerkaufForm(item, prefillScanId) {
   if(item&&item.plattform) _highlightVKPlattform(item.plattform);
   if(item&&item.status) selVKStatus(item.status);
   var d = document.getElementById("vk-diag"); if(d) d.style.display="none";
+  // Hard reset step visibility to avoid stale hidden content
+  for(var i=1;i<=8;i++){
+    var sEl=document.getElementById("vks-"+i);
+    if(sEl)sEl.style.display=(i===1?"block":"none");
+  }
   _renderVKStep();
   document.getElementById("vk-modal").classList.add("open");
 }
@@ -2967,7 +2982,7 @@ function _loadEKCheckList(){
   listEl.innerHTML='<div style="text-align:center;padding:24px"><span class="spin-b"></span><div style="font-size:10px;color:var(--w4);margin-top:8px;font-family:monospace">LADE...</div></div>';
   gasGet("getAllEinkauf",{},function(r){
     if(!r||!r.ok){listEl.innerHTML='<div class="empty"><i class="bi bi-wifi-off"></i><p>VERBINDUNGSFEHLER</p></div>';return;}
-    var pending=(r.data||[]).filter(function(e){return e.status!=="Abgeschlossen"&&e.status!=="Bestand"&&e.status!=="Storniert";});
+    var pending=(r.data||[]).filter(function(e){return e.status!=="Storniert";});
     if(!pending.length){listEl.innerHTML='<div class="empty"><i class="bi bi-check-circle"></i><p>ALLE ABGESCHLOSSEN ✅</p></div>';return;}
     _ekCheckPendingCache = pending;
     renderEKCheckPendingList();
@@ -3178,8 +3193,11 @@ function selRTGrund(grund) {
 }
 
 function openRTScanner() {
-  var el=document.getElementById("rt-scanid"); if(el) el.focus();
-  toast("Barcode scannen oder manuell eingeben","inf",2000);
+  var el=document.getElementById("rt-scanid");
+  searchScanOnDetected=function(code){
+    if(el){el.value=code;el.focus();}
+  };
+  openSearchScanner();
 }
 
 function saveRTForm() {
