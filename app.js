@@ -1,7 +1,7 @@
 
 
 
-var GAS_URL = "https://script.google.com/macros/s/AKfycbyfuyaK400Cso0U3EdHgOY1gNVVJIvB-gqYEUQ4BcLUSlrCwnsMYBrtd_YmZVpQuA/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbz2yhKHsRnyyGve-B8o4kf4d3MW3UML16MuNSllrIPbMfEClCTUDnM8rqbreLMmfw/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -611,12 +611,38 @@ function initCamPreselect(){
 var allVerkauf=[], allEinkauf=[], currentHandelTab="verkauf";
 var editVerkaufItem=null, editEinkaufItem=null;
 
+function ensureHandelEkFilterUI(){
+  try{
+    var row = document.querySelector("#handel-ek .d-flex");
+    if(!row) return;
+    if(document.getElementById("ek-status-filter")) return;
+    var sel = document.createElement("select");
+    sel.id = "ek-status-filter";
+    sel.className = "fc";
+    sel.style.cssText = "width:auto;max-width:160px;font-size:11px;padding:8px 10px;font-family:'Space Mono',monospace";
+    ["","Entwurf","Gezahlt","Transit","Bestand","Storniert"].forEach(function(v){
+      var o = document.createElement("option");
+      o.value = v;
+      o.textContent = v ? v.toUpperCase() : "ALLE";
+      sel.appendChild(o);
+    });
+    sel.onchange = function(){ filterHandel("einkauf"); };
+    var search = document.getElementById("ek-search");
+    if(search && search.parentNode === row){
+      row.insertBefore(sel, search.nextSibling);
+    } else {
+      row.appendChild(sel);
+    }
+  }catch(e){}
+}
+
 function setHandelTab(tab){
   currentHandelTab=tab;
   document.getElementById("htab-vk").className="ltab"+(tab==="verkauf"?" on":"");
   document.getElementById("htab-ek").className="ltab"+(tab==="einkauf"?" on":"");
   document.getElementById("handel-vk").style.display=tab==="verkauf"?"block":"none";
   document.getElementById("handel-ek").style.display=tab==="einkauf"?"block":"none";
+  if(tab==="einkauf") ensureHandelEkFilterUI();
 }
 
 function loadHandel(){
@@ -639,7 +665,19 @@ function renderVerkaufList(){
 
 function renderEinkaufList(){
   var q=(document.getElementById("ek-search")||{value:""}).value.toLowerCase();
-  var items=q?allEinkauf.filter(function(r){return(r.kunde||"").toLowerCase().includes(q)||(r.produkte||"").toLowerCase().includes(q)||(r.scanId||"").toLowerCase().includes(q)||(r.zimmer||"").toLowerCase().includes(q);}):allEinkauf;
+  var sf = (document.getElementById("ek-status-filter")||{value:""}).value;
+  var items = allEinkauf.slice();
+  if(sf){
+    items = items.filter(function(r){ return String(r.status||"").toLowerCase()===String(sf).toLowerCase(); });
+  }
+  if(q){
+    items = items.filter(function(r){
+      return (r.kunde||"").toLowerCase().includes(q) ||
+        (r.produkte||"").toLowerCase().includes(q) ||
+        (r.scanId||"").toLowerCase().includes(q) ||
+        (r.zimmer||"").toLowerCase().includes(q);
+    });
+  }
   var el=document.getElementById("ek-body");
   if(!items.length){el.innerHTML='<div class="empty"><i class="bi bi-cart"></i><p>Keine Einkäufe gefunden</p></div>';return;}
   el.innerHTML=items.map(function(v,i){return mkHandelCard(v,"einkauf",i);}).join("");
@@ -1740,7 +1778,10 @@ function sendInvite(){
   gasGet("createAccount",{name:name,email:email,rolle:rolle},function(r){
     setBL(btn,false);
     if(r&&r.ok){
-      diag.className="diag dok";diag.textContent="✅ "+r.msg;diag.style.display="block";
+      var warn = r.warn ? (" ⚠️ "+(r.warnMsg||"Einladung konnte nicht automatisch gesendet werden.")) : "";
+      diag.className = r.warn ? "diag dinf" : "diag dok";
+      diag.textContent = "✅ " + (r.msg||"Gespeichert.") + warn + (r.inviteLink?("  Link: "+r.inviteLink):"");
+      diag.style.display="block";
       document.getElementById("acc-name-in").value="";
       document.getElementById("acc-email-in").value="";
       loadServerAccounts();
@@ -2154,6 +2195,13 @@ function openEinkaufForm(item) {
 function _renderEKProductList() {
   var wrap = document.getElementById("ek-produkte-list"); if(!wrap) return;
   if(!window._ekProductLines) window._ekProductLines = [""];
+  // Keep focus while rerendering
+  var active = document.activeElement;
+  var focusIdx = -1, caretPos = null;
+  if(active && active.tagName==="INPUT" && active.closest && active.closest("#ek-produkte-list")){
+    focusIdx = parseInt(active.getAttribute("data-idx")||"-1",10);
+    try { caretPos = active.selectionStart; } catch(e){}
+  }
   wrap.innerHTML = "";
   window._ekProductLines.forEach(function(val, idx) {
     var row = document.createElement("div");
@@ -2172,11 +2220,7 @@ function _renderEKProductList() {
       if(i === window._ekProductLines.length - 1 && this.value.trim().length > 0) {
         window._ekProductLines.push("");
         _renderEKProductList();
-        // Focus the new input
-        setTimeout(function(){
-          var inputs = document.querySelectorAll("#ek-produkte-list input");
-          if(inputs.length) inputs[inputs.length-1].focus();
-        }, 50);
+        // IMPORTANT: keep focus in current input (no jump)
       }
     };
     row.appendChild(inp);
@@ -2195,6 +2239,18 @@ function _renderEKProductList() {
     }
     wrap.appendChild(row);
   });
+  // Restore focus to the input the user was typing in
+  if(focusIdx >= 0){
+    setTimeout(function(){
+      var el2 = document.querySelector('#ek-produkte-list input[data-idx="'+focusIdx+'"]');
+      if(el2){
+        el2.focus();
+        if(caretPos!==null){
+          try { el2.setSelectionRange(caretPos, caretPos); } catch(e){}
+        }
+      }
+    }, 0);
+  }
 }
 
 function _getEKProductsString() {
@@ -2811,6 +2867,68 @@ function enrichProfilWithAccountInfo(name) {
 // EINKAUF CHECK FLOW
 // ================================================================
 var ekCheckStep=1,ekCheckItem=null,ekCheckList=[],ekCheckCurrentIdx=-1;
+var _ekCheckPendingCache=[];
+
+function ensureEKCheckRoomSearchUI(){
+  try{
+    var step1 = document.getElementById("ek-check-step1");
+    if(!step1) return;
+    if(document.getElementById("ek-check-room-search")) return;
+    var inp = document.createElement("input");
+    inp.id = "ek-check-room-search";
+    inp.className = "fc";
+    inp.placeholder = "Zimmer suchen (z.B. 001)…";
+    inp.style.cssText = "margin-bottom:10px;font-family:'Space Mono',monospace;font-size:12px";
+    inp.oninput = function(){ renderEKCheckPendingList(); };
+    var list = document.getElementById("ek-check-einkauf-list");
+    if(list && list.parentNode === step1){
+      step1.insertBefore(inp, list);
+    } else {
+      step1.appendChild(inp);
+    }
+  }catch(e){}
+}
+
+function renderEKCheckPendingList(){
+  var listEl=document.getElementById("ek-check-einkauf-list");
+  if(!listEl) return;
+  var q = (document.getElementById("ek-check-room-search")||{value:""}).value.trim().toLowerCase();
+  var pending = (_ekCheckPendingCache||[]).slice();
+  if(q){
+    pending = pending.filter(function(ek){
+      var z = String(ek.zimmer||"").toLowerCase();
+      var k = String(ek.kunde||"").toLowerCase();
+      var p = String(ek.produkte||"").toLowerCase();
+      return z.includes(q) || k.includes(q) || p.includes(q);
+    });
+  }
+  if(!pending.length){
+    listEl.innerHTML='<div class="empty"><i class="bi bi-search"></i><p>NICHTS GEFUNDEN</p></div>';
+    return;
+  }
+  listEl.innerHTML="";
+  pending.forEach(function(ek){
+    var products=(ek.produkte||"").split(",").map(function(p){return p.trim();}).filter(Boolean);
+    var card=document.createElement("div");
+    card.className="ic";
+    card.style.cssText="cursor:pointer;margin-bottom:8px;border-left:3px solid var(--col-b)";
+    var sc={Entwurf:"#666",Gezahlt:"var(--col-b)",Transit:"var(--col-b)",Vorgemerkt:"#666",Bestellt:"var(--col-y)",Bezahlt:"var(--col-b)",Versendet:"var(--col-b)",Unterwegs:"var(--col-b)",Angekommen:"var(--acc)",Bestand:"var(--acc)"}[ek.status]||"#666";
+    card.innerHTML='<div class="ic-top"><div class="ic-name">'+esc(ek.kunde||"Unbekannt")+'</div>'
+      +'<span style="font-size:9px;font-weight:700;color:'+sc+';font-family:monospace">'+esc(ek.status||"–")+'</span></div>'
+      +'<div class="chips">'
+      +(ek.zimmer?'<span class="chip" style="color:var(--col-b);border-color:rgba(77,159,255,.3)">📍 '+esc(ek.zimmer)+'</span>':"")
+      +(ek.preis?'<span class="chip" style="font-family:monospace">'+esc(ek.preis)+'€</span>':"")
+      +'<span class="chip">'+products.length+' Artikel</span></div>'
+      +'<div style="font-size:11px;color:var(--w3);margin-top:4px">'
+      +products.slice(0,3).map(function(p){return esc(p);}).join(" · ")
+      +(products.length>3?' <span style="color:var(--w4)">+'+( products.length-3)+' weitere</span>':"")
+      +'</div>';
+    card.onclick=(function(e){return function(){_selectEKCheckItem(e);};})(ek);
+    card.onmouseover=function(){this.style.background="var(--b3)";};
+    card.onmouseout=function(){this.style.background="";};
+    listEl.appendChild(card);
+  });
+}
 
 function openEKCheck(){
   ensureScanFlowNodes();
@@ -2820,6 +2938,7 @@ function openEKCheck(){
   var ep=document.getElementById("ek-check-panel");
   if(mc)mc.style.display="none";
   if(ep)ep.style.display="block";
+  ensureEKCheckRoomSearchUI();
   _renderEKCheckStep();
   _loadEKCheckList();
 }
@@ -2850,28 +2969,8 @@ function _loadEKCheckList(){
     if(!r||!r.ok){listEl.innerHTML='<div class="empty"><i class="bi bi-wifi-off"></i><p>VERBINDUNGSFEHLER</p></div>';return;}
     var pending=(r.data||[]).filter(function(e){return e.status!=="Abgeschlossen"&&e.status!=="Bestand"&&e.status!=="Storniert";});
     if(!pending.length){listEl.innerHTML='<div class="empty"><i class="bi bi-check-circle"></i><p>ALLE ABGESCHLOSSEN ✅</p></div>';return;}
-    listEl.innerHTML="";
-    pending.forEach(function(ek){
-      var products=(ek.produkte||"").split(",").map(function(p){return p.trim();}).filter(Boolean);
-      var card=document.createElement("div");
-      card.className="ic";
-      card.style.cssText="cursor:pointer;margin-bottom:8px;border-left:3px solid var(--col-b)";
-      var sc={Entwurf:"#666",Gezahlt:"var(--col-b)",Transit:"var(--col-b)",Vorgemerkt:"#666",Bestellt:"var(--col-y)",Bezahlt:"var(--col-b)",Versendet:"var(--col-b)",Angekommen:"var(--acc)",Bestand:"var(--acc)"}[ek.status]||"#666";
-      card.innerHTML='<div class="ic-top"><div class="ic-name">'+esc(ek.kunde||"Unbekannt")+'</div>'
-        +'<span style="font-size:9px;font-weight:700;color:'+sc+';font-family:monospace">'+esc(ek.status||"–")+'</span></div>'
-        +'<div class="chips">'
-        +(ek.zimmer?'<span class="chip" style="color:var(--col-b);border-color:rgba(77,159,255,.3)">📍 '+esc(ek.zimmer)+'</span>':"")
-        +(ek.preis?'<span class="chip" style="font-family:monospace">'+esc(ek.preis)+'€</span>':"")
-        +'<span class="chip">'+products.length+' Artikel</span></div>'
-        +'<div style="font-size:11px;color:var(--w3);margin-top:4px">'
-        +products.slice(0,3).map(function(p){return esc(p);}).join(" · ")
-        +(products.length>3?' <span style="color:var(--w4)">+'+( products.length-3)+' weitere</span>':"")
-        +'</div>';
-      card.onclick=(function(e){return function(){_selectEKCheckItem(e);};})(ek);
-      card.onmouseover=function(){this.style.background="var(--b3)";};
-      card.onmouseout=function(){this.style.background="";};
-      listEl.appendChild(card);
-    });
+    _ekCheckPendingCache = pending;
+    renderEKCheckPendingList();
   },function(){listEl.innerHTML='<div class="empty"><i class="bi bi-wifi-off"></i><p>VERBINDUNGSFEHLER</p></div>';});
 }
 
