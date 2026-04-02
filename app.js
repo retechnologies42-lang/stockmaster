@@ -1,7 +1,7 @@
 
 
 
-var GAS_URL = "https://script.google.com/macros/s/AKfycbz2yhKHsRnyyGve-B8o4kf4d3MW3UML16MuNSllrIPbMfEClCTUDnM8rqbreLMmfw/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycby5D-HsBsZCL7xMuUWE2N8sMbc-rgsh1zRr2eirZAl2bX6I43UGoYSOvgb-vtLsRQ/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -136,8 +136,8 @@ function ensureScanFlowNodes(){
 normalizePanelHierarchy();
 normalizeOverlayHierarchy();
 ensureScanFlowNodes();
-document.querySelectorAll(".bnav-btn").forEach(function(b){b.addEventListener("click",function(){document.querySelectorAll(".bnav-btn").forEach(function(x){x.classList.remove("on");});document.querySelectorAll(".panel").forEach(function(x){x.classList.remove("on");});b.classList.add("on");var p=document.getElementById(b.dataset.tab);if(p)p.classList.add("on");if(b.dataset.tab==="home-panel"){setGreeting();loadStats();}if(b.dataset.tab==="list-panel"&&allItems.length===0)loadAll();if(b.dataset.tab==="search-panel"){initSearch();if(allItems.length===0){loadAll();setTimeout(function(){if(allItems.length>0)renderSearchResults(allItems);},2500);}else{renderSearchResults(allItems);}}if(b.dataset.tab==="handel-panel"){loadHandel();}if(b.dataset.tab==="analyse-panel"){renderAnalysePanel();}});});
-function goTabFn(id,lfMode){document.querySelectorAll(".bnav-btn").forEach(function(b){b.classList.toggle("on",b.dataset.tab===id);});document.querySelectorAll(".panel").forEach(function(p){p.classList.toggle("on",p.id===id);});if(lfMode){lf=lfMode;renderList();}if(id==="list-panel"&&allItems.length===0)loadAll();if(id==="home-panel"){setGreeting();loadStats();}}
+document.querySelectorAll(".bnav-btn").forEach(function(b){b.addEventListener("click",function(){document.querySelectorAll(".bnav-btn").forEach(function(x){x.classList.remove("on");});document.querySelectorAll(".panel").forEach(function(x){x.classList.remove("on");});b.classList.add("on");var p=document.getElementById(b.dataset.tab);if(p)p.classList.add("on");if(b.dataset.tab==="home-panel"){setGreeting();loadStats();if(!allItems.length){loadAll();}else{buildKAProgress();buildWeekChart();updateMyStats();}}if(b.dataset.tab==="list-panel"&&allItems.length===0)loadAll();if(b.dataset.tab==="search-panel"){initSearch();if(allItems.length===0){loadAll();setTimeout(function(){if(allItems.length>0)renderSearchResults(allItems);},2500);}else{renderSearchResults(allItems);}}if(b.dataset.tab==="handel-panel"){loadHandel();}if(b.dataset.tab==="analyse-panel"){renderAnalysePanel();}});});
+function goTabFn(id,lfMode){document.querySelectorAll(".bnav-btn").forEach(function(b){b.classList.toggle("on",b.dataset.tab===id);});document.querySelectorAll(".panel").forEach(function(p){p.classList.toggle("on",p.id===id);});if(lfMode){lf=lfMode;renderList();}if(id==="list-panel"&&allItems.length===0)loadAll();if(id==="home-panel"){setGreeting();loadStats();if(!allItems.length){loadAll();}else{buildKAProgress();buildWeekChart();updateMyStats();}}}
 
 // ── STATS ─────────────────────────────────────────────────────────
 function loadStats(){gasGet("getStats",{},function(r){if(!r||!r.ok)return;var s=r.stats||{};document.getElementById("st-sw").textContent=(s.konsolen||0)+(s.spiele||0);document.getElementById("st-h").textContent=s.handys||0;document.getElementById("st-pc").textContent=s.pcs||0;document.getElementById("st-def").textContent=s.defekte||0;document.getElementById("st-heu").textContent=s.heute||0;var ve=document.getElementById("st-vk");if(ve)ve.textContent=s.verkauf||0;var ee=document.getElementById("st-ek");if(ee)ee.textContent=s.einkauf||0;},function(){});}
@@ -1774,11 +1774,15 @@ function loadServerAccounts(){
 function sendInvite(){
   var name=document.getElementById("acc-name-in").value.trim();
   var email=document.getElementById("acc-email-in").value.trim();
+  var pwEl=document.getElementById("acc-pw-in");
+  var pw=pwEl?String(pwEl.value||""):"";
   var rolle=document.getElementById("acc-rolle-in").value;
   var diag=document.getElementById("acc-diag");
-  if(!name||!email){diag.className="diag derr";diag.textContent="Name und E-Mail erforderlich.";diag.style.display="block";return;}
+  if(!name){diag.className="diag derr";diag.textContent="Name erforderlich.";diag.style.display="block";return;}
+  if(pw.length>0&&pw.length<6){diag.className="diag derr";diag.textContent="Passwort mind. 6 Zeichen oder leer lassen für reine E-Mail-Einladung.";diag.style.display="block";return;}
+  if(!pw&&!email){diag.className="diag derr";diag.textContent="Passwort (mind. 6 Zeichen) oder E-Mail für Einladung angeben.";diag.style.display="block";return;}
   var btn=document.querySelector("#acc-modal .btn-primary");setBL(btn,true);
-  gasGet("createAccount",{name:name,email:email,rolle:rolle},function(r){
+  gasGet("createAccount",{name:name,email:email,password:pw,rolle:rolle},function(r){
     setBL(btn,false);
     if(r&&r.ok){
       var warn = r.warn ? (" ⚠️ "+(r.warnMsg||"Einladung konnte nicht automatisch gesendet werden.")) : "";
@@ -1787,6 +1791,7 @@ function sendInvite(){
       diag.style.display="block";
       document.getElementById("acc-name-in").value="";
       document.getElementById("acc-email-in").value="";
+      if(pwEl)pwEl.value="";
       loadServerAccounts();
     } else {
       diag.className="diag derr";diag.textContent="❌ "+(r?r.fehler:"Fehler");diag.style.display="block";
@@ -2024,13 +2029,24 @@ function buildWeekChart(){
   if(totalEl)totalEl.textContent=total7+" diese Woche";
 }
 
+// Kleinanzeigen-Zelle: roher Text, "ja", oder JSON aus updateKleinanzeigen
+function isItemKleinanzeigenUploaded(item){
+  if(!item||item.type==="defekt")return false;
+  var k=item.kleinanzeigen;
+  if(k&&typeof k==="object"&&k.status!==undefined)k=k.status;
+  var s=String(k||"").trim();
+  var low=s.toLowerCase();
+  if(low.indexOf("hochgeladen")>=0||low==="ja")return true;
+  if(s.charAt(0)==="{"){try{var o=JSON.parse(s);var st=String((o&&o.status)||"").toLowerCase();return st.indexOf("hochgeladen")>=0||st==="ja";}catch(e){}}
+  return false;
+}
 // ── FEATURE: KLEINANZEIGEN FORTSCHRITT (Fix 9) ────────────────────
 function buildKAProgress(){
   var bar=document.getElementById("kl-bar"),pct=document.getElementById("kl-pct");
   var done=document.getElementById("kl-done"),todo=document.getElementById("kl-todo");
   if(!bar||!allItems.length)return;
   var relevant=allItems.filter(function(i){return i.type!=="defekt";});
-  var hochgeladen=relevant.filter(function(i){return String(i.verfuegbarkeit||"").indexOf("Nicht")===-1&&String(i.verfuegbarkeit||"").length>0;}).length;
+  var hochgeladen=relevant.filter(isItemKleinanzeigenUploaded).length;
   var total=relevant.length;
   var p=total>0?Math.round((hochgeladen/total)*100):0;
   bar.style.width=p+"%";
@@ -2095,7 +2111,7 @@ function runSmartNotifications(){
   if(!Array.isArray(allItems)||allItems.length===0)return;
   if(!Array.isArray(notifications))notifications=[];
   var now=new Date();
-  var nichtHochgeladen=allItems.filter(function(i){return i.type!=="defekt"&&(String(i.verfuegbarkeit||"").indexOf("Nicht")>-1||String(i.verfuegbarkeit||"").length===0);}).length;
+  var nichtHochgeladen=allItems.filter(function(i){return i.type!=="defekt"&&!isItemKleinanzeigenUploaded(i);}).length;
   // Wenn 10+ Artikel noch nicht bei Kleinanzeigen
   if(nichtHochgeladen>=10){
     var already=notifications.find(function(n){return n.title.indexOf("Kleinanzeigen")>-1;});
@@ -2757,7 +2773,7 @@ function renderServerAccounts(accs) {
       +'<div class="acc-avatar">'+esc(ini)+'</div>'
       +'<div>'
       +'<div style="font-size:13px;font-weight:700;color:var(--w1)">'+esc(a.name)+'</div>'
-      +'<div style="font-size:10px;color:var(--w4);font-family:monospace">'+esc(a.email||"")+'</div>'
+      +'<div style="font-size:10px;color:var(--w4);font-family:monospace">'+esc((a.email&&String(a.email).indexOf("@noemail.stockmaster")>=0)?"(ohne E-Mail)":(a.email||""))+'</div>'
       +'<div style="display:flex;gap:6px;align-items:center;margin-top:2px">'
       +'<span style="font-size:9px;font-weight:700;color:'+statusColor+';font-family:monospace">'+statusLabel+'</span>'
       +'<span style="font-size:9px;color:var(--w4);font-family:monospace">'+esc(a.rolle||"mitarbeiter")+'</span>'
@@ -2976,13 +2992,20 @@ function _renderEKCheckStep(){
   if(hdr)hdr.textContent=ekCheckStep===1?"EINKAUF WÄHLEN":"ARTIKEL EINLAGERN";
 }
 
+function _einkaufNeedsInboundCheck(e){
+  var st=String(e.status||"").trim();
+  if(st==="Storniert"||st==="Bestand"||st==="Abgeschlossen")return false;
+  if(st==="Entwurf")return false;
+  return true;
+}
+
 function _loadEKCheckList(){
   var listEl=document.getElementById("ek-check-einkauf-list");
   if(!listEl)return;
   listEl.innerHTML='<div style="text-align:center;padding:24px"><span class="spin-b"></span><div style="font-size:10px;color:var(--w4);margin-top:8px;font-family:monospace">LADE...</div></div>';
   gasGet("getAllEinkauf",{},function(r){
     if(!r||!r.ok){listEl.innerHTML='<div class="empty"><i class="bi bi-wifi-off"></i><p>VERBINDUNGSFEHLER</p></div>';return;}
-    var pending=(r.data||[]).filter(function(e){return e.status!=="Storniert";});
+    var pending=(r.data||[]).filter(_einkaufNeedsInboundCheck);
     if(!pending.length){listEl.innerHTML='<div class="empty"><i class="bi bi-check-circle"></i><p>ALLE ABGESCHLOSSEN ✅</p></div>';return;}
     _ekCheckPendingCache = pending;
     renderEKCheckPendingList();
