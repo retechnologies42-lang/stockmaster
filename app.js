@@ -1,7 +1,7 @@
 
 
 
-var GAS_URL = "https://script.google.com/macros/s/AKfycby5D-HsBsZCL7xMuUWE2N8sMbc-rgsh1zRr2eirZAl2bX6I43UGoYSOvgb-vtLsRQ/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbxWSyP-vz5Gz9b0VV5kszW7DOKHWVbtBVxXgtDy2Nf4PBAFYUSOO3tzrgaouv1eYQ/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -68,6 +68,86 @@ function initEmp(){
 }
 function togglePwVis(){var i=document.getElementById("pw-in"),e=document.getElementById("pw-eye");if(!i||!e)return;var h=i.type==="password";i.type=h?"text":"password";e.innerHTML=h?'<i class="bi bi-eye-slash"></i>':'<i class="bi bi-eye"></i>';}
 function showLoginErr(msg){var e=document.getElementById("pw-err"),m=document.getElementById("pw-err-msg");if(m)m.textContent=msg;if(e)e.style.display="block";}
+function ensureProfileSetupOverlay(){
+  if(document.getElementById("profile-setup-overlay"))return;
+  var ov=document.createElement("div");
+  ov.id="profile-setup-overlay";
+  ov.style.cssText="display:none;position:fixed;inset:0;background:rgba(0,0,0,.97);z-index:10002;padding:16px;overflow-y:auto";
+  ov.innerHTML='<div style="max-width:440px;margin:20px auto;background:var(--b2);border:1px solid var(--acc);border-radius:14px;padding:22px 18px">'+
+    '<div style="font-family:Bebas Neue,sans-serif;font-size:22px;letter-spacing:2px;color:var(--acc);margin-bottom:4px">PROFIL AKTIVIEREN</div>'+
+    '<p style="font-size:11px;color:var(--w4);margin-bottom:14px;font-family:Space Mono,monospace">Neues Passwort setzen und Hinweise bestätigen.</p>'+
+    '<div class="diag" id="psu-diag" style="display:none"></div>'+
+    '<label class="fl">MITARBEITER</label><div id="psu-name" style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--w1)"></div>'+
+    '<label class="fl">NEUES PASSWORT *</label><input type="password" id="psu-pw1" class="fc mb-2" autocomplete="new-password"/>'+
+    '<label class="fl">PASSWORT WIEDERHOLEN *</label><input type="password" id="psu-pw2" class="fc mb-3" autocomplete="new-password"/>'+
+    '<div style="background:var(--b3);border:1px solid var(--e1);border-radius:var(--r);padding:12px;margin-bottom:12px;font-size:11px;color:var(--w3);line-height:1.6">'+
+    '<a href="#" id="psu-clause-link" target="_blank" rel="noopener" style="color:var(--acc);font-weight:700;text-decoration:underline">Haftungs- und Nutzungshinweise öffnen →</a>'+
+    '<p style="margin:8px 0 0;font-size:10px">Bitte den Link anklicken, um die Bestätigungen freizuschalten.</p></div>'+
+    '<label style="display:flex;gap:8px;align-items:flex-start;font-size:11px;color:var(--w3);margin-bottom:8px;cursor:pointer">'+
+    '<input type="checkbox" id="psu-chk-read" disabled style="margin-top:2px"/> <span>Ich habe die Hinweise gelesen.</span></label>'+
+    '<label style="display:flex;gap:8px;align-items:flex-start;font-size:11px;color:var(--w3);margin-bottom:14px;cursor:pointer">'+
+    '<input type="checkbox" id="psu-chk-final" disabled style="margin-top:2px"/> <span>Ich bestätige die verbindliche Kenntnisnahme.</span></label>'+
+    '<button type="button" class="btn btn-primary w-100 fw-bold" id="psu-btn" disabled>PROFIL SPEICHERN</button></div>';
+  document.body.appendChild(ov);
+  document.getElementById("psu-clause-link").addEventListener("click",function(e){
+    var u=this.getAttribute("data-href")||"#";
+    if(u&&u!=="#"){e.preventDefault();window.open(u,"_blank");}
+    window._psuClauseRead=true;
+    var cr=document.getElementById("psu-chk-read");if(cr)cr.disabled=false;
+  });
+  document.getElementById("psu-chk-read").addEventListener("change",function(){
+    var f=document.getElementById("psu-chk-final");if(f)f.disabled=!this.checked;
+    _psuUpdateBtn();
+  });
+  document.getElementById("psu-chk-final").addEventListener("change",function(){_psuUpdateBtn();});
+  document.getElementById("psu-btn").addEventListener("click",submitProfileSetup);
+}
+function _psuUpdateBtn(){
+  var b=document.getElementById("psu-btn");
+  if(!b)return;
+  var r=document.getElementById("psu-chk-read"),f=document.getElementById("psu-chk-final");
+  b.disabled=!(r&&r.checked&&f&&f.checked);
+}
+function showProfileSetupOverlay(ctx){
+  ensureProfileSetupOverlay();
+  window._psuName=ctx.name||"";
+  window._psuCurrentPw=ctx.currentPassword||"";
+  var nm=document.getElementById("psu-name");if(nm)nm.textContent=ctx.name||"";
+  var link=document.getElementById("psu-clause-link");
+  if(link){link.setAttribute("data-href",ctx.klauselUrl||"#");link.setAttribute("href",ctx.klauselUrl||"#");}
+  ["psu-pw1","psu-pw2"].forEach(function(id){var el=document.getElementById(id);if(el)el.value="";});
+  var cr=document.getElementById("psu-chk-read"),cf=document.getElementById("psu-chk-final");
+  if(cr){cr.checked=false;cr.disabled=true;}if(cf){cf.checked=false;cf.disabled=true;}
+  window._psuClauseRead=false;
+  var d=document.getElementById("psu-diag");if(d)d.style.display="none";
+  document.getElementById("profile-setup-overlay").style.display="block";
+  _psuUpdateBtn();
+}
+function submitProfileSetup(){
+  var p1=(document.getElementById("psu-pw1")||{value:""}).value;
+  var p2=(document.getElementById("psu-pw2")||{value:""}).value;
+  var dg=document.getElementById("psu-diag"),btn=document.getElementById("psu-btn");
+  if(p1.length<6){if(dg){dg.className="diag derr";dg.textContent="Neues Passwort mind. 6 Zeichen.";dg.style.display="block";}return;}
+  if(p1!==p2){if(dg){dg.className="diag derr";dg.textContent="Passwörter stimmen nicht überein.";dg.style.display="block";}return;}
+  if(!document.getElementById("psu-chk-final").checked){if(dg){dg.className="diag derr";dg.textContent="Bitte beide Kästchen bestätigen.";dg.style.display="block";}return;}
+  if(dg)dg.style.display="none";
+  setBL(btn,true);
+  gasPost("completeProfileSetup",{
+    name:window._psuName||"",
+    currentPassword:window._psuCurrentPw||"",
+    newPassword:p1,
+    newPassword2:p2,
+    klauselAkzeptiert:true
+  },function(r){
+    setBL(btn,false);
+    if(r&&r.ok){
+      var ov=document.getElementById("profile-setup-overlay");if(ov)ov.style.display="none";
+      toast("Profil aktiv ✅","ok");
+    }else{
+      if(dg){dg.className="diag derr";dg.textContent=r?r.fehler:"Fehler";dg.style.display="block";}
+    }
+  },function(e){setBL(btn,false);if(dg){dg.className="diag derr";dg.textContent=String(e);dg.style.display="block";}});
+}
 var empRolle="mitarbeiter";
 function applyEmp(n,rolle){emp=n.trim();empRolle=rolle||"mitarbeiter";var b=document.getElementById("emp-name");if(b)b.textContent=emp;var s=document.getElementById("emp-scr");if(s)s.classList.add("hidden");try{setGreeting();}catch(e){}try{fillMA();}catch(e){}
 // Show owner-only UI
@@ -421,7 +501,7 @@ function loadAll(force){
 }
 function renderList(){cardRegistry=[];var q=document.getElementById("list-q").value.toLowerCase();var f=allItems.filter(function(i){var tm=true;if(lf==="spielwaren")tm=(i.type==="konsole"||i.type==="spiel");else if(lf==="handy")tm=(i.type==="handy");else if(lf==="pc")tm=(i.type==="pc");else if(lf==="defekt")tm=(i.type==="defekt");if(!tm)return false;if(!q)return true;var n=i.name||i.spiel||i.modell||i.geraet||"";return n.toLowerCase().includes(q)||String(i.scanId||"").toLowerCase().includes(q)||(i.mitarbeiter||"").toLowerCase().includes(q);});document.getElementById("list-count").textContent=f.length+" Einträge";var cntEl=document.getElementById("lager-cat-count");if(cntEl)cntEl.textContent="("+f.length+" Artikel)";if(!f.length){document.getElementById("list-body").innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Nichts gefunden.</p></div>';return;}document.getElementById("list-body").innerHTML=f.map(function(i){return mkCard(i);}).join("");}
 var lfArr=["all","spielwaren","handy","pc","defekt"],lfLabels={"all":"Gesamtes Lager","spielwaren":"🎮 Spielwaren","handy":"📱 Handys","pc":"💻 PCs & Laptops","defekt":"⚠️ Defekte Geräte"};
-function setLF(m){lf=m;var tabs=document.querySelectorAll(".ltab");var idx=lfArr.indexOf(m);tabs.forEach(function(t,i){t.classList.toggle("on",i===idx);});var hdr=document.getElementById("lager-category-header"),lbl=document.getElementById("lager-cat-label");if(hdr&&lbl){if(m==="all"){hdr.style.display="none";}else{hdr.style.display="block";lbl.textContent=lfLabels[m]||m;}}renderList();}
+function setLF(m){lf=m;var tabs=document.querySelectorAll("#list-panel .lager-tabs .ltab");var idx=lfArr.indexOf(m);tabs.forEach(function(t,i){t.classList.toggle("on",i===idx);});var hdr=document.getElementById("lager-category-header"),lbl=document.getElementById("lager-cat-label");if(hdr&&lbl){if(m==="all"){hdr.style.display="none";}else{hdr.style.display="block";lbl.textContent=lfLabels[m]||m;}}renderList();}
 
 function mkCard(item){
   // Fix 7: Kleinanzeigen Status
@@ -1096,10 +1176,10 @@ function _highlightVKPlattform(p){
 function _updateVKBezahlOpts(){
   var p=gv("vk-plattform");
   var opts={
-    Kleinanzeigen:["PayPal","Überweisung","Bar (Abholung)"],
-    eBay:["eBay-Zahlung","PayPal"],
+    Kleinanzeigen:["PayPal","Kleinanzeigen Sicher Bezahlen","Kleinanzeigen SB","Überweisung","eBay","Bar (Abholung)"],
+    eBay:["eBay-Zahlung","eBay","PayPal","Kleinanzeigen Sicher Bezahlen","Kleinanzeigen SB"],
     Abholung:["Bar"],
-    Sonstiges:["PayPal","Überweisung","Bar","Sonstiges"]
+    Sonstiges:["PayPal","Überweisung","Bar","Sonstiges","eBay","Kleinanzeigen Sicher Bezahlen","Kleinanzeigen SB"]
   };
   var list=opts[p]||opts.Sonstiges;
   var wrap=document.getElementById("vk-bezahl-opts");if(!wrap)return;
@@ -1934,6 +2014,13 @@ function doLogin(){
         document.getElementById("pw-err").style.display="none";
         var loginName=r.name||input;
         if(r.name&&input.indexOf("@")>-1)loginName=r.name;
+        if(r.needsProfileSetup){
+          applyEmp(loginName,r.rolle||"mitarbeiter");
+          showProfileSetupOverlay({name:loginName,klauselUrl:r.klauselUrl||"",currentPassword:pw});
+          loadStats();
+          checkUnconfirmedNotifs();
+          return;
+        }
         applyEmp(loginName,r.rolle||"mitarbeiter");
         toast("Hey "+loginName+" 🚀","ok");
         loadStats();
@@ -3131,19 +3218,113 @@ function completeEKCheck(){
 // REKLAMATION STEPPER
 // ================================================================
 var rtStep = 1, rtTotalSteps = 3;
+var rtPhotos = [];
+
+function extractRTVorgang(hin){
+  var sep="── Vorgang / Käufer ──";
+  var h=hin||"";
+  var i=h.indexOf(sep);
+  if(i<0)return{hin:h,vorg:""};
+  return{hin:h.slice(0,i).trim(),vorg:h.slice(i+sep.length).trim()};
+}
+function buildRTHinweise(){
+  var h=gv("rt-hinweise");
+  var v=document.getElementById("rt-vorgang")?gv("rt-vorgang"):"";
+  if(v&&String(v).trim())return(h?h+"\n\n":"")+"── Vorgang / Käufer ──\n"+String(v).trim();
+  return h;
+}
+window._rtRemoveFoto=function(ix){if(typeof ix!=="number"||ix<0)return;rtPhotos.splice(ix,1);_renderRTFotoPreviews();};
+
+function ensureRTModalExtras(){
+  var s1=document.getElementById("rts-1");
+  if(!s1||document.getElementById("rt-vk-pick"))return;
+  var box=document.createElement("div");
+  box.id="rt-extras-wrap";
+  box.innerHTML='<div class="mb-3"><label class="fl">VERKAUF VERKNÜPFEN (optional)</label><select id="rt-vk-pick" class="fc"><option value="">– Laden… –</option></select>'+
+    '<div style="font-size:10px;color:var(--w4);margin-top:4px">Bei Auswahl werden Produkt, Kunde, Scan-IDs und VK-Zeile automatisch gesetzt.</div></div>'+
+    '<div class="mb-2"><label class="fl">VORGANG / KÄUFER-NACHRICHT</label><textarea id="rt-vorgang" class="fc" rows="2" placeholder="Bestellnr., Chat-Verlauf, Fristen…"></textarea></div>'+
+    '<div class="mb-2"><label class="fl">FOTOS (z. B. vom Käufer)</label><input type="file" id="rt-foto-in" accept="image/*" multiple class="fc" style="font-size:11px;padding:8px"/>'+
+    '<div id="rt-foto-previews" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div></div>';
+  var sub=s1.querySelector(".step-sub");
+  if(sub)sub.parentNode.insertBefore(box, sub.nextSibling);
+  else s1.appendChild(box);
+  document.getElementById("rt-foto-in").addEventListener("change",function(ev){
+    var files=ev.target.files;if(!files||!files.length)return;
+    var left=files.length,tar=ev.target;
+    for(var i=0;i<files.length;i++){
+      (function(file){
+        var fr=new FileReader();
+        fr.onload=function(){
+          if(fr.result)rtPhotos.push(fr.result);
+          left--;
+          if(left<=0){_renderRTFotoPreviews();if(tar)tar.value="";}
+        };
+        fr.readAsDataURL(file);
+      })(files[i]);
+    }
+  });
+}
+function _renderRTFotoPreviews(){
+  var w=document.getElementById("rt-foto-previews");if(!w)return;
+  w.innerHTML=(rtPhotos||[]).map(function(b64,ix){
+    var safe=String(b64).replace(/"/g,"&quot;");
+    return'<div style="position:relative;width:56px;height:56px;border-radius:6px;overflow:hidden;border:1px solid var(--e2)"><img src="'+safe+'" style="width:100%;height:100%;object-fit:cover" alt=""/><button type="button" onclick="_rtRemoveFoto('+ix+')" style="position:absolute;top:0;right:0;background:rgba(0,0,0,.6);color:#fff;border:none;width:18px;height:18px;font-size:10px;cursor:pointer">×</button></div>';
+  }).join("");
+}
+function loadRTVerkaufOptions(done){
+  var sel=document.getElementById("rt-vk-pick");if(!sel)return;
+  gasGet("getAllVerkauf",{},function(r){
+    if(!r||!r.ok)return;
+    allVerkauf=r.data||[];
+    sel.innerHTML='<option value="">– Verkauf wählen (optional) –</option>'+
+      allVerkauf.map(function(v){
+        return'<option value="'+v.rowIndex+'">'+(v.datum||"–")+" · "+esc((v.produkte||"").substring(0,36))+" · "+esc(v.kunde||"")+"</option>";
+      }).join("");
+    sel.onchange=function(){
+      var rv=allVerkauf.find(function(x){return String(x.rowIndex)===String(sel.value);});
+      if(rv)fillRTFromVerkauf(rv);
+    };
+    if(typeof done==="function")done();
+  });
+}
+function fillRTFromVerkauf(v){
+  sv2("rt-produkt", v.produkte||"");
+  sv2("rt-kunde", v.kunde||"");
+  sv2("rt-scanid", (v.scanIds||v.scanId||"").toString().replace(/\s*,\s*/g,", "));
+  sv2("rt-verkauf-zeile", String(v.rowIndex||""));
+  var vg=document.getElementById("rt-vorgang");
+  if(vg&&!vg.value.trim())vg.value="Verknüpfter Verkauf: Zeile "+v.rowIndex+" · Plattform: "+(v.plattform||"–")+" · VK: "+(v.verkaufspreis||"–")+"€";
+}
 
 function openRTModal(item, prefillVerkauf) {
+  ensureRTModalExtras();
   window.editRTItem = item || null;
   rtStep = 1;
+  rtPhotos=[];
+  if(item&&item.fotos&&item.fotos.length)rtPhotos=item.fotos.slice();
+  _renderRTFotoPreviews();
+  var fi=document.getElementById("rt-foto-in");if(fi)fi.value="";
   sv2("rt-produkt", item ? item.produkt : (prefillVerkauf ? prefillVerkauf.produkte||"" : ""));
   sv2("rt-kunde",   item ? item.kunde   : (prefillVerkauf ? prefillVerkauf.kunde||""   : ""));
   sv2("rt-scanid",  item ? (item.scanId||item.scanIds||"") : "");
   sv2("rt-grund",   item ? item.grund   : "");
   sv2("rt-status",  item ? item.status  : "Offen");
   sv2("rt-erstattung", item ? (item.erstattung||"") : "");
-  sv2("rt-hinweise",   item ? (item.hinweise||"")   : "");
+  var vg=document.getElementById("rt-vorgang");
+  if(item){
+    var ex=extractRTVorgang(item.hinweise||"");
+    sv2("rt-hinweise",ex.hin);
+    if(vg)vg.value=ex.vorg;
+  }else{
+    sv2("rt-hinweise","");
+    if(vg)vg.value="";
+  }
   sv2("rt-ma",         item ? (item.mitarbeiter||emp) : emp);
   sv2("rt-verkauf-zeile", item ? (item.verkaufZeile||"") : (prefillVerkauf ? prefillVerkauf.rowIndex||"" : ""));
+  if(prefillVerkauf&&!item)fillRTFromVerkauf(prefillVerkauf);
+  loadRTVerkaufOptions(function(){
+    var vk=document.getElementById("rt-vk-pick");if(vk&&item&&item.verkaufZeile)vk.value=String(item.verkaufZeile);
+  });
   // Reset grund buttons
   ["defekt","falsch","beschaedigt","nonfunc","sonstiges"].forEach(function(id){
     var el=document.getElementById("rtg-"+id); if(el) el.className="cbtn";
@@ -3193,11 +3374,15 @@ function rtStepNav(dir) {
 
 function _buildRTSummary() {
   var el=document.getElementById("rt-summary"); if(!el) return;
+  var vg=document.getElementById("rt-vorgang");
+  var vf=vg&&gv("rt-vorgang").trim();
   el.innerHTML=
     "PRODUKT: "+(gv("rt-produkt")||"–")+"<br>"+
     "KUNDE: "+(gv("rt-kunde")||"–")+"<br>"+
     "GRUND: "+(gv("rt-grund")||"–")+"<br>"+
     "STATUS: "+(gv("rt-status")||"–")+"<br>"+
+    (vf?"VORGANG: "+esc(vf)+" · ":"")+
+    (rtPhotos&&rtPhotos.length?"FOTOS: "+rtPhotos.length+"<br>":"")+
     (gv("rt-erstattung")?"ERSTATTUNG: "+gv("rt-erstattung")+"€<br>":"")+
     "MITARBEITER: "+(gv("rt-ma")||emp||"–");
 }
@@ -3241,9 +3426,10 @@ function saveRTForm() {
     grund:       grund,
     status:      gv("rt-status"),
     erstattung:  gv("rt-erstattung"),
-    hinweise:    gv("rt-hinweise"),
+    hinweise:    buildRTHinweise(),
     mitarbeiter: gv("rt-ma")||emp,
-    verkaufZeile:gv("rt-verkauf-zeile")||""
+    verkaufZeile:gv("rt-verkauf-zeile")||"",
+    fotos:       rtPhotos||[]
   };
   var btn=document.getElementById("rt-save-btn"); setBL(btn,true);
   if(window.editRTItem){
@@ -3316,8 +3502,14 @@ function renderAnalysePanel(){
   else{setAnalyseTab(analyseTab||"guv");}
 }
 function fmtEur(v){var n=parseFloat(v||0);return isNaN(n)?"–":n.toFixed(2)+"€";}
+var _guvBuildTries=0;
 function buildGUV(){
   function _el(id){return document.getElementById(id);}
+  if(!allItems||!allItems.length){
+    if(_guvBuildTries<3){_guvBuildTries++;loadAll(true);setTimeout(function(){buildGUV();},600);}
+    return;
+  }
+  _guvBuildTries=0;
   var filter=(document.getElementById("an-filter-month")||{value:"all"}).value;
   var vkData=(allVerkauf||[]).filter(function(v){
     if(filter==="all")return true;if(!v.datum)return false;
@@ -3327,10 +3519,19 @@ function buildGUV(){
     if(filter==="lastmonth"){var lm=m===1?12:m-1,ly=m===1?y-1:y;return vm===lm&&vy===ly;}
     return true;
   });
-  var totalVP=0,totalMarge=0;
-  vkData.forEach(function(v){totalVP+=parseFloat(v.verkaufspreis||0);totalMarge+=parseFloat(v.marge||0);});
+  var totalVP=0,totalMarge=0,sumNegMarge=0;
+  vkData.forEach(function(v){totalVP+=parseFloat(v.verkaufspreis||0);var m=parseFloat(v.marge||0);totalMarge+=m;if(m<0)sumNegMarge+=m;});
+  var sumStockEK=0;
+  (allItems||[]).forEach(function(i){
+    if(i.type==="defekt"||i.type==="verkauf")return;
+    var ek=parseFloat(i.einkaufspreis||0);if(!isNaN(ek)&&ek>0)sumStockEK+=ek;
+  });
+  var verlustDisplay=Math.abs(sumNegMarge)+sumStockEK;
   if(_el("an-gewinn"))_el("an-gewinn").textContent=fmtEur(totalMarge>0?totalMarge:0);
-  if(_el("an-verlust"))_el("an-verlust").textContent=fmtEur(totalMarge<0?Math.abs(totalMarge):0);
+  if(_el("an-verlust")){
+    _el("an-verlust").innerHTML='<span style="font-family:Bebas Neue,sans-serif;font-size:26px;letter-spacing:1px;color:var(--col-r)">'+fmtEur(verlustDisplay)+'</span>'+
+      '<div style="font-size:9px;color:var(--w4);margin-top:4px;font-family:Space Mono,monospace">inkl. Bestands-EK '+fmtEur(sumStockEK)+(sumNegMarge<0?' · neg. VK '+fmtEur(Math.abs(sumNegMarge)):"")+'</div>';
+  }
   if(_el("an-umsatz"))_el("an-umsatz").textContent=fmtEur(totalVP);
   if(_el("an-marge-avg"))_el("an-marge-avg").textContent=vkData.length>0?(totalMarge/vkData.length).toFixed(2)+"€":"–";
   buildMonthlyChart();
@@ -3344,10 +3545,10 @@ function buildGUV(){
   if(vld){
     var neg=vkData.filter(function(v){return parseFloat(v.marge||0)<0;});
     var noEK=vkData.filter(function(v){return !parseFloat(v.einkaufspreis||0);});
-    var h="";
+    var h='<div style="font-size:11px;color:var(--w4);margin-bottom:8px">Bestands-EK (eingekaufte Ware im Lager): <strong style="color:var(--col-r)">'+fmtEur(sumStockEK)+'</strong></div>';
     if(neg.length)h+=neg.map(function(v){return'<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--b1);font-size:12px"><span>'+esc(v.produkte||"–")+'</span><span class="an-neg">'+parseFloat(v.marge||0).toFixed(2)+'€</span></div>';}).join("");
     if(noEK.length)h+='<div style="font-size:12px;color:var(--amber);margin-top:7px">⚠️ '+noEK.length+' Verkäufe ohne EK</div>';
-    vld.innerHTML=h||'<div style="font-size:12px;color:var(--green)">✅ Keine Verluste</div>';
+    vld.innerHTML=h||'<div style="font-size:12px;color:var(--w3)">Keine negativen Verkaufsmargen.</div>';
   }
 }
 function buildMonthlyChart(){
@@ -3367,7 +3568,8 @@ function buildRetourenList(){
     var data=r.data;
     el.innerHTML=data.map(function(rt){
       var sC={"Offen":"var(--amber)","In Bearbeitung":"var(--blue)",Erstattet:"var(--green)",Abgelehnt:"var(--red)"}[rt.status]||"var(--t3)";
-      return'<div class="ic" style="cursor:pointer"><div class="ic-top"><div class="ic-name">'+esc(rt.produkt||"–")+'</div><span style="font-size:11px;font-weight:600;color:'+sC+'">'+esc(rt.status||"–")+'</span></div><div class="chips"><span class="chip"><b>'+esc(rt.kunde||"–")+'</b></span><span class="chip">'+esc(rt.datum||"–")+'</span>'+(rt.erstattung?'<span class="chip" style="color:var(--red)">'+esc(rt.erstattung)+'€</span>':"")+' <span class="chip">'+esc(rt.grund||"–")+'</span></div></div>';
+      var fc=(rt.fotos&&rt.fotos.length)?'<span class="chip" style="color:var(--col-b)">📷 '+rt.fotos.length+'</span>':"";
+      return'<div class="ic" style="cursor:pointer"><div class="ic-top"><div class="ic-name">'+esc(rt.produkt||"–")+'</div><span style="font-size:11px;font-weight:600;color:'+sC+'">'+esc(rt.status||"–")+'</span></div><div class="chips"><span class="chip"><b>'+esc(rt.kunde||"–")+'</b></span><span class="chip">'+esc(rt.datum||"–")+'</span>'+(rt.erstattung?'<span class="chip" style="color:var(--red)">'+esc(rt.erstattung)+'€</span>':"")+fc+' <span class="chip">'+esc(rt.grund||"–")+'</span></div></div>';
     }).join("");
     Array.from(el.querySelectorAll(".ic")).forEach(function(node,i){node.onclick=function(){openRTModal(data[i]);};});
   },function(){});
