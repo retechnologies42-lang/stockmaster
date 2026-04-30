@@ -1,7 +1,7 @@
 
 
 
-var GAS_URL = "https://script.google.com/macros/s/AKfycbxWSyP-vz5Gz9b0VV5kszW7DOKHWVbtBVxXgtDy2Nf4PBAFYUSOO3tzrgaouv1eYQ/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbzZ2yUwwPHp5QomclZqzBrXOXzC9gyw9c0uaoGMGE7P0A31M62Fy8wNNvJXT_D6bw/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -9,12 +9,13 @@ var camStream=null, camAnimFrame=null, camRunning=false, camDevices=[];
 var firstCamDeviceId=null; // FIX: speichert DeviceId von Kamera 0
 var scanMode="einlagern"; // "einlagern" | "verkauf" | "einkauf"
 var curCat="", curType="";
+var forcedSpielSystem="";
 var stepCur=1, stepTotal=5;
 var probChoice=null, probType=null;
 var photos=[];
 var editingItem=null, isEditMode=false;
 var testRowNum=-1, timerInterval=null;
-var SNAMES={konsole:["Barcode","Name","Details","Mängel","Mitarbeiter"],spiel:["Barcode","Titel","Details","Mängel","Mitarbeiter"],handy:["Barcode","Modell","Details","Mängel","Mitarbeiter"],pc:["Barcode","Modell","Details","Mängel","Mitarbeiter"]};
+var SNAMES={konsole:["Barcode","Name","Details","Mängel","Mitarbeiter"],spiel:["Barcode","Titel","Details","Mängel","Mitarbeiter"],controller:["Barcode","Controller","Details","Mängel","Mitarbeiter"],handy:["Barcode","Modell","Details","Mängel","Mitarbeiter"],pc:["Barcode","Modell","Details","Mängel","Mitarbeiter"]};
 
 // ================================================================
 // API CALLS
@@ -224,12 +225,23 @@ function loadStats(){gasGet("getStats",{},function(r){if(!r||!r.ok)return;var s=
 
 // ── KATEGORIE ─────────────────────────────────────────────────────
 function selCat(cat){curCat=cat;isEditMode=false;editingItem=null;document.getElementById("mode-chooser").style.display="none";document.getElementById("cat-chooser").style.display="none";document.getElementById("sw-sub").style.display="none";document.getElementById("main-stepper").style.display="none";if(cat==="spielwaren"){document.getElementById("sw-sub").style.display="block";}else{startStepper(cat);}}
-function resetFlow(){stopCam();document.getElementById("mode-chooser").style.display="block";document.getElementById("cat-chooser").style.display="none";document.getElementById("sw-sub").style.display="none";document.getElementById("main-stepper").style.display="none";isEditMode=false;editingItem=null;resetStepperState();}
+function selControllerMode(){forcedSpielSystem="Controller";selCat("spiel");}
+function ensureControllerOption(){
+  var grid=document.querySelector("#sw-sub .cat-grid");
+  if(!grid||document.getElementById("sw-controller-btn"))return;
+  var btn=document.createElement("button");
+  btn.id="sw-controller-btn";
+  btn.className="cat-btn cb-sw";
+  btn.innerHTML='<span class="ci">🎮</span>CONTROLLER';
+  btn.onclick=function(){selControllerMode();};
+  grid.appendChild(btn);
+}
+function resetFlow(){stopCam();document.getElementById("mode-chooser").style.display="block";document.getElementById("cat-chooser").style.display="none";document.getElementById("sw-sub").style.display="none";document.getElementById("main-stepper").style.display="none";isEditMode=false;editingItem=null;forcedSpielSystem="";resetStepperState();}
 
 // ── STEPPER ───────────────────────────────────────────────────────
 function startStepper(type, prefillItem){
   curType=type;isEditMode=!!prefillItem;editingItem=prefillItem||null;
-  stepCur=(type==="spiel"||type==="handy")?2:1;
+  stepCur=(type==="spiel"||type==="handy"||type==="controller")?2:1;
   resetStepperState();
   document.getElementById("main-stepper").style.display="block";
   configS2(type);configS3(type);buildDots();updateProgress();showStep(stepCur);fillMA();
@@ -260,14 +272,17 @@ function prefillStepper(item,type){
 }
 function sv(id,val){var el=document.getElementById(id);if(!el||val===undefined||val===null)return;el.value=String(val);}
 
-function configS2(t){var tt={konsole:"Name der Konsole",spiel:"Spieltitel",handy:"Gerätemodell",pc:"Modell"};var ss={konsole:"z.B. PlayStation 5 Slim",spiel:"z.B. Zelda: Tears of the Kingdom",handy:"z.B. Samsung Galaxy S24",pc:"z.B. Dell XPS 15"};document.getElementById("s2-title").textContent=tt[t]||"Name";document.getElementById("s2-lbl").textContent=(tt[t]||"Name")+" *";document.getElementById("f-name").placeholder=ss[t]||"";document.getElementById("s2-sub").textContent="Vollständige Bezeichnung eingeben.";document.getElementById("s2-extra").innerHTML="";}
+function configS2(t){var tt={konsole:"Name der Konsole",spiel:"Spieltitel",controller:"Controller",handy:"Gerätemodell",pc:"Modell"};var ss={konsole:"z.B. PlayStation 5 Slim",spiel:"z.B. Zelda: Tears of the Kingdom",controller:"z.B. PS5 DualSense",handy:"z.B. Samsung Galaxy S24",pc:"z.B. Dell XPS 15"};document.getElementById("s2-title").textContent=tt[t]||"Name";document.getElementById("s2-lbl").textContent=(tt[t]||"Name")+" *";document.getElementById("f-name").placeholder=ss[t]||"";document.getElementById("s2-sub").textContent="Vollständige Bezeichnung eingeben.";document.getElementById("s2-extra").innerHTML="";}
 function configS3(t){
   var h="";
   if(t==="konsole"){document.getElementById("s3-title").textContent="Speicher & Farbe";h='<div class="row g-2 mb-3"><div class="col-6"><label class="fl">Speicher (GB)</label><input type="number" id="f-gb" class="fc" placeholder="z.B. 825"/></div><div class="col-6"><label class="fl">Farbe</label><input type="text" id="f-farbe" class="fc" placeholder="z.B. Weiß"/></div></div>';}
-  else if(t==="spiel"){document.getElementById("s3-title").textContent="Spiel-Details";h='<div class="mb-3"><label class="fl">System / Plattform</label>'+selHTML("f-sys",["PlayStation 5","PlayStation 4","PlayStation 3","Xbox Series X/S","Xbox One","Xbox 360","Nintendo Switch","Nintendo 3DS","Nintendo Wii","Nintendo Wii U","Game Boy Advance","Nintendo DS","PC","Sonstiges"])+'</div><div class="row g-2 mb-3"><div class="col-4"><label class="fl">USK</label>'+selHTML("f-usk",["","USK 0","USK 6","USK 12","USK 16","USK 18"])+'</div><div class="col-4"><label class="fl">Sprache</label>'+selHTML("f-sprache",["Deutsch","Englisch","Multilingual","Sonstiges"])+'</div><div class="col-4"><label class="fl" style="display:flex;align-items:center;gap:4px">Zustand <button type="button" onclick="showZustandInfo()" style="width:17px;height:17px;background:var(--blue);border:none;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#fff;cursor:pointer;flex-shrink:0;padding:0">i</button></label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div></div><div class="mb-3"><label class="fl">Hinweise</label><textarea id="f-hinweise" class="fc" placeholder="z.B. Cover fehlt…"></textarea></div>';}
+  else if(t==="spiel"||t==="controller"){document.getElementById("s3-title").textContent=(t==="controller"?"Controller-Details":"Spiel-Details");h='<div class="mb-3"><label class="fl">System / Plattform</label>'+selHTML("f-sys",["PlayStation 5","PlayStation 4","PlayStation 3","Xbox Series X/S","Xbox One","Xbox 360","Nintendo Switch","Nintendo 3DS","Nintendo Wii","Nintendo Wii U","Game Boy Advance","Nintendo DS","PC","Controller","Sonstiges"])+'</div><div class="row g-2 mb-3"><div class="col-4"><label class="fl">USK</label>'+selHTML("f-usk",["","USK 0","USK 6","USK 12","USK 16","USK 18"])+'</div><div class="col-4"><label class="fl">Sprache</label>'+selHTML("f-sprache",["Deutsch","Englisch","Multilingual","Sonstiges"])+'</div><div class="col-4"><label class="fl" style="display:flex;align-items:center;gap:4px">Zustand <button type="button" onclick="showZustandInfo()" style="width:17px;height:17px;background:var(--blue);border:none;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#fff;cursor:pointer;flex-shrink:0;padding:0">i</button></label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div></div><div class="mb-3"><label class="fl">Hinweise</label><textarea id="f-hinweise" class="fc" placeholder="z.B. Cover fehlt…"></textarea></div>';}
   else if(t==="handy"){document.getElementById("s3-title").textContent="Technische Daten";h='<div class="row g-2 mb-3"><div class="col-6"><label class="fl">Speicher (GB)</label><input type="number" id="f-gb" class="fc" placeholder="z.B. 256"/></div><div class="col-6"><label class="fl">RAM (GB)</label><input type="number" id="f-ram" class="fc" placeholder="z.B. 8"/></div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Farbe</label><input type="text" id="f-farbe" class="fc" placeholder="z.B. Midnight Black"/></div><div class="col-6"><label class="fl">Netzwerk</label>'+selHTML("f-netz",["","4G/LTE","5G","Dual-SIM 5G","Sonstiges"])+'</div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div><div class="col-6"><label class="fl">IMEI (optional)</label><input type="text" id="f-imei" class="fc" placeholder="15-stellig"/></div></div>';}
   else if(t==="pc"){document.getElementById("s3-title").textContent="Hardware-Spezifikationen";h='<div class="mb-3"><label class="fl">Typ – Bitte zuerst wählen</label><div class="cg2"><button class="cbtn" id="pc-l" onclick="selPCTyp(\'Laptop\')"><span class="ci">💻</span>Laptop</button><button class="cbtn" id="pc-d" onclick="selPCTyp(\'Desktop\')"><span class="ci">🖥️</span>Desktop</button></div><input type="hidden" id="f-pc-typ" value=""/></div><div id="pc-fields-wrap" style="display:none"></div>';}
   document.getElementById("s3-fields").innerHTML=h;
+  if((t==="controller"||forcedSpielSystem==="Controller")&&document.getElementById("f-sys")){
+    document.getElementById("f-sys").value="Controller";
+  }
 }
 function selHTML(id,opts){return'<select id="'+id+'" class="fc"><option value="">– Auswählen –</option>'+opts.map(function(o){return o?'<option>'+o+'</option>':'';}).join("")+'</select>';}
 function selPCTyp(v){
@@ -446,7 +461,7 @@ function doSave(){
   var fn="";
 
   if(curType==="konsole"){d.name=name;d.speicherGB=gv("f-gb");d.farbe=gv("f-farbe");fn=isEditMode?"updateKonsole":"saveKonsole";}
-  else if(curType==="spiel"){d.spiel=name;d.system=gv("f-sys");d.zustand=gv("f-zustand");d.usk=gv("f-usk");d.sprache=gv("f-sprache");d.hinweise=gv("f-hinweise");fn=isEditMode?"updateSpiel":"saveSpiel";}
+  else if(curType==="spiel"||curType==="controller"){d.spiel=name;d.system=(forcedSpielSystem||gv("f-sys")||"Controller");d.zustand=gv("f-zustand");d.usk=gv("f-usk");d.sprache=gv("f-sprache");d.hinweise=gv("f-hinweise");fn=isEditMode?"updateSpiel":"saveSpiel";}
   else if(curType==="handy"){d.modell=name;d.speicherGB=gv("f-gb");d.ram=gv("f-ram");d.farbe=gv("f-farbe");d.netzwerk=gv("f-netz");d.imei=gv("f-imei");d.zustand=gv("f-zustand");fn=isEditMode?"updateHandy":"saveHandy";}
   else if(curType==="pc"){var pcTyp=gv("f-pc-typ");d.modell=(gv("f-brand")||name);d.typ=pcTyp;d.prozessor=gv("f-cpu");d.ram=gv("f-ram");d.speicherGB=gv("f-gb");d.speicherTyp=gv("f-stype");d.grafikkarte=gv("f-gpu");d.mainboard=gv("f-mb");d.netzteil=gv("f-psu");d.anschluesse=gv("f-ports");d.betriebssystem=gv("f-os");d.zustand=gv("f-zustand");if(pcTyp==="Laptop"){d.anschluesse=gv("f-screen")+" | Akku: "+gv("f-battery");}fn=isEditMode?"updatePC":"savePC";}
 
@@ -499,7 +514,7 @@ function loadAll(force){
   gasGet("getAllPCs",{},function(r){if(r&&r.ok)pd=r.data||[];tryR();},function(){tryR();});
   gasGet("getAllDefekte",{},function(r){if(r&&r.ok)dd=r.data||[];tryR();},function(){tryR();});
 }
-function renderList(){cardRegistry=[];var q=document.getElementById("list-q").value.toLowerCase();var f=allItems.filter(function(i){var tm=true;if(lf==="spielwaren")tm=(i.type==="konsole"||i.type==="spiel");else if(lf==="handy")tm=(i.type==="handy");else if(lf==="pc")tm=(i.type==="pc");else if(lf==="defekt")tm=(i.type==="defekt");if(!tm)return false;if(!q)return true;var n=i.name||i.spiel||i.modell||i.geraet||"";return n.toLowerCase().includes(q)||String(i.scanId||"").toLowerCase().includes(q)||(i.mitarbeiter||"").toLowerCase().includes(q);});document.getElementById("list-count").textContent=f.length+" Einträge";var cntEl=document.getElementById("lager-cat-count");if(cntEl)cntEl.textContent="("+f.length+" Artikel)";if(!f.length){document.getElementById("list-body").innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Nichts gefunden.</p></div>';return;}document.getElementById("list-body").innerHTML=f.map(function(i){return mkCard(i);}).join("");}
+function renderList(){cardRegistry=[];var q=document.getElementById("list-q").value.toLowerCase();var f=allItems.filter(function(i){var tm=true;if(lf==="spielwaren")tm=(i.type==="konsole"||i.type==="spiel");else if(lf==="handy")tm=(i.type==="handy");else if(lf==="pc")tm=(i.type==="pc");else if(lf==="defekt")tm=(i.type==="defekt");if(!tm)return false;if(!q)return true;var n=i.name||i.spiel||i.modell||i.geraet||"";var hay=[n,i.scanId,i.mitarbeiter,i.zustand,i.problemTyp,i.problemBeschr,i.kategorie,i.ursprung].map(function(v){return String(v||"").toLowerCase();}).join(" ");return hay.indexOf(q)>-1;});document.getElementById("list-count").textContent=f.length+" Einträge";var cntEl=document.getElementById("lager-cat-count");if(cntEl)cntEl.textContent="("+f.length+" Artikel)";if(!f.length){document.getElementById("list-body").innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Nichts gefunden.</p></div>';return;}document.getElementById("list-body").innerHTML=f.map(function(i){return mkCard(i);}).join("");}
 var lfArr=["all","spielwaren","handy","pc","defekt"],lfLabels={"all":"Gesamtes Lager","spielwaren":"🎮 Spielwaren","handy":"📱 Handys","pc":"💻 PCs & Laptops","defekt":"⚠️ Defekte Geräte"};
 function setLF(m){lf=m;var tabs=document.querySelectorAll("#list-panel .lager-tabs .ltab");var idx=lfArr.indexOf(m);tabs.forEach(function(t,i){t.classList.toggle("on",i===idx);});var hdr=document.getElementById("lager-category-header"),lbl=document.getElementById("lager-cat-label");if(hdr&&lbl){if(m==="all"){hdr.style.display="none";}else{hdr.style.display="block";lbl.textContent=lfLabels[m]||m;}}renderList();}
 
@@ -576,6 +591,45 @@ function startTestTimer(sec){var box=document.getElementById("test-timer-box"),b
 function gv(id){var e=document.getElementById(id);return e?e.value:"";}
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 function setBL(btn,on,orig){if(on){btn.disabled=true;btn.innerHTML='<span class="spin"></span>';}else{btn.disabled=false;if(orig)btn.innerHTML=orig;}}
+function runRefreshAction(btn, actionName){
+  if(!btn) return;
+  var icon=btn.querySelector("i");
+  if(icon) icon.style.animation="rot .7s linear infinite";
+  btn.disabled=true;
+  setTimeout(function(){
+    try{
+      if(actionName==="loadAll") loadAll(true);
+      else if(actionName==="loadHandel") loadHandel();
+      else if(actionName==="loadMitarbeiterStats") loadMitarbeiterStats();
+      else if(actionName==="renderAnalysePanel") renderAnalysePanel();
+    }finally{
+      setTimeout(function(){
+        if(icon) icon.style.animation="";
+        btn.disabled=false;
+      },350);
+    }
+  },120);
+}
+function setupRefreshButtons(){
+  var map=[
+    {sel:"#list-panel .btn.btn-outline-secondary",act:"loadAll"},
+    {sel:"#handel-panel #handel-vk .btn.btn-outline-secondary",act:"loadHandel"},
+    {sel:"#handel-panel #handel-ek .btn.btn-outline-secondary",act:"loadHandel"},
+    {sel:"#home-panel button[onclick*='loadMitarbeiterStats']",act:"loadMitarbeiterStats"},
+    {sel:"#analyse-panel button[onclick*='renderAnalysePanel']",act:"renderAnalysePanel"}
+  ];
+  map.forEach(function(m){
+    document.querySelectorAll(m.sel).forEach(function(btn){
+      if(btn.getAttribute("data-refresh-bound")==="1")return;
+      btn.setAttribute("data-refresh-bound","1");
+      btn.addEventListener("click",function(ev){
+        ev.preventDefault();
+        ev.stopPropagation();
+        runRefreshAction(btn,m.act);
+      });
+    });
+  });
+}
 function showD(id,msg,cls){var e=document.getElementById(id);if(!e)return;e.className="diag "+(cls||"derr");e.textContent=msg;e.style.display="block";}
 function hideD(id){var e=document.getElementById(id);if(e)e.style.display="none";}
 function toast(msg,t,d){d=d||4000;var w=document.getElementById("toasts"),el=document.createElement("div");var c=t==="ok"?"tok":t==="err"?"terr":"tinf",ic=t==="ok"?"✅":t==="err"?"❌":"💡";el.className="tm "+c;el.innerHTML="<span>"+ic+"</span><span>"+msg+"</span>";w.appendChild(el);setTimeout(function(){el.style.opacity="0";el.style.transform="translateY(7px)";setTimeout(function(){el.remove();},300);},d);}
@@ -585,26 +639,27 @@ function showZustandInfo(){var info=[["Neuwertig","Neu & originalverpackt, unben
 var notifications=[];
 function loadNotifications(){try{var s=localStorage.getItem("smp_notifs");if(s)notifications=JSON.parse(s)||[];}catch(e){}if(!Array.isArray(notifications))notifications=[];updateNotifBadge();checkLongStorageItems();}
 function saveNotifications(){if(!Array.isArray(notifications))notifications=[];try{localStorage.setItem("smp_notifs",JSON.stringify(notifications.slice(0,50)));}catch(e){}}
-function addNotification(title,body,type){if(!Array.isArray(notifications))notifications=[];var notif={id:Date.now(),title:title,body:body,type:type||"info",time:new Date().toLocaleString("de-DE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}),read:false};notifications.unshift(notif);saveNotifications();updateNotifBadge();}
+function addNotification(title,body,type,action){if(!Array.isArray(notifications))notifications=[];var notif={id:Date.now(),title:title,body:body,type:type||"info",time:new Date().toLocaleString("de-DE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}),read:false,action:action||""};notifications.unshift(notif);saveNotifications();updateNotifBadge();}
 function updateNotifBadge(){var notifArr=Array.isArray(notifications)?notifications:[];var unread=notifArr.filter(function(n){return!n.read;}).length;var badge=document.getElementById("notif-count-badge");if(badge){if(unread>0){badge.style.display="flex";badge.textContent=unread>9?"9+":unread;}else{badge.style.display="none";}}}
 function openNotifications(){if(!Array.isArray(notifications))notifications=[];notifications.forEach(function(n){n.read=true;});saveNotifications();updateNotifBadge();renderNotifList();var ov=document.getElementById("notif-overlay");if(ov)ov.classList.add("open");}
 function closeNotifications(){var ov=document.getElementById("notif-overlay");if(ov)ov.classList.remove("open");}
-function renderNotifList(){var list=document.getElementById("notif-list");if(!list)return;var notifArr=Array.isArray(notifications)?notifications:[];if(!notifArr.length){list.innerHTML='<div class="notif-empty"><i class="bi bi-bell-slash"></i><p>Keine Benachrichtigungen</p></div>';return;}list.innerHTML=notifArr.map(function(n){var cls=n.type==="alert"?"alert":n.type==="warn"?"warn":"";return'<div class="notif-item '+cls+'"><div class="notif-title">'+esc(n.title)+'</div><div class="notif-body">'+esc(n.body)+'</div><div class="notif-time">'+esc(n.time)+'</div><button class="notif-rm" onclick="removeNotif('+n.id+')">✕</button></div>';}).join("");}
+function renderNotifList(){var list=document.getElementById("notif-list");if(!list)return;var notifArr=Array.isArray(notifications)?notifications:[];if(!notifArr.length){list.innerHTML='<div class="notif-empty"><i class="bi bi-bell-slash"></i><p>Keine Benachrichtigungen</p></div>';return;}list.innerHTML=notifArr.map(function(n){var cls=n.type==="alert"?"alert":n.type==="warn"?"warn":"";var actionBtn=n.action==="bestand-pruefmodus"?'<button class="btn btn-outline-primary btn-sm" style="margin-top:8px" onclick="openBestandPruefmodus()">Prüfmodus öffnen</button>':"";return'<div class="notif-item '+cls+'"><div class="notif-title">'+esc(n.title)+'</div><div class="notif-body">'+esc(n.body)+'</div>'+actionBtn+'<div class="notif-time">'+esc(n.time)+'</div><button class="notif-rm" onclick="removeNotif('+n.id+')">✕</button></div>';}).join("");}
 function removeNotif(id){if(!Array.isArray(notifications))notifications=[];notifications=notifications.filter(function(n){return n.id!==id;});saveNotifications();renderNotifList();updateNotifBadge();}
 function clearAllNotifications(){if(!confirm("Alle Benachrichtigungen löschen?"))return;notifications=[];saveNotifications();renderNotifList();updateNotifBadge();}
 function checkLongStorageItems(){if(!Array.isArray(allItems)||allItems.length===0)return;if(!Array.isArray(notifications))notifications=[];var now=new Date(),threshold=30;allItems.forEach(function(item){if(!item.datum)return;var parts=item.datum.split(".");if(parts.length<3)return;var d=new Date(parts[2].split(" ")[0],parts[1]-1,parts[0]);if(isNaN(d))return;var days=Math.floor((now-d)/(1000*60*60*24));if(days>=threshold){var nm=item.name||item.spiel||item.modell||item.geraet||"Unbekannt";var already=notifications.find(function(n){return n.body&&n.body.indexOf(nm)>-1&&n.title.indexOf("Lager")>-1;});if(!already)addNotification("⏳ Lange im Lager",'"'+nm+'" lagert seit '+days+' Tagen.',"warn");}});
 try{
   var key="smp_audit_last";
   var last=parseInt(localStorage.getItem(key)||"0",10)||0;
-  var everyMs=1000*60*60*24*7; // weekly audit reminder
+  var everyMs=1000*60*60*24*60; // every two months
   if((Date.now()-last)>everyMs){
     var alreadyAudit=notifications.find(function(n){return n.title&&n.title.indexOf("Bestandskontrolle")>-1&&n.time&&n.time.indexOf(now.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"}))>-1;});
     if(!alreadyAudit){
-      addNotification("📋 Bestandskontrolle", "Bitte Lagerfächer und aktive Zimmer auf Differenzen prüfen.", "alert");
+      addNotification("📋 Bestandskontrolle", "Bitte Lagerfächer und aktive Zimmer auf Differenzen prüfen.", "alert","bestand-pruefmodus");
       localStorage.setItem(key,String(Date.now()));
     }
   }
 }catch(e){}}
+function openBestandPruefmodus(){goTabFn("list-panel","all");var q=document.getElementById("list-q");if(q)q.value="defekt";renderList();toast("Prüfmodus aktiv: Defekte und Bestände prüfen.","info",2800);}
 
 // ================================================================
 // SCAN MODE
@@ -692,6 +747,68 @@ var allVerkauf=[], allEinkauf=[], currentHandelTab="verkauf";
 var handelVkRegistry=[], handelEkRegistry=[];
 var editVerkaufItem=null, editEinkaufItem=null;
 
+function parseDeDate(d){
+  if(!d) return null;
+  var s=String(d).trim();
+  var m=s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+  if(!m) return null;
+  return new Date(parseInt(m[3],10),parseInt(m[2],10)-1,parseInt(m[1],10),0,0,0,0);
+}
+function inDateRange(itemDate, fromDate, toDate){
+  var dt=parseDeDate(itemDate); if(!dt) return false;
+  if(fromDate && dt<fromDate) return false;
+  if(toDate && dt>toDate) return false;
+  return true;
+}
+function getHandelDateRange(){
+  var mode=(document.getElementById("handel-date-mode")||{value:"thismonth"}).value;
+  var now=new Date();
+  var from=null,to=null;
+  if(mode==="thismonth"){
+    from=new Date(now.getFullYear(),now.getMonth(),1,0,0,0,0);
+    to=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59,999);
+  }else if(mode==="lastmonth"){
+    from=new Date(now.getFullYear(),now.getMonth()-1,1,0,0,0,0);
+    to=new Date(now.getFullYear(),now.getMonth(),0,23,59,59,999);
+  }else if(mode==="custom"){
+    var fromIn=(document.getElementById("handel-date-from")||{value:""}).value;
+    var toIn=(document.getElementById("handel-date-to")||{value:""}).value;
+    if(fromIn){var f=new Date(fromIn+"T00:00:00");if(!isNaN(f))from=f;}
+    if(toIn){var t=new Date(toIn+"T23:59:59");if(!isNaN(t))to=t;}
+  }
+  return {from:from,to:to};
+}
+function ensureHandelDateFilterUI(){
+  var panel=document.getElementById("handel-panel");
+  if(!panel || document.getElementById("handel-date-filter-box")) return;
+  var wrap=document.createElement("div");
+  wrap.id="handel-date-filter-box";
+  wrap.style.cssText="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap";
+  wrap.innerHTML=''
+    +'<select id="handel-date-mode" class="fc" style="width:auto;min-width:145px;font-size:11px;padding:8px 10px;font-family:\'Space Mono\',monospace">'
+    +'<option value="thismonth">DIESER MONAT</option>'
+    +'<option value="lastmonth">LETZTER MONAT</option>'
+    +'<option value="all">GESAMT</option>'
+    +'<option value="custom">ZEITRAUM</option>'
+    +'</select>'
+    +'<input type="date" id="handel-date-from" class="fc" style="display:none;width:auto;font-size:11px;padding:8px 10px;font-family:\'Space Mono\',monospace"/>'
+    +'<input type="date" id="handel-date-to" class="fc" style="display:none;width:auto;font-size:11px;padding:8px 10px;font-family:\'Space Mono\',monospace"/>';
+  var target=panel.querySelector(".wrap");
+  if(target) target.insertBefore(wrap,target.firstChild);
+  var modeEl=document.getElementById("handel-date-mode");
+  var fromEl=document.getElementById("handel-date-from");
+  var toEl=document.getElementById("handel-date-to");
+  function sync(){
+    var isCustom=modeEl.value==="custom";
+    fromEl.style.display=isCustom?"block":"none";
+    toEl.style.display=isCustom?"block":"none";
+    loadHandel();
+  }
+  modeEl.onchange=sync;
+  fromEl.onchange=function(){loadHandel();};
+  toEl.onchange=function(){loadHandel();};
+}
+
 function ensureHandelEkFilterUI(){
   try{
     var row = document.querySelector("#handel-ek .d-flex");
@@ -719,6 +836,7 @@ function ensureHandelEkFilterUI(){
 
 function setHandelTab(tab){
   currentHandelTab=tab;
+  ensureHandelDateFilterUI();
   document.getElementById("htab-vk").className="ltab"+(tab==="verkauf"?" on":"");
   document.getElementById("htab-ek").className="ltab"+(tab==="einkauf"?" on":"");
   document.getElementById("handel-vk").style.display=tab==="verkauf"?"block":"none";
@@ -727,8 +845,10 @@ function setHandelTab(tab){
 }
 
 function loadHandel(){
-  gasGet("getAllVerkauf",{},function(r){if(r&&r.ok){allVerkauf=r.data||[];renderVerkaufList();}},function(){});
-  gasGet("getAllEinkauf",{},function(r){if(r&&r.ok){allEinkauf=r.data||[];renderEinkaufList();}},function(){});
+  ensureHandelDateFilterUI();
+  var dr=getHandelDateRange();
+  gasGet("getAllVerkauf",{},function(r){if(r&&r.ok){var raw=r.data||[];allVerkauf=raw.filter(function(x){return inDateRange(x.datum,dr.from,dr.to);});renderVerkaufList();}},function(){});
+  gasGet("getAllEinkauf",{},function(r){if(r&&r.ok){var raw=r.data||[];allEinkauf=raw.filter(function(x){return inDateRange(x.datum,dr.from,dr.to);});renderEinkaufList();}},function(){});
 }
 
 function filterHandel(type){
@@ -1889,10 +2009,21 @@ function deleteServerAccount(email){
 
 function triggerPDFExport(){
   var btn=event.target;var orig=btn.innerHTML;setBL(btn,true);
-  gasGet("triggerMonthlyExport",{},function(r){
+  gasGet("downloadMonthlyReports",{},function(r){
     setBL(btn,false,orig);
-    if(r&&r.ok)toast(r.msg,"ok",5000);
-    else toast("Fehler: "+(r?r.fehler:"?"),"err");
+    if(r&&r.ok&&Array.isArray(r.files)&&r.files.length){
+      r.files.forEach(function(f){
+        try{
+          var link=document.createElement("a");
+          link.href="data:"+(f.mimeType||"application/pdf")+";base64,"+f.base64;
+          link.download=f.name||("Bericht_"+Date.now()+".pdf");
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }catch(_e){}
+      });
+      toast("Berichte heruntergeladen.","ok",4200);
+    } else toast("Fehler: "+(r?r.fehler:"?"),"err");
   },function(e){setBL(btn,false,orig);toast("Fehler: "+e,"err");});
 }
 
@@ -1900,6 +2031,7 @@ function triggerPDFExport(){
 // PHASE 2: ACTIVATION FLOW
 // ================================================================
 function showActivationFlow(token){
+  clearSession();
   document.getElementById("act-token").value=token;
   var s=document.getElementById("emp-scr");if(s)s.classList.add("hidden");
   var ao=document.getElementById("activation-overlay");if(ao)ao.style.display="block";
@@ -1927,6 +2059,7 @@ function doActivation(){
       btn.innerHTML="<i class='bi bi-house-fill me-1'></i>Zur App";
       btn.onclick=function(){
         document.getElementById("activation-overlay").style.display="none";
+        clearSession();
         // Auto-fill name and show login
         var ni=document.getElementById("emp-in");if(ni)ni.value=r.name||name;
         var s=document.getElementById("emp-scr");if(s)s.classList.remove("hidden");
@@ -3462,8 +3595,11 @@ window.addEventListener("load",function(){
   var rt=document.getElementById("rt-modal");if(rt)rt.addEventListener("click",function(e){if(e.target===this)closeRTModal();});
   var cm=document.getElementById("china-modal");if(cm)cm.addEventListener("click",function(e){if(e.target===this)closeChinaModal();});
   var vmo=document.getElementById("vk-multi-overlay");if(vmo)vmo.addEventListener("click",function(e){if(e.target===this)closeVKMulti();});
+  ensureControllerOption();
+  setupRefreshButtons();
   // Check for saved session (auto-login)
-  var savedSession = loadSession();
+  var hasActivationToken = (new URLSearchParams(window.location.search)).get("activate");
+  var savedSession = hasActivationToken ? null : loadSession();
   if(savedSession && savedSession.name) {
     applyEmp(savedSession.name, savedSession.rolle||"mitarbeiter");
     loadStats();
