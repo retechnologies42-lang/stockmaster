@@ -1,7 +1,7 @@
 
 
 
-var GAS_URL = "https://script.google.com/macros/s/AKfycbyL2LZPd2UxUeD6c6twgEgauTW0tuLzvtfUry73GcnkPHfnqRdJWzKpNlGYf1Nrow/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbxkr1NIlh3sAcwiJ2QxebUhNUG3Wsl8_RhxLp7ITld2vVcnB0T5lviLu5f3E-8k7w/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -16,6 +16,7 @@ var photos=[];
 var editingItem=null, isEditMode=false;
 var testRowNum=-1, timerInterval=null;
 var SNAMES={konsole:["Barcode","Name","Details","Mängel","Mitarbeiter"],spiel:["Barcode","Titel","Details","Mängel","Mitarbeiter"],controller:["Barcode","Controller","Details","Mängel","Mitarbeiter"],handy:["Barcode","Modell","Details","Mängel","Mitarbeiter"],pc:["Barcode","Modell","Details","Mängel","Mitarbeiter"]};
+var setMembershipByScanId={},setRowsCache=[];
 
 // ================================================================
 // API CALLS
@@ -265,13 +266,29 @@ function renderSetsPanel(){
   var out=document.getElementById("sets-list");if(!out)return;
   gasGet("getSetBundles",{},function(r){
     var sets=(r&&r.ok)?(r.data||[]):[];
+    window._setsPanelData=sets;
     if(!sets.length){out.innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Keine Sets gespeichert.</p></div>';return;}
     out.innerHTML=sets.map(function(s,ix){
       var items=(s.items||[]).map(function(i){return i.name||i.scanId;}).join(", ");
-      return '<div class="ic"><div class="ic-top"><div class="ic-name">'+esc(s.name||s.setId||("Set "+ix))+'</div><span class="chip">'+esc(s.plattform||"-")+'</span></div><div style="font-size:11px;color:var(--w3)">'+esc(items.substring(0,250))+(items.length>250?"…":"")+'</div><div style="margin-top:8px;display:flex;gap:6px"><button class="btn btn-outline-primary btn-sm" onclick="exportSetInlineForKA('+ix+')">Für Kleinanzeigen</button></div></div>';
+      return '<div class="ic"><div class="ic-top"><div class="ic-name">'+esc(s.name||s.setId||("Set "+ix))+' <span style="font-size:10px;color:var(--w4)">#'+esc(s.setId||"")+'</span></div><span class="chip">'+esc(s.plattform||"-")+'</span></div><div style="font-size:11px;color:var(--w3)">'+esc(items.substring(0,250))+(items.length>250?"…":"")+'</div><div style="margin-top:8px;display:flex;gap:6px"><button class="btn btn-outline-primary btn-sm" onclick="exportSetInlineForKA('+ix+')">Für Kleinanzeigen</button><button class="btn btn-outline-secondary btn-sm" onclick="editSetInline('+ix+')">Bearbeiten</button><button class="btn btn-outline-danger btn-sm" onclick="deleteSetInline('+ix+')">Löschen</button></div></div>';
     }).join("");
     window._setsPanelData=sets;
   },function(){out.innerHTML='<div class="empty"><i class="bi bi-wifi-off"></i><p>Sets konnten nicht geladen werden.</p></div>';});
+}
+function editSetInline(ix){
+  var s=(window._setsPanelData||[])[ix];if(!s)return;
+  var n=prompt("Set-Name:",s.name||"");if(n===null)return;
+  var z=prompt("Zustand:",s.zustand||"")||s.zustand||"";
+  gasPost("updateSetBundle",{rowIndex:s.rowIndex,name:n,zustand:z,plattform:s.plattform,budget:s.budget,items:s.items,notizen:s.notizen},function(r){
+    if(r&&r.ok){toast("Set aktualisiert.","ok");renderSetsPanel();}else{toast("Fehler: "+(r?r.fehler:"?"),"err");}
+  },function(e){toast("Fehler: "+e,"err");});
+}
+function deleteSetInline(ix){
+  var s=(window._setsPanelData||[])[ix];if(!s)return;
+  if(!confirm("Set löschen?"))return;
+  gasGet("deleteSetBundle",{rowIndex:s.rowIndex},function(r){
+    if(r&&r.ok){toast("Set gelöscht.","ok");renderSetsPanel();}else{toast("Fehler: "+(r?r.fehler:"?"),"err");}
+  },function(e){toast("Fehler: "+e,"err");});
 }
 function exportSetInlineForKA(ix){
   var s=(window._setsPanelData||[])[ix];if(!s)return;
@@ -556,8 +573,19 @@ function loadAll(force){
   if(listBody)listBody.innerHTML='<div class="empty"><span class="spin-b"></span><p>Lade…</p></div>';
   allItems=[];
   var done=0,total=6,kd=[],sd=[],hd=[],pd=[],dd=[],sb=[];
+  function rebuildSetMembership(rows){
+    setMembershipByScanId={};setRowsCache=rows||[];
+    (rows||[]).forEach(function(s){
+      (s.items||[]).forEach(function(it){
+        var sid=String(it.scanId||"").trim();if(!sid)return;
+        if(!setMembershipByScanId[sid])setMembershipByScanId[sid]=[];
+        setMembershipByScanId[sid].push({setId:s.setId,name:s.name,rowIndex:s.rowIndex,plattform:s.plattform});
+      });
+    });
+  }
   function renderPartial(){
     allItems=kd.concat(sd,hd,pd,dd,sb);
+    rebuildSetMembership(sb);
     if(allItems.length>0){renderList();updateMyStats();}
   }
   function tryR(){
@@ -565,6 +593,7 @@ function loadAll(force){
     renderPartial();
     if(done<total)return;
     allItems=kd.concat(sd,hd,pd,dd,sb);
+    rebuildSetMembership(sb);
     _loadAllCache=allItems.slice();
     _loadAllTs=Date.now();
     _loadAllBusy=false;
@@ -683,6 +712,13 @@ function mkCard(item){
   if(item.mitarbeiter)chips+='<span class="chip"><i class="bi bi-person"></i>&nbsp;<b>'+esc(item.mitarbeiter)+'</b></span>';
   if(item.datum)chips+='<span class="chip"><i class="bi bi-calendar3"></i>&nbsp;<b>'+esc(item.datum)+'</b></span>';
   if(item.problemTyp&&item.type!=="defekt")chips+='<span class="chip" style="border-color:rgba(248,81,73,.3);color:var(--red)"><i class="bi bi-exclamation-triangle-fill"></i>&nbsp;<b>'+esc(item.problemTyp)+'</b></span>';
+  var setHint="";
+  var sid=String(item.scanId||"").trim();
+  if(sid&&setMembershipByScanId[sid]&&setMembershipByScanId[sid].length){
+    var sref=setMembershipByScanId[sid][0];
+    var safeSetId=String(sref.setId||"").replace(/'/g,"");
+    setHint='<div style="font-size:10px;color:#58a6ff;margin-top:4px;cursor:pointer" onclick="event.stopPropagation();openSetReference(\''+safeSetId+'\')">Teil eines Sets: '+esc(sref.name||sref.setId||"Set")+'</div>';
+  }
   var note=item.problemBeschr||item.hinweise||"";
   if(item.type==="defekt"){chips+='<span class="chip"><i class="bi bi-box-arrow-in-right"></i>&nbsp;<b>'+esc(item.ursprung||"")+'</b></span>';note=item.problemBeschr||"";}
   var rIdx=cardRegistry.length;
@@ -693,7 +729,16 @@ function mkCard(item){
   if(item.type!=="defekt"&&item.type!=="setbundle"){actions+='<button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation();openEditStepper('+rIdx+')"><i class="bi bi-pencil-fill me-1"></i>Bearbeiten</button><button class="btn btn-outline-danger btn-sm" onclick="confirmDelete('+rIdx+')"><i class="bi bi-trash3"></i></button>';}
   else{actions+='<button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDeleteDefekt('+rIdx+')"><i class="bi bi-trash3 me-1"></i>Löschen</button>';}
   actions+='</div>';
-  return '<div class="ic" onclick="openDetail('+rIdx+')" style="cursor:pointer"><div class="ic-top"><div class="ic-name">'+esc(nm)+'</div><div style="display:flex;gap:4px;align-items:center"><span class="ic-badge '+tm[0]+'">'+tm[1]+'</span>'+katBadge+'</div></div><div class="chips">'+chips+(item.type!=="defekt"?'<span class="av-badge '+avc+'"><i class="bi '+avi+' me-1"></i>'+avLabel+'</span>':'')+' </div>'+(note?'<div style="font-size:12px;color:var(--text2);margin-bottom:4px"><i class="bi bi-chat-text me-1"></i>'+esc(note)+'</div>':"")+fotosHtml+actions+'</div>';
+  return '<div class="ic" onclick="openDetail('+rIdx+')" style="cursor:pointer"><div class="ic-top"><div class="ic-name">'+esc(nm)+'</div><div style="display:flex;gap:4px;align-items:center"><span class="ic-badge '+tm[0]+'">'+tm[1]+'</span>'+katBadge+'</div></div><div class="chips">'+chips+(item.type!=="defekt"?'<span class="av-badge '+avc+'"><i class="bi '+avi+' me-1"></i>'+avLabel+'</span>':'')+' </div>'+(note?'<div style="font-size:12px;color:var(--text2);margin-bottom:4px"><i class="bi bi-chat-text me-1"></i>'+esc(note)+'</div>':"")+setHint+fotosHtml+actions+'</div>';
+}
+function openSetReference(setId){
+  goTabFn("sets-panel");
+  setTimeout(function(){
+    var rows=document.querySelectorAll("#sets-list .ic");
+    for(var i=0;i<rows.length;i++){
+      if(rows[i].textContent&&rows[i].textContent.indexOf(setId)>-1){rows[i].style.outline="2px solid #58a6ff";rows[i].scrollIntoView({behavior:"smooth",block:"center"});break;}
+    }
+  },250);
 }
 
 function openLightbox(itemIdx,fotoIdx){var item=cardRegistry[itemIdx];if(!item||!item.fotos||!item.fotos[fotoIdx])return;var lb=document.createElement("div");lb.className="lightbox";lb.innerHTML='<img src="'+esc(item.fotos[fotoIdx])+'" alt="Foto"/>';lb.onclick=function(){lb.remove();};document.body.appendChild(lb);}
@@ -1242,10 +1287,24 @@ function saveVKForm() {
     });
     data.fifoSource = fifoSorted.map(function(i){return i.scanId||i.name;}).join(", ");
   }
+  var soldIds=(String(data.scanIds||"")).split(",").map(function(x){return String(x||"").trim();}).filter(Boolean);
+  var hitSetRef=null;
+  for(var si=0;si<soldIds.length;si++){
+    var sid=soldIds[si];
+    if(setMembershipByScanId[sid]&&setMembershipByScanId[sid].length){hitSetRef=setMembershipByScanId[sid][0];break;}
+  }
+  if(hitSetRef&&!window._vkSetWarnBypass){
+    var ans=prompt('Artikel ist Teil eines Sets – ansehen?\nAntwort: "ja" (ich bin mir sicher), "nein", "set ansehen"','set ansehen');
+    var ac=String(ans||"").toLowerCase().trim();
+    if(ac==="set ansehen"||ac==="set"){openSetReference(String(hitSetRef.setId||""));return;}
+    if(ac!=="ja"){return;}
+    window._vkSetWarnBypass=true;
+  }
   var btn = document.getElementById("vk-save-btn"); setBL(btn,true);
   var action = editVerkaufItem ? "updateVerkauf" : "saveVerkauf";
   if(editVerkaufItem) data.rowIndex = editVerkaufItem.rowIndex;
   gasPost(action, data, function(r){
+    window._vkSetWarnBypass=false;
     setBL(btn,false);
     if(r&&r.ok){
       closeVKModal();
@@ -1274,7 +1333,7 @@ function saveVKForm() {
       dg.className="diag derr";dg.textContent=r?r.fehler:"Fehler";dg.style.display="block";
       setBL(btn,false);
     }
-  }, function(e){ setBL(btn,false); var dg=document.getElementById("vk-diag");dg.className="diag derr";dg.textContent="Verbindungsfehler: "+e;dg.style.display="block"; });
+  }, function(e){ window._vkSetWarnBypass=false; setBL(btn,false); var dg=document.getElementById("vk-diag");dg.className="diag derr";dg.textContent="Verbindungsfehler: "+e;dg.style.display="block"; });
 }
 
 function showSuccessToast(msg, marge) {
@@ -2077,12 +2136,15 @@ function bmFinalizeCheck(cIdx){
   bmSave(list);renderBestandsmasterPro();toast("Bestandsprüfung abgeschlossen ✅","ok");
 }
 function tasksKey(){return "smp_tasks_v1";}
-function loadTasks(){try{tasksCache=JSON.parse(localStorage.getItem(tasksKey())||"[]");}catch(e){tasksCache=[];}if(!Array.isArray(tasksCache))tasksCache=[];}
+function loadTasks(){try{tasksCache=JSON.parse(localStorage.getItem(tasksKey())||"[]");}catch(e){tasksCache=[];}if(!Array.isArray(tasksCache))tasksCache=[];tasksCache=tasksCache.map(function(t){if(!t.id)t.id="tsk-"+Date.now()+"-"+Math.floor(Math.random()*9999);if(!Array.isArray(t.subtasks))t.subtasks=[];if(!Array.isArray(t.steps))t.steps=[];if(!t.listId)t.listId="default";if(!t.status)t.status="open";if(typeof t.order!=="number")t.order=0;return t;});}
 function saveTasks(){try{localStorage.setItem(tasksKey(),JSON.stringify(tasksCache));}catch(e){}}
 function canManageTasks(){var r=normalizeRole(empRolle);return r==="co-chef"||r==="inhaber";}
+function tasksListsKey(){return "smp_tasks_lists_v1";}
+function loadTaskLists(){var lists=[];try{lists=JSON.parse(localStorage.getItem(tasksListsKey())||"[]");}catch(e){lists=[];}if(!Array.isArray(lists)||!lists.length)lists=[{id:"default",name:"Meine Aufgaben"}];return lists;}
+function saveTaskLists(lists){try{localStorage.setItem(tasksListsKey(),JSON.stringify(lists));}catch(e){}}
 function createTaskFromBestandIssue(item,title){
   loadTasks();
-  tasksCache.unshift({id:"tsk-"+Date.now()+"-"+Math.floor(Math.random()*9999),title:title||"Bestandsproblem",status:"open",created:new Date().toLocaleString("de-DE"),owner:emp,assignee:emp,source:"BestandsmasterPro",itemName:item.name||item.scanId||"Unbekannt",itemType:item.type||"",step:1,steps:["Erledigt gemeldet","Prüfung Co-Chef/Inhaber"]});
+  tasksCache.unshift({id:"tsk-"+Date.now()+"-"+Math.floor(Math.random()*9999),title:title||"Bestandsproblem",description:"Automatisch aus BestandsmasterPro",status:"open",created:new Date().toLocaleString("de-DE"),owner:emp,assignee:emp,source:"BestandsmasterPro",itemName:item.name||item.scanId||"Unbekannt",itemType:item.type||"",step:1,steps:["Erledigt gemeldet","Prüfung Co-Chef/Inhaber"],deadline:"",repeat:"none",repeatCustomDays:"",subtasks:[],order:Date.now(),listId:"default"});
   saveTasks();
   addNotification("🛠️ Task erstellt","Problem bei Bestandsprüfung: "+(item.name||item.scanId||"Unbekannt"),"alert","task-open");
 }
@@ -2099,26 +2161,45 @@ function closeTasksMaster(){var ov=document.getElementById("tasksmaster-overlay"
 function renderTasksMaster(){
   var body=document.getElementById("tasks-body");if(!body)return;
   loadTasks();
-  var visible=tasksCache.filter(function(t){return canManageTasks()||String(t.assignee||"").toLowerCase()===String(emp||"").toLowerCase()||String(t.owner||"").toLowerCase()===String(emp||"").toLowerCase();});
+  var lists=loadTaskLists();
+  var currentList=tasksCurrentListId||"default";
+  var visible=tasksCache.filter(function(t){var allowed=canManageTasks()||String(t.assignee||"").toLowerCase()===String(emp||"").toLowerCase()||String(t.owner||"").toLowerCase()===String(emp||"").toLowerCase();return allowed&&String(t.listId||"default")===currentList;});
   gasGet("getAccounts",{},function(r){
     var acc=(r&&r.ok)?(r.data||[]):[];
     var opts=acc.filter(function(a){return String(a.status||"").toLowerCase()==="aktiv";}).map(function(a){return '<option value="'+esc(a.name)+'">'+esc(a.name)+'</option>';}).join("");
-    body.innerHTML='<div style="display:flex;gap:8px;margin-bottom:10px"><input id="task-title-in" class="fc" placeholder="Neue Task"/><select id="task-assignee-in" class="fc">'+opts+'</select><button class="btn btn-primary" onclick="addTask()">Task erstellen</button></div>'+(visible.length?visible.map(function(t){var canApprove=canManageTasks()&&t.status==="done_waiting";return'<div class="ic"><div class="ic-top"><div class="ic-name">'+esc(t.title)+'</div><span class="chip">'+esc(t.status)+'</span></div><div style="font-size:11px;color:var(--w3)">Zuständig: '+esc(t.assignee||"-")+' · Quelle: '+esc(t.source||"-")+'</div><div style="display:flex;gap:6px;margin-top:8px">'+(t.status==="open"?'<button class="btn btn-outline-primary btn-sm" onclick="taskStepDone(\''+esc(t.id)+'\')">Erledigt</button>':'')+(canApprove?'<button class="btn btn-success btn-sm" onclick="taskApprove(\''+esc(t.id)+'\')">Prüfung bestätigen</button>':'')+'</div></div>';}).join(""):'<div class="empty"><i class="bi bi-inbox"></i><p>Keine Tasks</p></div>');
+    var listOpts=lists.map(function(l){return '<option value="'+esc(l.id)+'">'+esc(l.name)+'</option>';}).join("");
+    var open=visible.filter(function(t){return t.status!=="closed";}).sort(function(a,b){return (a.order||0)-(b.order||0);});
+    var done=visible.filter(function(t){return t.status==="closed";});
+    body.innerHTML='<div style="display:flex;gap:8px;margin-bottom:8px"><select id="task-list-select" class="fc" onchange="tasksCurrentListId=this.value;renderTasksMaster()">'+listOpts+'</select><button class="btn btn-outline-secondary" onclick="createTaskList()">Neue Liste</button></div><div style="background:#0e1520;border:1px solid var(--e1);border-radius:10px;padding:10px;margin-bottom:10px"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input id="task-title-in" class="fc" placeholder="Titel *"/><select id="task-assignee-in" class="fc">'+opts+'</select><input id="task-desc-in" class="fc" placeholder="Details/Beschreibung"/><input id="task-deadline-in" class="fc" type="datetime-local"/><select id="task-repeat-in" class="fc" onchange="toggleTaskRepeatCustom()"><option value="none">Keine Wiederholung</option><option value="daily">Täglich</option><option value="weekly">Wöchentlich</option><option value="monthly">Monatlich</option><option value="custom">Benutzerdefiniert</option></select><input id="task-repeat-custom-in" class="fc" placeholder="z.B. alle 3 Tage" style="display:none"/><input id="task-subtasks-in" class="fc" placeholder="Subtasks mit ; trennen"/><div style="display:flex;gap:8px"><button class="btn btn-primary" onclick="addTask()">Task erstellen</button><button class="btn btn-outline-secondary" onclick="sortTasksByDate()">Nach Datum</button></div></div></div><div id="tasks-open-zone">'+renderOpenTasksHtml(open)+'</div><details style="margin-top:10px"><summary style="cursor:pointer;color:var(--w3)">Erledigte Tasks ('+done.length+')</summary><div id="tasks-done-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-top:8px">'+renderDoneTasksHtml(done)+'</div></details>';
     var sel=document.getElementById("task-assignee-in");if(sel&&!sel.value&&emp)sel.value=emp;
-  },function(){
-    body.innerHTML='<div style="display:flex;gap:8px;margin-bottom:10px"><input id="task-title-in" class="fc" placeholder="Neue Task"/><button class="btn btn-primary" onclick="addTask()">Task erstellen</button></div>'+(visible.length?visible.map(function(t){var canApprove=canManageTasks()&&t.status==="done_waiting";return'<div class="ic"><div class="ic-top"><div class="ic-name">'+esc(t.title)+'</div><span class="chip">'+esc(t.status)+'</span></div><div style="font-size:11px;color:var(--w3)">Zuständig: '+esc(t.assignee||"-")+'</div><div style="display:flex;gap:6px;margin-top:8px">'+(t.status==="open"?'<button class="btn btn-outline-primary btn-sm" onclick="taskStepDone(\''+esc(t.id)+'\')">Erledigt</button>':'')+(canApprove?'<button class="btn btn-success btn-sm" onclick="taskApprove(\''+esc(t.id)+'\')">Prüfung bestätigen</button>':'')+'</div></div>';}).join(""):'<div class="empty"><i class="bi bi-inbox"></i><p>Keine Tasks</p></div>');
-  });
+    var lsel=document.getElementById("task-list-select");if(lsel)lsel.value=currentList;
+    initTaskDnd();
+  },function(){body.innerHTML='<div class="empty"><i class="bi bi-wifi-off"></i><p>Accounts konnten nicht geladen werden.</p></div>';});
 }
+function renderOpenTasksHtml(open){
+  if(!open.length)return '<div class="empty"><i class="bi bi-inbox"></i><p>Keine offenen Tasks</p></div>';
+  return open.map(function(t){
+    var canApprove=canManageTasks()&&t.status==="done_waiting";
+    var subs=(t.subtasks||[]).map(function(s,i){return '<label style="display:flex;gap:6px;font-size:11px"><input type="checkbox" '+(s.done?'checked':'')+' onchange="toggleSubtask(\''+esc(t.id)+'\','+i+')"/> '+esc(s.text)+'</label>';}).join("");
+    return '<div class="ic task-card" draggable="true" data-task-id="'+esc(t.id)+'"><div class="ic-top"><div class="ic-name">'+esc(t.title)+'</div><span class="chip">'+esc(t.status)+'</span></div><div style="font-size:11px;color:var(--w3)">'+esc(t.description||"")+'</div><div style="font-size:10px;color:var(--w4);margin-top:3px">Deadline: '+esc(t.deadline||"–")+' · Repeat: '+esc(t.repeat||"none")+'</div><div style="margin-top:6px">'+subs+'</div><div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-outline-primary btn-sm" onclick="taskStepDone(\''+esc(t.id)+'\')">'+(t.status==="open"?"Erledigt":"Wieder öffnen")+'</button>'+(canApprove?'<button class="btn btn-success btn-sm" onclick="taskApprove(\''+esc(t.id)+'\')">Prüfung bestätigen</button>':'')+'<button class="btn btn-outline-secondary btn-sm" onclick="editTask(\''+esc(t.id)+'\')">Bearbeiten</button><button class="btn btn-outline-danger btn-sm" onclick="deleteTask(\''+esc(t.id)+'\')">Löschen</button></div></div>';
+  }).join("");
+}
+function renderDoneTasksHtml(done){
+  if(!done.length)return '<div class="empty"><p>Keine erledigten Tasks</p></div>';
+  return done.map(function(t){return '<div style="background:#0f1724;border:1px solid var(--e1);border-radius:8px;padding:8px"><div style="font-size:12px;font-weight:700">'+esc(t.title)+'</div><div style="font-size:10px;color:var(--w4)">'+esc(t.assignee||"-")+' · '+esc(t.approvedAt||t.created||"")+'</div></div>';}).join("");
+}
+function toggleTaskRepeatCustom(){var s=document.getElementById("task-repeat-in"),c=document.getElementById("task-repeat-custom-in");if(c)c.style.display=(s&&s.value==="custom")?"block":"none";}
 function addTask(){
-  var title=gv("task-title-in").trim(),assignee=gv("task-assignee-in").trim()||emp;
+  var title=gv("task-title-in").trim(),assignee=gv("task-assignee-in").trim()||emp,desc=gv("task-desc-in").trim(),deadline=gv("task-deadline-in"),rep=gv("task-repeat-in")||"none",rc=gv("task-repeat-custom-in").trim(),listId=(document.getElementById("task-list-select")||{value:"default"}).value||"default";
   if(!title)return;
+  var subt=(gv("task-subtasks-in")||"").split(";").map(function(s){return s.trim();}).filter(Boolean).map(function(s){return{text:s,done:false};});
   loadTasks();
-  tasksCache.unshift({id:"tsk-"+Date.now()+"-"+Math.floor(Math.random()*9999),title:title,status:"open",created:new Date().toLocaleString("de-DE"),owner:emp,assignee:assignee,source:"TasksMasterPro",step:1,steps:["Erledigt gemeldet","Prüfung Co-Chef/Inhaber"]});
+  tasksCache.unshift({id:"tsk-"+Date.now()+"-"+Math.floor(Math.random()*9999),title:title,description:desc,status:"open",created:new Date().toLocaleString("de-DE"),owner:emp,assignee:assignee,source:"TasksMasterPro",step:1,steps:["Erledigt gemeldet","Prüfung Co-Chef/Inhaber"],deadline:deadline,repeat:rep,repeatCustomDays:rc,subtasks:subt,order:Date.now(),listId:listId});
   saveTasks();renderTasksMaster();
 }
 function taskStepDone(id){
   loadTasks();var t=tasksCache.find(function(x){return x.id===id;});if(!t)return;
-  t.status="done_waiting";saveTasks();renderTasksMaster();
+  t.status=(t.status==="open"?"done_waiting":"open");saveTasks();renderTasksMaster();
   addNotification("✅ Task erledigt gemeldet",t.title,"info","task-open");
 }
 function taskApprove(id){
@@ -2126,6 +2207,12 @@ function taskApprove(id){
   t.status="closed";t.approvedBy=emp;t.approvedAt=new Date().toLocaleString("de-DE");
   saveTasks();renderTasksMaster();
 }
+function toggleSubtask(taskId,idx){loadTasks();var t=tasksCache.find(function(x){return x.id===taskId;});if(!t||!t.subtasks||!t.subtasks[idx])return;t.subtasks[idx].done=!t.subtasks[idx].done;saveTasks();}
+function editTask(taskId){loadTasks();var t=tasksCache.find(function(x){return x.id===taskId;});if(!t)return;var nt=prompt("Titel:",t.title||"");if(nt===null)return;var nd=prompt("Details:",t.description||"");t.title=nt;t.description=nd;saveTasks();renderTasksMaster();}
+function deleteTask(taskId){if(!confirm("Task löschen?"))return;loadTasks();tasksCache=tasksCache.filter(function(x){return x.id!==taskId;});saveTasks();renderTasksMaster();}
+function sortTasksByDate(){loadTasks();tasksCache.sort(function(a,b){return String(a.deadline||"9999").localeCompare(String(b.deadline||"9999"));});tasksCache.forEach(function(t,i){t.order=i+1;});saveTasks();renderTasksMaster();}
+function createTaskList(){var lists=loadTaskLists();var n=prompt("Name der Liste:","Neue Liste");if(!n)return;var id="lst-"+Date.now();lists.push({id:id,name:n});saveTaskLists(lists);renderTasksMaster();}
+function initTaskDnd(){var zone=document.getElementById("tasks-open-zone");if(!zone)return;var dragId="";zone.querySelectorAll(".task-card").forEach(function(card){card.addEventListener("dragstart",function(){dragId=this.dataset.taskId;});card.addEventListener("dragover",function(e){e.preventDefault();});card.addEventListener("drop",function(e){e.preventDefault();var targetId=this.dataset.taskId;if(!dragId||dragId===targetId)return;loadTasks();var a=tasksCache.find(function(t){return t.id===dragId;}),b=tasksCache.find(function(t){return t.id===targetId;});if(!a||!b)return;var ao=a.order,bo=b.order;a.order=bo;b.order=ao;tasksCache.sort(function(x,y){return (x.order||0)-(y.order||0);});saveTasks();renderTasksMaster();});});}
 
 // ================================================================
 // REKLAMATION
@@ -2246,11 +2333,17 @@ function calcAndShowMarge() {
 // ================================================================
 function openAccModal(){
   setAccTab("team");
+  ensureInviteRoleOptions();
   loadServerAccounts();
   document.getElementById("acc-modal").classList.add("open");
   // Show/hide invite tab based on role
   var inviteTab = document.getElementById("acctab-invite");
   if(inviteTab) inviteTab.style.display = canManageEmployees() ? "block" : "none";
+}
+function ensureInviteRoleOptions(){
+  var sel=document.getElementById("acc-rolle-in");if(!sel)return;
+  var wanted=[{v:"mitarbeiter",t:"Mitarbeiter"},{v:"senior",t:"Senior"},{v:"co-chef",t:"Co-Chef"},{v:"inhaber",t:"Inhaber"}];
+  sel.innerHTML=wanted.map(function(o){return '<option value="'+o.v+'">'+o.t+'</option>';}).join("");
 }
 
 function setAccTab(tab){
@@ -3915,6 +4008,7 @@ function saveRTForm() {
 
 var setBuilderAnswers={},setBuilderDraft=null,setBuilderStep=1,setBuilderLoading=false;
 var setsCache=[],tasksCache=[],setChats=[],setDraftImages=[];
+var tasksCurrentListId="default";
 function setChatsKey(){return "smp_set_chats_v1";}
 function loadSetChats(){try{setChats=JSON.parse(localStorage.getItem(setChatsKey())||"[]");}catch(e){setChats=[];}if(!Array.isArray(setChats))setChats=[];}
 function saveSetChats(){try{localStorage.setItem(setChatsKey(),JSON.stringify(setChats.slice(0,100)));}catch(e){}}
@@ -4057,8 +4151,23 @@ function buildSetWithAI(){
 function renderSetManager(body){
   gasGet("getSetBundles",{},function(r){
     setsCache=(r&&r.ok)?(r.data||[]):[];
-    body.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:18px;font-weight:800;color:var(--w1)">Gespeicherte Sets</div><button class="btn btn-outline-secondary btn-sm" onclick="setBuilderStep=1;renderSetBuilderFlow()">Neues Set</button></div>'+(setsCache.length?setsCache.map(function(s,ix){var items=s.items||[];var txt=items.map(function(i){return (i.name||"")+" ["+(i.scanId||"-")+"]";}).join(", ");return '<div style="background:var(--b2);border:1px solid var(--e1);border-radius:10px;padding:10px;margin-bottom:8px"><div style="display:flex;justify-content:space-between"><b>'+esc(s.name||s.setId)+'</b><span class="chip">'+esc(s.plattform||"-")+'</span></div><div style="font-size:11px;color:var(--w3);margin:6px 0">'+esc(txt.substring(0,220))+(txt.length>220?"…":"")+'</div><div style="display:flex;gap:6px"><button class="btn btn-outline-primary btn-sm" onclick="exportSetForKA('+ix+')">Für Kleinanzeigen</button></div></div>';}).join(""):'<div class="empty"><i class="bi bi-inbox"></i><p>Keine Sets vorhanden.</p></div>');
+    body.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:18px;font-weight:800;color:var(--w1)">Gespeicherte Sets</div><button class="btn btn-outline-secondary btn-sm" onclick="setBuilderStep=1;renderSetBuilderFlow()">Neues Set</button></div>'+(setsCache.length?setsCache.map(function(s,ix){var items=s.items||[];var txt=items.map(function(i){return (i.name||"")+" ["+(i.scanId||"-")+"]";}).join(", ");return '<div style="background:var(--b2);border:1px solid var(--e1);border-radius:10px;padding:10px;margin-bottom:8px"><div style="display:flex;justify-content:space-between"><b>'+esc(s.name||s.setId)+'</b><span class="chip">'+esc(s.plattform||"-")+'</span></div><div style="font-size:11px;color:var(--w3);margin:6px 0">'+esc(txt.substring(0,220))+(txt.length>220?"…":"")+'</div><div style="display:flex;gap:6px"><button class="btn btn-outline-primary btn-sm" onclick="exportSetForKA('+ix+')">Für Kleinanzeigen</button><button class="btn btn-outline-secondary btn-sm" onclick="editSetFromManager('+ix+')">Bearbeiten</button><button class="btn btn-outline-danger btn-sm" onclick="deleteSetFromManager('+ix+')">Löschen</button></div></div>';}).join(""):'<div class="empty"><i class="bi bi-inbox"></i><p>Keine Sets vorhanden.</p></div>');
   },function(){body.innerHTML='<div class="empty"><i class="bi bi-wifi-off"></i><p>Sets konnten nicht geladen werden.</p></div>';});
+}
+function editSetFromManager(ix){
+  var s=setsCache[ix];if(!s)return;
+  var n=prompt("Set-Name:",s.name||"");if(n===null)return;
+  var pl=prompt("Plattform:",s.plattform||"")||s.plattform||"";
+  gasPost("updateSetBundle",{rowIndex:s.rowIndex,name:n,plattform:pl,zustand:s.zustand,budget:s.budget,items:s.items,notizen:s.notizen},function(r){
+    if(r&&r.ok){toast("Set aktualisiert.","ok");setBuilderStep=99;renderSetBuilderFlow();}else{toast("Fehler: "+(r?r.fehler:"?"),"err");}
+  },function(e){toast("Fehler: "+e,"err");});
+}
+function deleteSetFromManager(ix){
+  var s=setsCache[ix];if(!s)return;
+  if(!confirm("Set löschen?"))return;
+  gasGet("deleteSetBundle",{rowIndex:s.rowIndex},function(r){
+    if(r&&r.ok){toast("Set gelöscht.","ok");setBuilderStep=99;renderSetBuilderFlow();}else{toast("Fehler: "+(r?r.fehler:"?"),"err");}
+  },function(e){toast("Fehler: "+e,"err");});
 }
 function exportSetForKA(ix){
   var s=setsCache[ix];if(!s)return;
