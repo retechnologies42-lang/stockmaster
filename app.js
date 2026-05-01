@@ -1,7 +1,7 @@
 
 
 
-var GAS_URL = "https://script.google.com/macros/s/AKfycbxkr1NIlh3sAcwiJ2QxebUhNUG3Wsl8_RhxLp7ITld2vVcnB0T5lviLu5f3E-8k7w/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbwy2kh0NhJ-lDXpbMcQ7_czNJ3vIEjhpt3sxLpYFUzOeF6FhzEger4Zr5eKbJBXTg/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -17,6 +17,7 @@ var editingItem=null, isEditMode=false;
 var testRowNum=-1, timerInterval=null;
 var SNAMES={konsole:["Barcode","Name","Details","Mängel","Mitarbeiter"],spiel:["Barcode","Titel","Details","Mängel","Mitarbeiter"],controller:["Barcode","Controller","Details","Mängel","Mitarbeiter"],handy:["Barcode","Modell","Details","Mängel","Mitarbeiter"],pc:["Barcode","Modell","Details","Mängel","Mitarbeiter"]};
 var setMembershipByScanId={},setRowsCache=[];
+var restrictedActivationMode=false,restrictedActivationCtx=null;
 
 // ================================================================
 // API CALLS
@@ -175,6 +176,54 @@ function openNativeKlauselTab(fallbackUrl){
   };
   gasGet("getKlauselContent",{},function(r){if(r&&r.ok)render(r);else render(null);},function(){render(null);});
 }
+function ensureKlauselGateOverlay(){
+  if(document.getElementById("klausel-gate-overlay"))return;
+  var ov=document.createElement("div");
+  ov.id="klausel-gate-overlay";
+  ov.style.cssText="display:none;position:fixed;inset:0;z-index:10080;background:rgba(0,0,0,.97);padding:16px;overflow:auto";
+  ov.innerHTML='<div style="max-width:520px;margin:20px auto;background:linear-gradient(180deg,#0f1724,#0b111b);border:1px solid rgba(88,166,255,.26);border-radius:14px;padding:16px"><div style="font-family:Bebas Neue,sans-serif;font-size:26px;color:var(--acc);letter-spacing:2px">KLAUSEL BESTÄTIGEN</div><div style="font-size:12px;color:var(--w3);margin-bottom:10px">Nur diese Seite ist bis zur Bestätigung verfügbar.</div><div id="kg-name" style="font-size:13px;color:var(--w2);margin-bottom:12px"></div><div class="diag" id="kg-diag" style="display:none"></div><button class="btn btn-outline-primary w-100 mb-2" onclick="openNativeKlauselTab(restrictedActivationCtx&&restrictedActivationCtx.klauselUrl||\'\')">Klausel öffnen</button><label style="display:flex;gap:8px;align-items:flex-start;color:var(--w3);font-size:12px;margin-bottom:10px"><input type="checkbox" id="kg-check" style="margin-top:2px"/> Ich habe die Klausel gelesen und stimme zu.</label><button class="btn btn-success w-100" id="kg-confirm" onclick="confirmKlauselGate()">Bestätigen</button></div>';
+  document.body.appendChild(ov);
+}
+function setRestrictedActivationMode(on,ctx){
+  restrictedActivationMode=!!on;
+  restrictedActivationCtx=on?(ctx||{}):null;
+  ensureKlauselGateOverlay();
+  var ov=document.getElementById("klausel-gate-overlay");
+  if(ov){
+    ov.style.display=on?"block":"none";
+    var nm=document.getElementById("kg-name");if(nm)nm.textContent=on?("Mitarbeiter: "+(ctx&&ctx.name?ctx.name:"")):"";
+    var ck=document.getElementById("kg-check");if(ck)ck.checked=false;
+    var dg=document.getElementById("kg-diag");if(dg)dg.style.display="none";
+  }
+  var tabs=document.querySelectorAll(".bnav-btn");
+  tabs.forEach(function(b){
+    var allow=b.dataset.tab==="home-panel";
+    b.style.opacity=(on&&!allow)?"0.45":"1";
+    b.style.pointerEvents=(on&&!allow)?"none":"";
+  });
+  if(on)goTabFn("home-panel");
+}
+function confirmKlauselGate(){
+  if(!restrictedActivationCtx)return;
+  var chk=document.getElementById("kg-check");
+  var dg=document.getElementById("kg-diag");
+  if(!chk||!chk.checked){if(dg){dg.className="diag derr";dg.textContent="Bitte zuerst bestätigen.";dg.style.display="block";}return;}
+  var btn=document.getElementById("kg-confirm");setBL(btn,true);
+  gasPost("confirmKlauselActivation",{name:restrictedActivationCtx.name||"",password:restrictedActivationCtx.password||"",klauselAkzeptiert:true},function(r){
+    setBL(btn,false);
+    if(r&&r.ok){
+      setRestrictedActivationMode(false);
+      clearSession();
+      changeEmp();
+      toast("Account aktiviert. Bitte neu einloggen.","ok");
+    }else{
+      if(dg){dg.className="diag derr";dg.textContent=r&&r.fehler?r.fehler:"Aktivierung fehlgeschlagen.";dg.style.display="block";}
+    }
+  },function(e){
+    setBL(btn,false);
+    if(dg){dg.className="diag derr";dg.textContent=String(e);dg.style.display="block";}
+  });
+}
 function applyEmp(n,rolle){emp=n.trim();empRolle=rolle||"mitarbeiter";var b=document.getElementById("emp-name");if(b)b.textContent=emp;var s=document.getElementById("emp-scr");if(s)s.classList.add("hidden");try{setGreeting();}catch(e){}try{fillMA();}catch(e){}
 // Show owner-only UI
 var ownerEls=document.querySelectorAll(".owner-only");ownerEls.forEach(function(el){el.style.display=isOwner()?"block":"none";});
@@ -242,8 +291,8 @@ function ensureScanFlowNodes(){
 normalizePanelHierarchy();
 normalizeOverlayHierarchy();
 ensureScanFlowNodes();
-document.querySelectorAll(".bnav-btn").forEach(function(b){b.addEventListener("click",function(){document.querySelectorAll(".bnav-btn").forEach(function(x){x.classList.remove("on");});document.querySelectorAll(".panel").forEach(function(x){x.classList.remove("on");});b.classList.add("on");var p=document.getElementById(b.dataset.tab);if(p)p.classList.add("on");if(b.dataset.tab==="home-panel"){setGreeting();loadStats();if(!allItems.length){loadAll();}else{buildKAProgress();buildWeekChart();updateMyStats();}}if(b.dataset.tab==="list-panel"&&allItems.length===0)loadAll();if(b.dataset.tab==="search-panel"){initSearch();if(allItems.length===0){loadAll();setTimeout(function(){if(allItems.length>0)renderSearchResults(allItems);},2500);}else{renderSearchResults(allItems);}}if(b.dataset.tab==="handel-panel"){loadHandel();}if(b.dataset.tab==="analyse-panel"){renderAnalysePanel();}if(b.dataset.tab==="sets-panel"){renderSetsPanel();}});});
-function goTabFn(id,lfMode){document.querySelectorAll(".bnav-btn").forEach(function(b){b.classList.toggle("on",b.dataset.tab===id);});document.querySelectorAll(".panel").forEach(function(p){p.classList.toggle("on",p.id===id);});if(lfMode){lf=lfMode;renderList();}if(id==="list-panel"&&allItems.length===0)loadAll();if(id==="home-panel"){setGreeting();loadStats();if(!allItems.length){loadAll();}else{buildKAProgress();buildWeekChart();updateMyStats();}}if(id==="sets-panel"){renderSetsPanel();}}
+document.querySelectorAll(".bnav-btn").forEach(function(b){b.addEventListener("click",function(){if(restrictedActivationMode&&b.dataset.tab!=="home-panel"){toast("Nur Klausel-Bestätigung verfügbar.","err");return;}document.querySelectorAll(".bnav-btn").forEach(function(x){x.classList.remove("on");});document.querySelectorAll(".panel").forEach(function(x){x.classList.remove("on");});b.classList.add("on");var p=document.getElementById(b.dataset.tab);if(p)p.classList.add("on");if(b.dataset.tab==="home-panel"){setGreeting();loadStats();if(!allItems.length){loadAll();}else{buildKAProgress();buildWeekChart();updateMyStats();}}if(b.dataset.tab==="list-panel"&&allItems.length===0)loadAll();if(b.dataset.tab==="search-panel"){initSearch();if(allItems.length===0){loadAll();setTimeout(function(){if(allItems.length>0)renderSearchResults(allItems);},2500);}else{renderSearchResults(allItems);}}if(b.dataset.tab==="handel-panel"){loadHandel();}if(b.dataset.tab==="analyse-panel"){renderAnalysePanel();}if(b.dataset.tab==="sets-panel"){renderSetsPanel();}});});
+function goTabFn(id,lfMode){if(restrictedActivationMode&&id!=="home-panel"){toast("Nur Klausel-Bestätigung verfügbar.","err");return;}document.querySelectorAll(".bnav-btn").forEach(function(b){b.classList.toggle("on",b.dataset.tab===id);});document.querySelectorAll(".panel").forEach(function(p){p.classList.toggle("on",p.id===id);});if(lfMode){lf=lfMode;renderList();}if(id==="list-panel"&&allItems.length===0)loadAll();if(id==="home-panel"){setGreeting();loadStats();if(!allItems.length){loadAll();}else{buildKAProgress();buildWeekChart();updateMyStats();}}if(id==="sets-panel"){renderSetsPanel();}}
 function ensureSetsPanelUI(){
   if(document.getElementById("sets-panel"))return;
   var panel=document.createElement("section");
@@ -722,14 +771,16 @@ function mkCard(item){
   var note=item.problemBeschr||item.hinweise||"";
   if(item.type==="defekt"){chips+='<span class="chip"><i class="bi bi-box-arrow-in-right"></i>&nbsp;<b>'+esc(item.ursprung||"")+'</b></span>';note=item.problemBeschr||"";}
   var rIdx=cardRegistry.length;
-  var fotosHtml="";
-  if(item.fotos&&item.fotos.length>0){fotosHtml='<div class="card-fotos">';item.fotos.slice(0,2).forEach(function(b64,fi){fotosHtml+='<div class="card-foto" style="width:34px;height:34px" onclick="openLightbox('+rIdx+','+fi+')"><img src="'+esc(b64)+'" loading="lazy" style="object-fit:cover"/></div>';});if(item.fotos.length>2)fotosHtml+='<div class="card-foto" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:10px">+'+(item.fotos.length-2)+'</div>';fotosHtml+='</div>';}
+  var preview=(item.fotos&&item.fotos[0])?item.fotos[0]:"";
+  var priceLabel=(item.kaPreis?String(item.kaPreis)+"€":(item.einkaufspreis?String(item.einkaufspreis)+"€":"—"));
+  var condition=String(item.zustand||"—");
+  var mediaHtml='<div style="display:grid;grid-template-columns:62px 1fr;gap:10px;align-items:center;margin:6px 0 8px"><div style="width:62px;height:62px;border-radius:8px;background:#0a0f16;border:1px solid var(--e1);overflow:hidden">'+(preview?'<img src="'+esc(preview)+'" loading="lazy" style="width:100%;height:100%;object-fit:cover"/>':'<div style="font-size:22px;display:flex;align-items:center;justify-content:center;width:100%;height:100%">📦</div>')+'</div><div><div style="font-size:13px;color:var(--w1);font-weight:700;line-height:1.35">'+esc(nm)+'</div><div style="font-size:11px;color:var(--acc);margin-top:2px">'+esc(priceLabel)+'</div><div style="font-size:10px;color:var(--w4);margin-top:2px">'+esc(condition)+'</div></div></div>';
   cardRegistry.push(item);
   var actions='<div class="ic-actions">';
   if(item.type!=="defekt"&&item.type!=="setbundle"){actions+='<button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation();openEditStepper('+rIdx+')"><i class="bi bi-pencil-fill me-1"></i>Bearbeiten</button><button class="btn btn-outline-danger btn-sm" onclick="confirmDelete('+rIdx+')"><i class="bi bi-trash3"></i></button>';}
   else{actions+='<button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDeleteDefekt('+rIdx+')"><i class="bi bi-trash3 me-1"></i>Löschen</button>';}
   actions+='</div>';
-  return '<div class="ic" onclick="openDetail('+rIdx+')" style="cursor:pointer"><div class="ic-top"><div class="ic-name">'+esc(nm)+'</div><div style="display:flex;gap:4px;align-items:center"><span class="ic-badge '+tm[0]+'">'+tm[1]+'</span>'+katBadge+'</div></div><div class="chips">'+chips+(item.type!=="defekt"?'<span class="av-badge '+avc+'"><i class="bi '+avi+' me-1"></i>'+avLabel+'</span>':'')+' </div>'+(note?'<div style="font-size:12px;color:var(--text2);margin-bottom:4px"><i class="bi bi-chat-text me-1"></i>'+esc(note)+'</div>':"")+setHint+fotosHtml+actions+'</div>';
+  return '<div class="ic" onclick="openDetail('+rIdx+')" style="cursor:pointer"><div class="ic-top"><div class="ic-name">'+esc(nm)+'</div><div style="display:flex;gap:4px;align-items:center"><span class="ic-badge '+tm[0]+'">'+tm[1]+'</span>'+katBadge+'</div></div>'+mediaHtml+'<div class="chips">'+chips+(item.type!=="defekt"?'<span class="av-badge '+avc+'"><i class="bi '+avi+' me-1"></i>'+avLabel+'</span>':'')+' </div>'+(note?'<div style="font-size:12px;color:var(--text2);margin-bottom:4px"><i class="bi bi-chat-text me-1"></i>'+esc(note)+'</div>':"")+setHint+actions+'</div>';
 }
 function openSetReference(setId){
   goTabFn("sets-panel");
@@ -1294,11 +1345,12 @@ function saveVKForm() {
     if(setMembershipByScanId[sid]&&setMembershipByScanId[sid].length){hitSetRef=setMembershipByScanId[sid][0];break;}
   }
   if(hitSetRef&&!window._vkSetWarnBypass){
-    var ans=prompt('Artikel ist Teil eines Sets – ansehen?\nAntwort: "ja" (ich bin mir sicher), "nein", "set ansehen"','set ansehen');
-    var ac=String(ans||"").toLowerCase().trim();
-    if(ac==="set ansehen"||ac==="set"){openSetReference(String(hitSetRef.setId||""));return;}
-    if(ac!=="ja"){return;}
-    window._vkSetWarnBypass=true;
+    showSetSaleGuard(hitSetRef,function(action){
+      if(action==="open_set"){openSetReference(String(hitSetRef.setId||""));return;}
+      if(action==="cancel"){return;}
+      if(action==="confirm"){window._vkSetWarnBypass=true;saveVKForm();}
+    });
+    return;
   }
   var btn = document.getElementById("vk-save-btn"); setBL(btn,true);
   var action = editVerkaufItem ? "updateVerkauf" : "saveVerkauf";
@@ -1334,6 +1386,27 @@ function saveVKForm() {
       setBL(btn,false);
     }
   }, function(e){ window._vkSetWarnBypass=false; setBL(btn,false); var dg=document.getElementById("vk-diag");dg.className="diag derr";dg.textContent="Verbindungsfehler: "+e;dg.style.display="block"; });
+}
+function ensureSetSaleGuardModal(){
+  if(document.getElementById("set-sale-guard-modal"))return;
+  var ov=document.createElement("div");
+  ov.id="set-sale-guard-modal";
+  ov.style.cssText="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10090;align-items:center;justify-content:center;padding:14px";
+  ov.innerHTML='<div style="width:min(520px,96vw);background:#0f1724;border:1px solid #58a6ff66;border-radius:12px;padding:14px"><div style="font-size:18px;font-weight:800;color:#58a6ff">Artikel ist Teil eines Sets</div><div id="set-sale-guard-txt" style="font-size:12px;color:var(--w3);margin:8px 0 12px"></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-outline-secondary btn-sm" onclick="resolveSetSaleGuard(\'cancel\')">Abbrechen</button><button class="btn btn-outline-primary btn-sm" onclick="resolveSetSaleGuard(\'open_set\')">Set ansehen</button><button class="btn btn-danger btn-sm" onclick="resolveSetSaleGuard(\'confirm\')">Trotzdem verkaufen</button></div></div>';
+  document.body.appendChild(ov);
+}
+function showSetSaleGuard(setRef,cb){
+  ensureSetSaleGuardModal();
+  window._setSaleGuardCallback=cb;
+  var ov=document.getElementById("set-sale-guard-modal");
+  var tx=document.getElementById("set-sale-guard-txt");
+  if(tx)tx.textContent='Set: '+String(setRef.name||setRef.setId||"Unbekannt");
+  if(ov)ov.style.display="flex";
+}
+function resolveSetSaleGuard(action){
+  var ov=document.getElementById("set-sale-guard-modal");if(ov)ov.style.display="none";
+  var cb=window._setSaleGuardCallback;window._setSaleGuardCallback=null;
+  if(typeof cb==="function")cb(action);
 }
 
 function showSuccessToast(msg, marge) {
@@ -1634,6 +1707,7 @@ function openDetail(rIdx){
     });
     var showFotos=mode==="anzeige"?kaFotos:defFotos;
     if(showFotos.length>0){
+      heroEl.style.aspectRatio="4 / 3";heroEl.style.maxHeight="68vh";
       heroEl.innerHTML='<img src="'+esc(showFotos[0])+'" style="width:100%;height:100%;object-fit:cover"/>';
       heroEl.className="detail-hero";
       if(showFotos.length>1){
@@ -1647,6 +1721,7 @@ function openDetail(rIdx){
     }
   };
   window.detailSetHeroImg=function(el,src){
+    heroEl.style.aspectRatio="4 / 3";heroEl.style.maxHeight="68vh";
     heroEl.innerHTML='<img src="'+esc(src)+'" style="width:100%;height:100%;object-fit:cover"/>';
     thumbsEl.querySelectorAll(".detail-photo-thumb").forEach(function(t){t.classList.remove("active");});
     el.classList.add("active");
@@ -1664,7 +1739,7 @@ function openDetail(rIdx){
       var dx=e.changedTouches[0].clientX-startX;startX=null;
       if(Math.abs(dx)<35||!activeList.length)return;
       if(dx<0)activeIdx=Math.min(activeList.length-1,activeIdx+1);else activeIdx=Math.max(0,activeIdx-1);
-      var src=activeList[activeIdx];if(src)heroEl.innerHTML='<img src="'+esc(src)+'" style="width:100%;height:100%;object-fit:cover"/>';
+      var src=activeList[activeIdx];if(src){heroEl.style.aspectRatio="4 / 3";heroEl.style.maxHeight="68vh";heroEl.innerHTML='<img src="'+esc(src)+'" style="width:100%;height:100%;object-fit:cover"/>';}
     };
   }
 
@@ -2152,8 +2227,8 @@ function ensureTasksOverlay(){
   if(document.getElementById("tasksmaster-overlay"))return;
   var ov=document.createElement("div");
   ov.id="tasksmaster-overlay";
-  ov.style.cssText="display:none;position:fixed;inset:0;z-index:10055;background:radial-gradient(circle at 20% 0,#101a2a 0,#070b11 52%,#05070b 100%);padding:16px;overflow:auto";
-  ov.innerHTML='<div style="max-width:920px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-family:Bebas Neue,sans-serif;letter-spacing:2px;font-size:28px;color:var(--acc)">TASKSMASTERPRO</div><button class="btn btn-outline-secondary btn-sm" onclick="closeTasksMaster()">Schließen</button></div><div id="tasks-body" style="background:linear-gradient(180deg,#0f1724,#0b111b);border:1px solid rgba(88,166,255,.22);border-radius:14px;padding:14px"></div></div>';
+  ov.style.cssText="display:none;position:fixed;inset:0;z-index:10055;background:radial-gradient(circle at 20% 0,#101a2a 0,#070b11 52%,#05070b 100%);padding:12px;overflow:auto";
+  ov.innerHTML='<div style="max-width:1180px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-family:Bebas Neue,sans-serif;letter-spacing:2px;font-size:28px;color:var(--acc)">TASKSMASTERPRO</div><button class="btn btn-outline-secondary btn-sm" onclick="closeTasksMaster()">Schließen</button></div><div id="tasks-body"></div></div>';
   document.body.appendChild(ov);
 }
 function openTasksMaster(){ensureTasksOverlay();loadTasks();document.getElementById("tasksmaster-overlay").style.display="block";renderTasksMaster();}
@@ -2167,12 +2242,11 @@ function renderTasksMaster(){
   gasGet("getAccounts",{},function(r){
     var acc=(r&&r.ok)?(r.data||[]):[];
     var opts=acc.filter(function(a){return String(a.status||"").toLowerCase()==="aktiv";}).map(function(a){return '<option value="'+esc(a.name)+'">'+esc(a.name)+'</option>';}).join("");
-    var listOpts=lists.map(function(l){return '<option value="'+esc(l.id)+'">'+esc(l.name)+'</option>';}).join("");
+    var listOpts=lists.map(function(l){var active=String(l.id)===String(currentList);return '<button class="btn '+(active?'btn-primary':'btn-outline-secondary')+' btn-sm" style="justify-content:flex-start;text-align:left" onclick="tasksCurrentListId=\''+esc(l.id)+'\';renderTasksMaster()">'+esc(l.name)+'</button>';}).join("");
     var open=visible.filter(function(t){return t.status!=="closed";}).sort(function(a,b){return (a.order||0)-(b.order||0);});
     var done=visible.filter(function(t){return t.status==="closed";});
-    body.innerHTML='<div style="display:flex;gap:8px;margin-bottom:8px"><select id="task-list-select" class="fc" onchange="tasksCurrentListId=this.value;renderTasksMaster()">'+listOpts+'</select><button class="btn btn-outline-secondary" onclick="createTaskList()">Neue Liste</button></div><div style="background:#0e1520;border:1px solid var(--e1);border-radius:10px;padding:10px;margin-bottom:10px"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input id="task-title-in" class="fc" placeholder="Titel *"/><select id="task-assignee-in" class="fc">'+opts+'</select><input id="task-desc-in" class="fc" placeholder="Details/Beschreibung"/><input id="task-deadline-in" class="fc" type="datetime-local"/><select id="task-repeat-in" class="fc" onchange="toggleTaskRepeatCustom()"><option value="none">Keine Wiederholung</option><option value="daily">Täglich</option><option value="weekly">Wöchentlich</option><option value="monthly">Monatlich</option><option value="custom">Benutzerdefiniert</option></select><input id="task-repeat-custom-in" class="fc" placeholder="z.B. alle 3 Tage" style="display:none"/><input id="task-subtasks-in" class="fc" placeholder="Subtasks mit ; trennen"/><div style="display:flex;gap:8px"><button class="btn btn-primary" onclick="addTask()">Task erstellen</button><button class="btn btn-outline-secondary" onclick="sortTasksByDate()">Nach Datum</button></div></div></div><div id="tasks-open-zone">'+renderOpenTasksHtml(open)+'</div><details style="margin-top:10px"><summary style="cursor:pointer;color:var(--w3)">Erledigte Tasks ('+done.length+')</summary><div id="tasks-done-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-top:8px">'+renderDoneTasksHtml(done)+'</div></details>';
+    body.innerHTML='<div style="display:grid;grid-template-columns:260px 1fr;gap:12px;min-height:70vh"><div style="background:#0d1520;border:1px solid var(--e1);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:6px"><div style="font-size:11px;color:var(--w4);padding:2px 4px">LISTEN</div>'+listOpts+'<button class="btn btn-outline-secondary btn-sm" onclick="createTaskList()">+ Neue Liste</button><button class="btn btn-outline-secondary btn-sm" onclick="sortTasksByDate()">Nach Datum sortieren</button></div><div style="background:linear-gradient(180deg,#0f1724,#0b111b);border:1px solid rgba(88,166,255,.22);border-radius:12px;padding:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:18px;color:var(--w1);font-weight:700">'+esc((lists.find(function(x){return String(x.id)===String(currentList);})||{name:"Meine Aufgaben"}).name)+'</div><select id="task-assignee-in" class="fc" style="max-width:220px">'+opts+'</select></div><div style="background:#0b131d;border:1px solid var(--e1);border-radius:10px;padding:8px;margin-bottom:8px"><input id="task-title-in" class="fc" placeholder="+ Aufgabe hinzufügen" onkeydown="if(event.key===\'Enter\'){addTask();}"/><button class="btn btn-outline-secondary btn-sm" style="margin-top:6px" onclick="toggleTaskComposer()">Details / Datum</button><div id="task-compose-extra" style="display:none;margin-top:8px;gap:8px"><input id="task-desc-in" class="fc" placeholder="Details"/><input id="task-deadline-in" class="fc" type="datetime-local"/><select id="task-repeat-in" class="fc" onchange="toggleTaskRepeatCustom()"><option value="none">Keine Wiederholung</option><option value="daily">Täglich</option><option value="weekly">Wöchentlich</option><option value="monthly">Monatlich</option><option value="custom">Benutzerdefiniert</option></select><input id="task-repeat-custom-in" class="fc" placeholder="Benutzerdefiniert" style="display:none"/><input id="task-subtasks-in" class="fc" placeholder="Unteraufgaben mit ; trennen"/></div></div><div id="tasks-open-zone">'+renderOpenTasksHtml(open)+'</div><details style="margin-top:10px"><summary style="cursor:pointer;color:var(--w3)">Erledigte Tasks ('+done.length+')</summary><div id="tasks-done-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-top:8px">'+renderDoneTasksHtml(done)+'</div></details></div></div>';
     var sel=document.getElementById("task-assignee-in");if(sel&&!sel.value&&emp)sel.value=emp;
-    var lsel=document.getElementById("task-list-select");if(lsel)lsel.value=currentList;
     initTaskDnd();
   },function(){body.innerHTML='<div class="empty"><i class="bi bi-wifi-off"></i><p>Accounts konnten nicht geladen werden.</p></div>';});
 }
@@ -2180,8 +2254,9 @@ function renderOpenTasksHtml(open){
   if(!open.length)return '<div class="empty"><i class="bi bi-inbox"></i><p>Keine offenen Tasks</p></div>';
   return open.map(function(t){
     var canApprove=canManageTasks()&&t.status==="done_waiting";
-    var subs=(t.subtasks||[]).map(function(s,i){return '<label style="display:flex;gap:6px;font-size:11px"><input type="checkbox" '+(s.done?'checked':'')+' onchange="toggleSubtask(\''+esc(t.id)+'\','+i+')"/> '+esc(s.text)+'</label>';}).join("");
-    return '<div class="ic task-card" draggable="true" data-task-id="'+esc(t.id)+'"><div class="ic-top"><div class="ic-name">'+esc(t.title)+'</div><span class="chip">'+esc(t.status)+'</span></div><div style="font-size:11px;color:var(--w3)">'+esc(t.description||"")+'</div><div style="font-size:10px;color:var(--w4);margin-top:3px">Deadline: '+esc(t.deadline||"–")+' · Repeat: '+esc(t.repeat||"none")+'</div><div style="margin-top:6px">'+subs+'</div><div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-outline-primary btn-sm" onclick="taskStepDone(\''+esc(t.id)+'\')">'+(t.status==="open"?"Erledigt":"Wieder öffnen")+'</button>'+(canApprove?'<button class="btn btn-success btn-sm" onclick="taskApprove(\''+esc(t.id)+'\')">Prüfung bestätigen</button>':'')+'<button class="btn btn-outline-secondary btn-sm" onclick="editTask(\''+esc(t.id)+'\')">Bearbeiten</button><button class="btn btn-outline-danger btn-sm" onclick="deleteTask(\''+esc(t.id)+'\')">Löschen</button></div></div>';
+    var subs=(t.subtasks||[]).map(function(s,i){return '<label style="display:flex;gap:6px;font-size:11px;color:var(--w3)"><input type="checkbox" '+(s.done?'checked':'')+' onchange="toggleSubtask(\''+esc(t.id)+'\','+i+')"/> '+esc(s.text)+'</label>';}).join("");
+    var subWrap=subs?('<details style="margin-top:6px"><summary style="font-size:11px;color:var(--w4);cursor:pointer">Unteraufgaben</summary><div style="margin-top:5px">'+subs+'</div></details>'):'';
+    return '<div class="task-card" draggable="true" data-task-id="'+esc(t.id)+'" style="background:#0b131d;border:1px solid var(--e1);border-radius:10px;padding:10px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:14px;font-weight:700;color:var(--w1)">'+esc(t.title)+'</div><span class="chip">'+esc(t.status)+'</span></div><div style="font-size:11px;color:var(--w4);margin-top:3px">'+esc(t.deadline||"Kein Datum")+'</div>'+(t.description?'<div style="font-size:12px;color:var(--w3);margin-top:5px">'+esc(t.description)+'</div>':'')+subWrap+'<div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-outline-primary btn-sm" onclick="taskStepDone(\''+esc(t.id)+'\')">'+(t.status==="open"?"Erledigt":"Wieder öffnen")+'</button>'+(canApprove?'<button class="btn btn-success btn-sm" onclick="taskApprove(\''+esc(t.id)+'\')">Freigeben</button>':'')+'<button class="btn btn-outline-secondary btn-sm" onclick="editTask(\''+esc(t.id)+'\')">Bearbeiten</button><button class="btn btn-outline-danger btn-sm" onclick="deleteTask(\''+esc(t.id)+'\')">Löschen</button></div></div>';
   }).join("");
 }
 function renderDoneTasksHtml(done){
@@ -2189,8 +2264,9 @@ function renderDoneTasksHtml(done){
   return done.map(function(t){return '<div style="background:#0f1724;border:1px solid var(--e1);border-radius:8px;padding:8px"><div style="font-size:12px;font-weight:700">'+esc(t.title)+'</div><div style="font-size:10px;color:var(--w4)">'+esc(t.assignee||"-")+' · '+esc(t.approvedAt||t.created||"")+'</div></div>';}).join("");
 }
 function toggleTaskRepeatCustom(){var s=document.getElementById("task-repeat-in"),c=document.getElementById("task-repeat-custom-in");if(c)c.style.display=(s&&s.value==="custom")?"block":"none";}
+function toggleTaskComposer(){var el=document.getElementById("task-compose-extra");if(el)el.style.display=(el.style.display==="none"||!el.style.display)?"grid":"none";}
 function addTask(){
-  var title=gv("task-title-in").trim(),assignee=gv("task-assignee-in").trim()||emp,desc=gv("task-desc-in").trim(),deadline=gv("task-deadline-in"),rep=gv("task-repeat-in")||"none",rc=gv("task-repeat-custom-in").trim(),listId=(document.getElementById("task-list-select")||{value:"default"}).value||"default";
+  var title=gv("task-title-in").trim(),assignee=gv("task-assignee-in").trim()||emp,desc=gv("task-desc-in").trim(),deadline=gv("task-deadline-in"),rep=gv("task-repeat-in")||"none",rc=gv("task-repeat-custom-in").trim(),listId=tasksCurrentListId||"default";
   if(!title)return;
   var subt=(gv("task-subtasks-in")||"").split(";").map(function(s){return s.trim();}).filter(Boolean).map(function(s){return{text:s,done:false};});
   loadTasks();
@@ -2567,6 +2643,14 @@ function doLogin(){
         var loginName=r.name||input;
         if(r.name&&input.indexOf("@")>-1)loginName=r.name;
         applyEmp(loginName,normalizeRole(r.rolle||"mitarbeiter"));
+        if(r.activationRequired){
+          clearSession();
+          setRestrictedActivationMode(true,{name:loginName,password:pw,klauselUrl:r.klauselUrl||"",rolle:normalizeRole(r.rolle||"mitarbeiter")});
+          openNativeKlauselTab(r.klauselUrl||"");
+          toast("Klausel-Bestätigung erforderlich.","inf");
+          return;
+        }
+        setRestrictedActivationMode(false);
         toast("Hey "+loginName+" 🚀","ok");
         loadStats();
         checkUnconfirmedNotifs();
@@ -4082,13 +4166,17 @@ function sbHandleChat(){
   var q=gv("sb-chat-in"),out=document.getElementById("sb-chat-out");
   var req=sbParseRequest(q);
   if(!req){if(out)out.textContent="Ich reagiere nur auf Set-Anfragen.";return;}
+  setBuilderLoading=true;renderSetBuilderFlow();
   setBuilderAnswers={ziel:"Schneller Verkauf",plattform:req.plattform,budget:"0",zustand:"Gebraucht",gamesReq:req.games};
-  buildSetWithAI();
-  if(out&&setBuilderDraft){
-    out.innerHTML='Set erstellt: '+esc(setBuilderDraft.name)+' · '+setBuilderDraft.items.length+' Produkte · Preisvorschlag: '+esc(setBuilderDraft.priceFast)+' / '+esc(setBuilderDraft.priceMax);
-    setChats.unshift({q:q,time:new Date().toLocaleString("de-DE"),draft:setBuilderDraft});
-    saveSetChats();
-  }
+  buildSetWithAI(function(draft){
+    setBuilderLoading=false;
+    if(out&&draft){
+      out.innerHTML='Set erstellt: '+esc(draft.name)+' · '+draft.items.length+' Produkte · Preisvorschlag: '+esc(draft.priceFast)+' / '+esc(draft.priceMax);
+      setChats.unshift({q:q,time:new Date().toLocaleString("de-DE"),draft:draft});
+      saveSetChats();
+      autoSaveSetBuilderDraft();
+    }
+  });
 }
 function reloadSetChat(ix){loadSetChats();var c=setChats[ix];if(!c)return;var inp=document.getElementById("sb-chat-in");if(inp)inp.value=c.q||"";if(c.draft){setBuilderDraft=c.draft;var out=document.getElementById("sb-chat-out");if(out)out.innerHTML='Set geladen: '+esc(setBuilderDraft.name)+' · '+esc(setBuilderDraft.priceFast)+' / '+esc(setBuilderDraft.priceMax);}}
 function editSetChat(ix){loadSetChats();var c=setChats[ix];if(!c)return;var n=prompt("Chat bearbeiten:",c.q||"");if(!n)return;c.q=n;setChats[ix]=c;saveSetChats();renderSetBuilderFlow();}
@@ -4100,6 +4188,13 @@ function confirmSetBundle(){
     if(r&&r.ok){toast("Set gespeichert ✅","ok");setBuilderDraft=null;loadAll();setBuilderStep=99;renderSetBuilderFlow();}
     else{toast("Fehler: "+(r?r.fehler:"?"),"err");}
   },function(e){toast("Fehler: "+e,"err");});
+}
+function autoSaveSetBuilderDraft(){
+  if(!setBuilderDraft||setBuilderDraft._autoSaved)return;
+  var autoName=(setBuilderDraft.name||"")+" #AUTO";
+  gasPost("saveSetBundle",{name:autoName,mitarbeiter:emp,plattform:setBuilderDraft.plattform,budget:setBuilderDraft.budget,zustand:setBuilderDraft.zustand,items:setBuilderDraft.items,notizen:"Auto-gespeichert via KIsetMasterPro"},function(r){
+    if(r&&r.ok){setBuilderDraft._autoSaved=true;loadAll();renderSetsPanel();}
+  },function(){});
 }
 function sbAddSetImage(){var inp=document.createElement("input");inp.type="file";inp.accept="image/*";inp.onchange=function(){if(!this.files||!this.files[0])return;var fr=new FileReader();fr.onload=function(){if(setDraftImages.length<10)setDraftImages.push(String(fr.result||""));sbRenderSetImages();};fr.readAsDataURL(this.files[0]);};inp.click();}
 function sbRenderSetImages(){var el=document.getElementById("sb-set-images");if(!el)return;el.innerHTML=(setDraftImages||[]).map(function(b,i){return'<div class="card-foto" style="width:44px;height:44px"><img src="'+esc(b)+'"/><button class="rm-thumb" onclick="setDraftImages.splice('+i+',1);sbRenderSetImages()">✕</button></div>';}).join("")+'<div class="add-thumb" style="width:44px;height:44px" onclick="sbAddSetImage()"><i class="bi bi-plus"></i></div>';}
@@ -4122,9 +4217,9 @@ function _sbSoldMap(){
   var map={};(allVerkauf||[]).forEach(function(v){String(v.scanIds||"").split(",").forEach(function(id){id=String(id||"").trim();if(id)map[id]=(map[id]||0)+1;});});
   return map;
 }
-function buildSetWithAI(){
+function buildSetWithAI(onDone){
   var p=setBuilderAnswers.plattform||"PlayStation",budget=parseFloat(setBuilderAnswers.budget||0),ziel=setBuilderAnswers.ziel||"Lager bereinigen",cond=setBuilderAnswers.zustand||"Gebraucht",gamesNeed=parseInt(setBuilderAnswers.gamesReq||3,10)||3;
-  if(!allVerkauf||!allVerkauf.length){gasGet("getAllVerkauf",{},function(r){if(r&&r.ok){allVerkauf=r.data||[];buildSetWithAI();}},function(){});return;}
+  if(!allVerkauf||!allVerkauf.length){gasGet("getAllVerkauf",{},function(r){if(r&&r.ok){allVerkauf=r.data||[];buildSetWithAI(onDone);}else if(typeof onDone==="function"){onDone(null);}},function(){if(typeof onDone==="function"){onDone(null);}});return;}
   var sold=_sbSoldMap();
   var stock=(allItems||[]).filter(function(i){return i.type!=="defekt"&&i.type!=="setbundle";});
   var cons=stock.filter(function(i){return i.type==="konsole"&&_sbDetectPlatform(i)===p;}).sort(function(a,b){return (parseFloat(a.einkaufspreis||0)||0)-(parseFloat(b.einkaufspreis||0)||0);});
@@ -4140,13 +4235,14 @@ function buildSetWithAI(){
   push(cons,1);push(games,gamesNeed);push(ctrl,1);
   var total=picks.reduce(function(s,i){return s+(parseFloat(i.einkaufspreis||0)||0);},0);
   if(budget>0&&total>budget){picks=picks.filter(function(i){return i.type!=="spiel";});push(games.slice(gamesNeed),1);total=picks.reduce(function(s,i){return s+(parseFloat(i.einkaufspreis||0)||0);},0);}
-  if(!picks.length){setBuilderDraft=null;var bd=document.getElementById("sb-flow-body");if(bd)bd.innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Keine passenden Produkte für '+esc(p)+'</p></div><button class="btn btn-outline-secondary" onclick="setBuilderStep=1;renderSetBuilderFlow()">Zurück</button>';return;}
+  if(!picks.length){setBuilderDraft=null;var bd=document.getElementById("sb-flow-body");if(bd)bd.innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Keine passenden Produkte für '+esc(p)+'</p></div><button class="btn btn-outline-secondary" onclick="setBuilderStep=1;renderSetBuilderFlow()">Zurück</button>';if(typeof onDone==="function")onDone(null);return;}
   var priceFast=Math.round((total*1.18)*100)/100,priceMax=Math.round((total*1.28)*100)/100;
   setBuilderDraft={name:p+" "+(ziel==="Maximaler Gewinn"?"Profit":"Smart")+" Set",plattform:p,budget:budget,zustand:cond,items:picks.map(function(i){return {typ:i.type,name:i.name||i.spiel||i.modell||i.scanId,scanId:i.scanId||"",ek:parseFloat(i.einkaufspreis||0)||0};}),total:Math.round(total*100)/100,priceFast:priceFast.toFixed(2)+"€ VB (schneller Verkauf)",priceMax:priceMax.toFixed(2)+"€ VB (max Gewinn)"};
   var body=document.getElementById("sb-flow-body");if(!body)return;
   setDraftImages=[];
   body.innerHTML='<div style="font-size:18px;font-weight:800;color:var(--w1);margin-bottom:8px">Set Vorschlag</div><div class="chips" style="margin-bottom:8px"><span class="chip">Plattform: '+esc(p)+'</span><span class="chip">Ziel: '+esc(ziel)+'</span><span class="chip">EK gesamt: '+setBuilderDraft.total+'€</span></div><div style="font-size:12px;color:var(--w3);line-height:1.7;margin-bottom:10px">'+setBuilderDraft.items.map(function(i){return"• "+esc(i.name)+" ("+i.ek+"€)";}).join("<br>")+'</div><div class="chips" style="margin-bottom:10px"><span class="chip">'+esc(setBuilderDraft.priceMax)+'</span><span class="chip">'+esc(setBuilderDraft.priceFast)+'</span></div><div style="display:flex;gap:8px;margin-bottom:8px"><input id="sb-set-name" class="fc" placeholder="Set-Name" value="'+esc(setBuilderDraft.name)+'"/><button class="btn btn-outline-primary" onclick="sbAnalyzeSet()">KI-Einschätzung</button></div><div id="sb-set-images" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div><div id="sb-set-analysis" style="font-size:11px;color:var(--w3);margin-bottom:10px"></div><div style="display:flex;gap:8px"><button class="btn btn-outline-secondary" onclick="setBuilderStep=1;renderSetBuilderFlow()">Neu berechnen</button><button class="btn btn-success" onclick="confirmSetBundle()">Set speichern</button><button class="btn btn-outline-primary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets verwalten</button></div>';
   sbRenderSetImages();
+  if(typeof onDone==="function")onDone(setBuilderDraft);
 }
 function renderSetManager(body){
   gasGet("getSetBundles",{},function(r){
