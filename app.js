@@ -649,6 +649,8 @@ var pp=document.getElementById("pb-phys");if(pp)pp.className="cbtn";var ps=docum
 
 // ── LAGER ─────────────────────────────────────────────────────────
 var _loadAllBusy=false,_loadAllTs=0,_loadAllCache=[];
+var addToSetModalState={item:null,query:"",selectedSetId:""};
+var setInfoOverlayState={item:null};
 function loadAll(force){
   if(!force&&_loadAllBusy)return;
   var now=Date.now();
@@ -668,7 +670,7 @@ function loadAll(force){
       (s.items||[]).forEach(function(it){
         var sid=String(it.scanId||"").trim();if(!sid)return;
         if(!setMembershipByScanId[sid])setMembershipByScanId[sid]=[];
-        setMembershipByScanId[sid].push({setId:s.setId,name:s.name,rowIndex:s.rowIndex,plattform:s.plattform});
+        setMembershipByScanId[sid].push({setId:s.setId,name:s.name,rowIndex:s.rowIndex,plattform:s.plattform,itemCount:(s.items||[]).length,items:s.items||[]});
       });
     });
   }
@@ -787,7 +789,7 @@ function ensureLagerRedesignStyles(){
   if(document.getElementById("lager-redesign-style"))return;
   var st=document.createElement("style");
   st.id="lager-redesign-style";
-  st.textContent="#list-panel{background:#0a0a0a}.lager-topbar{position:sticky;top:0;z-index:8;background:#0a0a0a;padding:8px 0 12px}.lager-topbar-row{display:flex;gap:8px;flex-wrap:wrap}.lager-search{flex:1;min-width:220px}.lager-sel{min-width:140px;max-width:180px}.lager-active-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.lager-chip-filter{background:#111;border:1px solid #222;color:#9ca3af;border-radius:999px;padding:4px 10px;font-size:11px}.lager-chip-filter span{color:#e5e7eb}.lager-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px}.lager-card{background:#111;border:1px solid #222;border-radius:14px;padding:12px;transition:all .18s ease}.lager-card:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,0,0,.35);background:#151515}.lager-card-row{display:grid;grid-template-columns:80px 1fr;gap:12px}.lager-thumb{width:80px;height:80px;border-radius:12px;overflow:hidden;background:#0d1117;border:1px solid #222}.lager-thumb img{width:100%;height:100%;object-fit:cover}.lager-title{font-size:15px;font-weight:700;color:#fff;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.lager-price{font-size:20px;color:#3fb950;font-weight:800;margin-top:2px}.lager-sub{font-size:11px;color:#9ca3af;margin-top:3px}.lager-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.lager-tag{font-size:10px;color:#9ca3af;border:1px solid #2b2b2b;padding:2px 6px;border-radius:999px}.lager-meta{font-size:10px;color:#6b7280;margin-top:8px;display:flex;gap:10px;flex-wrap:wrap}.lager-sethint{font-size:11px;color:#58a6ff;margin-top:8px;cursor:pointer}.lager-actions{display:flex;gap:6px;align-items:flex-start}.lager-head{display:flex;justify-content:space-between;gap:8px}";
+  st.textContent="#list-panel{background:#0a0a0a}.lager-topbar{position:sticky;top:0;z-index:8;background:#0a0a0a;padding:8px 0 12px}.lager-topbar-row{display:flex;gap:8px;flex-wrap:wrap}.lager-search{flex:1;min-width:220px}.lager-sel{min-width:140px;max-width:180px}.lager-active-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.lager-chip-filter{background:#111;border:1px solid #222;color:#9ca3af;border-radius:999px;padding:4px 10px;font-size:11px}.lager-chip-filter span{color:#e5e7eb}.lager-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px}.lager-card{background:#111;border:1px solid #222;border-radius:14px;padding:12px;transition:all .18s ease}.lager-card:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,0,0,.35);background:#151515}.lager-card-row{display:grid;grid-template-columns:80px 1fr;gap:12px}.lager-thumb{width:80px;height:80px;border-radius:12px;overflow:hidden;background:#0d1117;border:1px solid #222}.lager-thumb img{width:100%;height:100%;object-fit:cover}.lager-title{font-size:15px;font-weight:700;color:#fff;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.lager-price{font-size:20px;color:#3fb950;font-weight:800;margin-top:2px}.lager-sub{font-size:11px;color:#9ca3af;margin-top:3px}.lager-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.lager-tag{font-size:10px;color:#9ca3af;border:1px solid #2b2b2b;padding:2px 6px;border-radius:999px}.lager-meta{font-size:10px;color:#6b7280;margin-top:8px;display:flex;gap:10px;flex-wrap:wrap}.lager-sethint{font-size:11px;color:#58a6ff;margin-top:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;background:rgba(88,166,255,.12);border:1px solid rgba(88,166,255,.35);padding:3px 8px;border-radius:999px}.lager-actions{display:flex;gap:6px;align-items:flex-start}.lager-head{display:flex;justify-content:space-between;gap:8px}.addset-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:10100;display:none;align-items:center;justify-content:center;padding:16px}.addset-modal{width:min(500px,96vw);max-height:80vh;overflow:auto;background:#0f1318;border:1px solid rgba(63,185,80,.35);border-radius:14px;padding:16px;animation:addsetIn .18s ease}.addset-list{margin-top:10px;display:flex;flex-direction:column;gap:8px;max-height:44vh;overflow:auto}.addset-row{padding:10px 12px;background:#11161d;border:1px solid #1f2937;border-radius:10px;cursor:pointer;transition:all .15s ease}.addset-row:hover{border-color:rgba(63,185,80,.6);background:#141a22}.addset-row.selected{border-color:#3fb950;background:rgba(63,185,80,.1)}.addset-row.disabled{opacity:.55;cursor:not-allowed}.setinfo-overlay{position:fixed;inset:0;background:rgba(0,0,0,.64);z-index:10101;display:none;align-items:center;justify-content:center;padding:12px}.setinfo-card{width:min(460px,96vw);background:#11161d;border:1px solid rgba(88,166,255,.35);border-radius:12px;padding:12px;max-height:70vh;overflow:auto}@keyframes addsetIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}";
   document.head.appendChild(st);
 }
 function updateLagerDropdowns(skipReset){
@@ -839,12 +841,12 @@ function mkCard(item){
   if(item.prozessor)tags.push(String(item.prozessor));
   if(item.problemTyp&&item.type!=="defekt")tags.push(String(item.problemTyp));
   var setHintText="";
-  var setHintId="";
+  var setRefs=[];
   var sid=String(item.scanId||"").trim();
   if(sid&&setMembershipByScanId[sid]&&setMembershipByScanId[sid].length){
-    var sref=setMembershipByScanId[sid][0];
-    setHintId=String(sref.setId||"").replace(/'/g,"");
-    setHintText='Teil eines Sets: '+String(sref.name||sref.setId||"Set");
+    setRefs=(setMembershipByScanId[sid]||[]);
+    if(setRefs.length===1)setHintText='Teil eines Sets';
+    else setHintText='In '+setRefs.length+' Sets';
   }
   var note=item.problemBeschr||item.hinweise||"";
   if(item.type==="defekt"){tags.push(String(item.ursprung||""));note=item.problemBeschr||"";}
@@ -858,11 +860,96 @@ function mkCard(item){
   var meta='<div class="lager-meta"><span>'+esc(item.datum||"")+'</span><span>'+esc(item.mitarbeiter||"")+'</span><span>EK: '+esc(item.einkaufspreis?String(item.einkaufspreis)+"€":"—")+'</span></div>';
   cardRegistry.push(item);
   var actions='<div class="lager-actions">';
-  if(item.type!=="defekt"&&item.type!=="setbundle"){actions+='<button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation();openEditStepper('+rIdx+')" title="Bearbeiten"><i class="bi bi-pencil-fill"></i></button><button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDelete('+rIdx+')" title="Löschen"><i class="bi bi-trash3"></i></button>';}
+  if(item.type!=="defekt"&&item.type!=="setbundle"){actions+='<button class="btn btn-outline-success btn-sm" onclick="event.stopPropagation();openAddToSetModal('+rIdx+')" title="In Set einfügen"><i class="bi bi-plus-circle"></i></button><button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation();openEditStepper('+rIdx+')" title="Bearbeiten"><i class="bi bi-pencil-fill"></i></button><button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDelete('+rIdx+')" title="Löschen"><i class="bi bi-trash3"></i></button>';}
   else{actions+='<button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDeleteDefekt('+rIdx+')" title="Löschen"><i class="bi bi-trash3"></i></button>';}
   actions+='</div>';
-  return '<div class="lager-card" onclick="openDetail('+rIdx+')" style="cursor:pointer"><div class="lager-head"><div class="lager-title">'+esc(nm)+'</div>'+actions+'</div><div class="lager-card-row"><div class="lager-thumb">'+(preview?'<img src="'+esc(preview)+'" loading="lazy"/>':'<div style="font-size:20px;display:flex;align-items:center;justify-content:center;width:100%;height:100%">📦</div>')+'</div><div><div class="lager-price">'+esc(priceLabel)+'</div><div class="lager-sub">'+esc(condition)+' • '+esc(catLabel)+'</div><div class="lager-tags">'+tagsHtml+'</div>'+meta+(note?'<div style="font-size:11px;color:#9ca3af;margin-top:6px">'+esc(note)+'</div>':"")+(setHintText?'<div class="lager-sethint" onclick="event.stopPropagation();openSetReference(\''+setHintId+'\')">'+esc(setHintText)+'</div>':'')+'</div></div></div>';
+  return '<div class="lager-card" onclick="openDetail('+rIdx+')" style="cursor:pointer"><div class="lager-head"><div class="lager-title">'+esc(nm)+'</div>'+actions+'</div><div class="lager-card-row"><div class="lager-thumb">'+(preview?'<img src="'+esc(preview)+'" loading="lazy"/>':'<div style="font-size:20px;display:flex;align-items:center;justify-content:center;width:100%;height:100%">📦</div>')+'</div><div><div class="lager-price">'+esc(priceLabel)+'</div><div class="lager-sub">'+esc(condition)+' • '+esc(catLabel)+'</div><div class="lager-tags">'+tagsHtml+'</div>'+meta+(note?'<div style="font-size:11px;color:#9ca3af;margin-top:6px">'+esc(note)+'</div>':"")+(setHintText?'<div class="lager-sethint" onclick="event.stopPropagation();openSetInfoOverlay('+rIdx+')"><i class="bi bi-link-45deg"></i>'+esc(setHintText)+'</div>':'')+'</div></div></div>';
 }
+function getSetRowsCached(){return Array.isArray(setRowsCache)?setRowsCache:[];}
+function ensureAddToSetModal(){
+  if(document.getElementById("addset-modal-overlay"))return;
+  var ov=document.createElement("div");
+  ov.id="addset-modal-overlay";
+  ov.className="addset-modal-overlay";
+  ov.innerHTML='<div class="addset-modal"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-size:18px;font-weight:800;color:var(--acc)">Produkt zu Set hinzufügen</div><button class="btn btn-outline-secondary btn-sm" onclick="closeAddToSetModal()">✕</button></div><input id="addset-search" class="fc" placeholder="Sets durchsuchen" style="margin-top:10px"/><div id="addset-list" class="addset-list"></div><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn btn-outline-secondary" onclick="closeAddToSetModal()">Abbrechen</button><button id="addset-confirm" class="btn btn-success" onclick="confirmAddProductToSet()">Hinzufügen</button></div></div>';
+  ov.addEventListener("click",function(e){if(e.target===ov)closeAddToSetModal();});
+  document.body.appendChild(ov);
+  var inp=document.getElementById("addset-search");
+  if(inp)inp.addEventListener("input",function(){addToSetModalState.query=this.value||"";renderAddToSetModalList();});
+}
+function openAddToSetModal(rIdx){
+  ensureAddToSetModal();
+  var item=cardRegistry[rIdx];if(!item)return;
+  addToSetModalState={item:item,query:"",selectedSetId:""};
+  var ov=document.getElementById("addset-modal-overlay");if(ov)ov.style.display="flex";
+  var inp=document.getElementById("addset-search");if(inp){inp.value="";setTimeout(function(){inp.focus();},30);}
+  renderAddToSetModalList();
+}
+function closeAddToSetModal(){var ov=document.getElementById("addset-modal-overlay");if(ov)ov.style.display="none";}
+function renderAddToSetModalList(){
+  var out=document.getElementById("addset-list");if(!out)return;
+  var sets=getSetRowsCached();
+  if(!sets.length){
+    out.innerHTML='<div class="empty"><p>Keine Sets vorhanden</p><button class="btn btn-primary btn-sm" onclick="closeAddToSetModal();openSetBuilderFlow()">Set erstellen</button></div>';
+    return;
+  }
+  var q=String(addToSetModalState.query||"").toLowerCase().trim();
+  var item=addToSetModalState.item||{};
+  var sid=String(item.scanId||"").trim();
+  var filtered=sets.filter(function(s){return !q||String(s.name||s.setId||"").toLowerCase().indexOf(q)>-1;});
+  out.innerHTML=filtered.map(function(s){
+    var items=s.items||[];
+    var exists=items.some(function(it){return String(it.scanId||"").trim()===sid;});
+    var selected=String(addToSetModalState.selectedSetId||"")===String(s.setId||"");
+    return '<div class="addset-row '+(selected?"selected ":"")+(exists?"disabled":"")+'" onclick="'+(exists?'':'selectSetForAdd(\''+String(s.setId||"").replace(/'/g,"")+'\')')+'"><div style="font-size:13px;font-weight:700;color:var(--w1)">'+esc(s.name||s.setId||"Set")+'</div><div style="font-size:11px;color:var(--w4)">'+items.length+' Produkte'+(exists?' • bereits enthalten':'')+'</div></div>';
+  }).join("");
+}
+function selectSetForAdd(setId){addToSetModalState.selectedSetId=setId;renderAddToSetModalList();}
+function confirmAddProductToSet(){
+  var selId=String(addToSetModalState.selectedSetId||"");if(!selId){toast("Bitte Set wählen.","err");return;}
+  var item=addToSetModalState.item;if(!item){closeAddToSetModal();return;}
+  var sid=String(item.scanId||"").trim();
+  var target=(getSetRowsCached().find(function(s){return String(s.setId||"")===selId;}));
+  if(!target){toast("Set nicht gefunden.","err");return;}
+  target.items=Array.isArray(target.items)?target.items:[];
+  if(target.items.some(function(it){return String(it.scanId||"").trim()===sid;})){toast("Produkt bereits im Set.","inf");return;}
+  var addEntry={typ:item.type,name:item.name||item.spiel||item.modell||item.scanId||"Produkt",scanId:sid,ek:parseFloat(item.einkaufspreis||0)||0};
+  target.items.push(addEntry);
+  if(!setMembershipByScanId[sid])setMembershipByScanId[sid]=[];
+  setMembershipByScanId[sid].push({setId:target.setId,name:target.name,rowIndex:target.rowIndex,plattform:target.plattform,itemCount:target.items.length,items:target.items});
+  renderList();
+  closeAddToSetModal();
+  toast("Produkt zum Set hinzugefügt.","ok");
+  gasPost("updateSetBundle",{rowIndex:target.rowIndex,name:target.name,plattform:target.plattform,zustand:target.zustand,budget:target.budget,items:target.items,notizen:target.notizen},function(r){
+    if(!(r&&r.ok)){target.items=target.items.filter(function(it){return String(it.scanId||"").trim()!==sid;});setMembershipByScanId[sid]=(setMembershipByScanId[sid]||[]).filter(function(x){return String(x.setId||"")!==selId;});renderList();toast("Speichern fehlgeschlagen.","err");}
+  },function(){target.items=target.items.filter(function(it){return String(it.scanId||"").trim()!==sid;});setMembershipByScanId[sid]=(setMembershipByScanId[sid]||[]).filter(function(x){return String(x.setId||"")!==selId;});renderList();toast("Speichern fehlgeschlagen.","err");});
+}
+function ensureSetInfoOverlay(){
+  if(document.getElementById("setinfo-overlay"))return;
+  var ov=document.createElement("div");
+  ov.id="setinfo-overlay";
+  ov.className="setinfo-overlay";
+  ov.innerHTML='<div class="setinfo-card"><div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;color:#58a6ff;font-weight:800">Set-Zugehörigkeit</div><button class="btn btn-outline-secondary btn-sm" onclick="closeSetInfoOverlay()">✕</button></div><div id="setinfo-body" style="margin-top:8px"></div></div>';
+  ov.addEventListener("click",function(e){if(e.target===ov)closeSetInfoOverlay();});
+  document.body.appendChild(ov);
+}
+function openSetInfoOverlay(rIdx){
+  ensureSetInfoOverlay();
+  var item=cardRegistry[rIdx];if(!item)return;
+  setInfoOverlayState.item=item;
+  var sid=String(item.scanId||"").trim();
+  var refs=(setMembershipByScanId[sid]||[]);
+  var body=document.getElementById("setinfo-body");
+  if(body){
+    body.innerHTML=!refs.length?'<div class="empty"><p>Keine Set-Zugehörigkeit.</p></div>':refs.map(function(ref){
+      var set=(getSetRowsCached().find(function(s){return String(s.setId||"")===String(ref.setId||"");}))||{};
+      var products=(set.items||[]).map(function(it){return '<li>'+esc(it.name||it.scanId||"-")+'</li>';}).join("");
+      return '<div style="padding:10px;border:1px solid #1f2937;border-radius:10px;margin-bottom:8px"><div style="font-size:13px;font-weight:700;color:var(--w1)">'+esc(ref.name||ref.setId||"Set")+'</div><ul style="margin:6px 0 8px 16px;font-size:11px;color:var(--w3)">'+products+'</ul><button class="btn btn-outline-primary btn-sm" onclick="closeSetInfoOverlay();openSetReference(\''+String(ref.setId||"").replace(/'/g,"")+'\')">Set öffnen</button></div>';
+    }).join("");
+  }
+  var ov=document.getElementById("setinfo-overlay");if(ov)ov.style.display="flex";
+}
+function closeSetInfoOverlay(){var ov=document.getElementById("setinfo-overlay");if(ov)ov.style.display="none";}
 function openSetReference(setId){
   goTabFn("sets-panel");
   setTimeout(function(){
