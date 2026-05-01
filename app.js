@@ -696,11 +696,12 @@ function loadAll(force){
   gasGet("getSetBundles",{},function(r){if(r&&r.ok)sb=r.data||[];tryR();},function(){tryR();});
 }
 function renderList(){
-  cardRegistry=[];ensureLagerDropdownUI();
-  var q=document.getElementById("list-q").value.toLowerCase();
+  cardRegistry=[];ensureLagerDropdownUI();ensureLagerRedesignStyles();
+  var q=(document.getElementById("list-q")||{value:""}).value.toLowerCase();
   var ddMain=(document.getElementById("lager-dd-main")||{value:""}).value;
   var ddSub=(document.getElementById("lager-dd-sub")||{value:""}).value;
   var ddSub2=(document.getElementById("lager-dd-sub2")||{value:""}).value;
+  var ddStatus=(document.getElementById("lager-dd-status")||{value:""}).value;
   var f=allItems.filter(function(i){
     if(i.type==="setbundle")return false;
     var tm=true;
@@ -723,6 +724,12 @@ function renderList(){
       if(i.type!=="pc")return false;
       if(ddSub&&String(i.typ_||"").toLowerCase()!==String(ddSub||"").toLowerCase())return false;
     }
+    if(ddStatus){
+      if(ddStatus==="set"&&!(setMembershipByScanId[String(i.scanId||"").trim()]||[]).length)return false;
+      if(ddStatus==="mitbild"&&!(i.fotos&&i.fotos.length))return false;
+      if(ddStatus==="ohnebild"&&(i.fotos&&i.fotos.length))return false;
+      if(ddStatus==="defekt"&&!String(i.problemTyp||"").trim())return false;
+    }
     if(!q)return true;
     var n=i.name||i.spiel||i.modell||i.geraet||"";
     var hay=[n,i.scanId,i.mitarbeiter,i.zustand,i.problemTyp,i.problemBeschr,i.kategorie,i.ursprung,i.notizen].map(function(v){return String(v||"").toLowerCase();}).join(" ");
@@ -730,6 +737,9 @@ function renderList(){
   });
   document.getElementById("list-count").textContent=f.length+" Einträge";
   var cntEl=document.getElementById("lager-cat-count");if(cntEl)cntEl.textContent="("+f.length+" Artikel)";
+  renderLagerFilterChips();
+  var bodyEl=document.getElementById("list-body");
+  if(bodyEl)bodyEl.className="lager-grid";
   if(!f.length){document.getElementById("list-body").innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Nichts gefunden.</p></div>';return;}
   document.getElementById("list-body").innerHTML=f.map(function(i){return mkCard(i);}).join("");
 }
@@ -740,13 +750,45 @@ function ensureLagerDropdownUI(){
   if(!wrap||document.getElementById("lager-dd-wrap"))return;
   var box=document.createElement("div");
   box.id="lager-dd-wrap";
-  box.style.cssText="display:flex;gap:6px;margin:-4px 0 10px;flex-wrap:wrap";
-  box.innerHTML='<select id="lager-dd-main" class="fc" style="width:auto;min-width:140px;font-size:11px;padding:8px 10px"><option value="">Kategorie-Filter</option><option value="spielwaren">Spielwaren</option><option value="handy">Handys</option><option value="pc">PC</option></select><select id="lager-dd-sub" class="fc" style="width:auto;min-width:150px;font-size:11px;padding:8px 10px;display:none"></select><select id="lager-dd-sub2" class="fc" style="width:auto;min-width:150px;font-size:11px;padding:8px 10px;display:none"></select>';
+  box.className="lager-topbar";
+  box.innerHTML='<div class="lager-topbar-row"><input id="list-q" class="fc lager-search" placeholder="Suchen…"/><select id="lager-dd-main" class="fc lager-sel"><option value="">Kategorie</option><option value="spielwaren">Spielwaren</option><option value="handy">Handys</option><option value="pc">PC</option></select><select id="lager-dd-sub" class="fc lager-sel" style="display:none"></select><select id="lager-dd-sub2" class="fc lager-sel" style="display:none"></select><select id="lager-dd-status" class="fc lager-sel"><option value="">Status</option><option value="set">Teil eines Sets</option><option value="mitbild">Mit Bild</option><option value="ohnebild">Ohne Bild</option><option value="defekt">Defekt-Hinweis</option></select></div><div id="lager-active-chips" class="lager-active-chips"></div>';
   var body=document.getElementById("list-body");
   if(body&&body.parentNode===wrap)wrap.insertBefore(box,body);
   document.getElementById("lager-dd-main").onchange=function(){updateLagerDropdowns();renderList();};
   document.getElementById("lager-dd-sub").onchange=function(){updateLagerDropdowns(true);renderList();};
   document.getElementById("lager-dd-sub2").onchange=function(){renderList();};
+  document.getElementById("lager-dd-status").onchange=function(){renderList();};
+  document.getElementById("list-q").addEventListener("input",function(){renderList();});
+}
+function renderLagerFilterChips(){
+  var out=document.getElementById("lager-active-chips");if(!out)return;
+  var chips=[];
+  var q=(document.getElementById("list-q")||{value:""}).value.trim();
+  var main=(document.getElementById("lager-dd-main")||{value:""}).value;
+  var sub=(document.getElementById("lager-dd-sub")||{value:""}).value;
+  var sub2=(document.getElementById("lager-dd-sub2")||{value:""}).value;
+  var st=(document.getElementById("lager-dd-status")||{value:""}).value;
+  if(q)chips.push({k:"q",v:q,l:"Suche: "+q});
+  if(main)chips.push({k:"main",v:main,l:"Kategorie: "+main});
+  if(sub)chips.push({k:"sub",v:sub,l:"Typ: "+sub});
+  if(sub2)chips.push({k:"sub2",v:sub2,l:"Subtyp: "+sub2});
+  if(st)chips.push({k:"status",v:st,l:"Status: "+st});
+  out.innerHTML=chips.map(function(c){return'<button class="lager-chip-filter" onclick="removeLagerFilter(\''+esc(c.k)+'\')">'+esc(c.l)+' <span>✕</span></button>';}).join("");
+}
+function removeLagerFilter(k){
+  if(k==="q"){var e=document.getElementById("list-q");if(e)e.value="";}
+  if(k==="main"){var e2=document.getElementById("lager-dd-main");if(e2)e2.value="";updateLagerDropdowns();}
+  if(k==="sub"){var e3=document.getElementById("lager-dd-sub");if(e3)e3.value="";}
+  if(k==="sub2"){var e4=document.getElementById("lager-dd-sub2");if(e4)e4.value="";}
+  if(k==="status"){var e5=document.getElementById("lager-dd-status");if(e5)e5.value="";}
+  renderList();
+}
+function ensureLagerRedesignStyles(){
+  if(document.getElementById("lager-redesign-style"))return;
+  var st=document.createElement("style");
+  st.id="lager-redesign-style";
+  st.textContent="#list-panel{background:#0a0a0a}.lager-topbar{position:sticky;top:0;z-index:8;background:#0a0a0a;padding:8px 0 12px}.lager-topbar-row{display:flex;gap:8px;flex-wrap:wrap}.lager-search{flex:1;min-width:220px}.lager-sel{min-width:140px;max-width:180px}.lager-active-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.lager-chip-filter{background:#111;border:1px solid #222;color:#9ca3af;border-radius:999px;padding:4px 10px;font-size:11px}.lager-chip-filter span{color:#e5e7eb}.lager-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px}.lager-card{background:#111;border:1px solid #222;border-radius:14px;padding:12px;transition:all .18s ease}.lager-card:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,0,0,.35);background:#151515}.lager-card-row{display:grid;grid-template-columns:80px 1fr;gap:12px}.lager-thumb{width:80px;height:80px;border-radius:12px;overflow:hidden;background:#0d1117;border:1px solid #222}.lager-thumb img{width:100%;height:100%;object-fit:cover}.lager-title{font-size:15px;font-weight:700;color:#fff;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.lager-price{font-size:20px;color:#3fb950;font-weight:800;margin-top:2px}.lager-sub{font-size:11px;color:#9ca3af;margin-top:3px}.lager-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.lager-tag{font-size:10px;color:#9ca3af;border:1px solid #2b2b2b;padding:2px 6px;border-radius:999px}.lager-meta{font-size:10px;color:#6b7280;margin-top:8px;display:flex;gap:10px;flex-wrap:wrap}.lager-sethint{font-size:11px;color:#58a6ff;margin-top:8px;cursor:pointer}.lager-actions{display:flex;gap:6px;align-items:flex-start}.lager-head{display:flex;justify-content:space-between;gap:8px}";
+  document.head.appendChild(st);
 }
 function updateLagerDropdowns(skipReset){
   var main=document.getElementById("lager-dd-main"),sub=document.getElementById("lager-dd-sub"),sub2=document.getElementById("lager-dd-sub2");
@@ -787,40 +829,39 @@ function mkCard(item){
   var nm=item.name||item.spiel||item.modell||item.geraet||"–";
   var tmap={konsole:["ib-k","🕹️ Konsole"],spiel:["ib-sp","💿 Spiel"],controller:["ib-sp","🎮 Controller"],handy:["ib-h","📱 Handy"],pc:["ib-pc","💻 PC/Laptop"],defekt:["ib-def","⚠️ Defekt"],setbundle:["ib-sp","🧩 Set-Bundle"]};
   var tm=tmap[item.type]||["","–"];
-  var chips="";
-  if(item.einkaufspreis&&String(item.einkaufspreis).trim()&&item.einkaufspreis!="0")chips+='<span class="chip" style="border-color:rgba(63,185,80,.3);color:var(--green)"><i class="bi bi-tag"></i>&nbsp;<b>EK: '+esc(String(item.einkaufspreis))+'€</b></span>';
-  if(item.scanId)chips+='<span class="chip"><i class="bi bi-upc"></i>&nbsp;<b>'+esc(String(item.scanId))+'</b></span>';
-  if(item.speicherGB)chips+='<span class="chip"><i class="bi bi-hdd"></i>&nbsp;<b>'+esc(item.speicherGB)+'GB</b></span>';
-  if(item.ram)chips+='<span class="chip"><i class="bi bi-memory"></i>&nbsp;<b>'+esc(item.ram)+'GB RAM</b></span>';
-  if(item.farbe)chips+='<span class="chip"><i class="bi bi-palette2"></i>&nbsp;<b>'+esc(item.farbe)+'</b></span>';
-  if(item.system)chips+='<span class="chip"><i class="bi bi-display"></i>&nbsp;<b>'+esc(item.system)+'</b></span>';
-  if(item.typ_)chips+='<span class="chip"><i class="bi bi-laptop"></i>&nbsp;<b>'+esc(item.typ_)+'</b></span>';
-  if(item.prozessor)chips+='<span class="chip"><i class="bi bi-cpu"></i>&nbsp;<b>'+esc(item.prozessor)+'</b></span>';
-  if(item.grafikkarte)chips+='<span class="chip"><i class="bi bi-gpu-card"></i>&nbsp;<b>'+esc(item.grafikkarte)+'</b></span>';
-  if(item.zustand)chips+='<span class="chip"><i class="bi bi-star"></i>&nbsp;<b>'+esc(item.zustand)+'</b></span>';
-  if(item.mitarbeiter)chips+='<span class="chip"><i class="bi bi-person"></i>&nbsp;<b>'+esc(item.mitarbeiter)+'</b></span>';
-  if(item.datum)chips+='<span class="chip"><i class="bi bi-calendar3"></i>&nbsp;<b>'+esc(item.datum)+'</b></span>';
-  if(item.problemTyp&&item.type!=="defekt")chips+='<span class="chip" style="border-color:rgba(248,81,73,.3);color:var(--red)"><i class="bi bi-exclamation-triangle-fill"></i>&nbsp;<b>'+esc(item.problemTyp)+'</b></span>';
-  var setHint="";
+  var tags=[];
+  if(item.scanId)tags.push("ID "+String(item.scanId));
+  if(item.speicherGB)tags.push(String(item.speicherGB)+"GB");
+  if(item.ram)tags.push(String(item.ram)+"GB RAM");
+  if(item.farbe)tags.push(String(item.farbe));
+  if(item.system)tags.push(String(item.system));
+  if(item.typ_)tags.push(String(item.typ_));
+  if(item.prozessor)tags.push(String(item.prozessor));
+  if(item.problemTyp&&item.type!=="defekt")tags.push(String(item.problemTyp));
+  var setHintText="";
+  var setHintId="";
   var sid=String(item.scanId||"").trim();
   if(sid&&setMembershipByScanId[sid]&&setMembershipByScanId[sid].length){
     var sref=setMembershipByScanId[sid][0];
-    var safeSetId=String(sref.setId||"").replace(/'/g,"");
-    setHint='<div style="font-size:10px;color:#58a6ff;margin-top:4px;cursor:pointer" onclick="event.stopPropagation();openSetReference(\''+safeSetId+'\')">Teil eines Sets: '+esc(sref.name||sref.setId||"Set")+'</div>';
+    setHintId=String(sref.setId||"").replace(/'/g,"");
+    setHintText='Teil eines Sets: '+String(sref.name||sref.setId||"Set");
   }
   var note=item.problemBeschr||item.hinweise||"";
-  if(item.type==="defekt"){chips+='<span class="chip"><i class="bi bi-box-arrow-in-right"></i>&nbsp;<b>'+esc(item.ursprung||"")+'</b></span>';note=item.problemBeschr||"";}
+  if(item.type==="defekt"){tags.push(String(item.ursprung||""));note=item.problemBeschr||"";}
   var rIdx=cardRegistry.length;
   var preview=(item.fotos&&item.fotos[0])?item.fotos[0]:"";
-  var priceLabel=(item.kaPreis?String(item.kaPreis)+"€":(item.einkaufspreis?String(item.einkaufspreis)+"€":"—"));
-  var condition=String(item.zustand||"—");
-  var mediaHtml='<div style="display:grid;grid-template-columns:62px 1fr;gap:10px;align-items:center;margin:6px 0 8px"><div style="width:62px;height:62px;border-radius:8px;background:#0a0f16;border:1px solid var(--e1);overflow:hidden">'+(preview?'<img src="'+esc(preview)+'" loading="lazy" style="width:100%;height:100%;object-fit:cover"/>':'<div style="font-size:22px;display:flex;align-items:center;justify-content:center;width:100%;height:100%">📦</div>')+'</div><div><div style="font-size:13px;color:var(--w1);font-weight:700;line-height:1.35">'+esc(nm)+'</div><div style="font-size:11px;color:var(--acc);margin-top:2px">'+esc(priceLabel)+'</div><div style="font-size:10px;color:var(--w4);margin-top:2px">'+esc(condition)+'</div></div></div>';
+  var priceLabel=(item.kaPreis?String(item.kaPreis)+"€":(item.einkaufspreis?String(item.einkaufspreis)+"€":"Preis offen"));
+  var condition=String(item.zustand||"Unbekannt");
+  var catLabel=tm[1].replace(/^[^A-Za-z0-9ÄÖÜäöüß]+/,"").trim()||tm[1];
+  var shownTags=tags.slice(0,3);
+  var tagsHtml=shownTags.map(function(t){return '<span class="lager-tag">'+esc(t)+'</span>';}).join("")+(tags.length>3?'<span class="lager-tag">+'+(tags.length-3)+'</span>':"");
+  var meta='<div class="lager-meta"><span>'+esc(item.datum||"")+'</span><span>'+esc(item.mitarbeiter||"")+'</span><span>EK: '+esc(item.einkaufspreis?String(item.einkaufspreis)+"€":"—")+'</span></div>';
   cardRegistry.push(item);
-  var actions='<div class="ic-actions">';
-  if(item.type!=="defekt"&&item.type!=="setbundle"){actions+='<button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation();openEditStepper('+rIdx+')"><i class="bi bi-pencil-fill me-1"></i>Bearbeiten</button><button class="btn btn-outline-danger btn-sm" onclick="confirmDelete('+rIdx+')"><i class="bi bi-trash3"></i></button>';}
-  else{actions+='<button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDeleteDefekt('+rIdx+')"><i class="bi bi-trash3 me-1"></i>Löschen</button>';}
+  var actions='<div class="lager-actions">';
+  if(item.type!=="defekt"&&item.type!=="setbundle"){actions+='<button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation();openEditStepper('+rIdx+')" title="Bearbeiten"><i class="bi bi-pencil-fill"></i></button><button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDelete('+rIdx+')" title="Löschen"><i class="bi bi-trash3"></i></button>';}
+  else{actions+='<button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDeleteDefekt('+rIdx+')" title="Löschen"><i class="bi bi-trash3"></i></button>';}
   actions+='</div>';
-  return '<div class="ic" onclick="openDetail('+rIdx+')" style="cursor:pointer"><div class="ic-top"><div class="ic-name">'+esc(nm)+'</div><div style="display:flex;gap:4px;align-items:center"><span class="ic-badge '+tm[0]+'">'+tm[1]+'</span>'+katBadge+'</div></div>'+mediaHtml+'<div class="chips">'+chips+(item.type!=="defekt"?'<span class="av-badge '+avc+'"><i class="bi '+avi+' me-1"></i>'+avLabel+'</span>':'')+' </div>'+(note?'<div style="font-size:12px;color:var(--text2);margin-bottom:4px"><i class="bi bi-chat-text me-1"></i>'+esc(note)+'</div>':"")+setHint+actions+'</div>';
+  return '<div class="lager-card" onclick="openDetail('+rIdx+')" style="cursor:pointer"><div class="lager-head"><div class="lager-title">'+esc(nm)+'</div>'+actions+'</div><div class="lager-card-row"><div class="lager-thumb">'+(preview?'<img src="'+esc(preview)+'" loading="lazy"/>':'<div style="font-size:20px;display:flex;align-items:center;justify-content:center;width:100%;height:100%">📦</div>')+'</div><div><div class="lager-price">'+esc(priceLabel)+'</div><div class="lager-sub">'+esc(condition)+' • '+esc(catLabel)+'</div><div class="lager-tags">'+tagsHtml+'</div>'+meta+(note?'<div style="font-size:11px;color:#9ca3af;margin-top:6px">'+esc(note)+'</div>':"")+(setHintText?'<div class="lager-sethint" onclick="event.stopPropagation();openSetReference(\''+setHintId+'\')">'+esc(setHintText)+'</div>':'')+'</div></div></div>';
 }
 function openSetReference(setId){
   goTabFn("sets-panel");
