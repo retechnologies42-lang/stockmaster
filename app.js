@@ -1,7 +1,7 @@
 
 
 
-var GAS_URL = "https://script.google.com/macros/s/AKfycbxlm0Wh1yRLMvcMKMieJme-FegtWIK9S3yt6CzvjCYy8IAQpLldrrWeZRHyt3xH2w/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbxlhvcgDUThMyon8B2CNPfHgU3owr_40eVKFRfjE6p-ecQBjznY2wCdBbdayCMp/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -241,8 +241,44 @@ function ensureScanFlowNodes(){
 normalizePanelHierarchy();
 normalizeOverlayHierarchy();
 ensureScanFlowNodes();
-document.querySelectorAll(".bnav-btn").forEach(function(b){b.addEventListener("click",function(){document.querySelectorAll(".bnav-btn").forEach(function(x){x.classList.remove("on");});document.querySelectorAll(".panel").forEach(function(x){x.classList.remove("on");});b.classList.add("on");var p=document.getElementById(b.dataset.tab);if(p)p.classList.add("on");if(b.dataset.tab==="home-panel"){setGreeting();loadStats();if(!allItems.length){loadAll();}else{buildKAProgress();buildWeekChart();updateMyStats();}}if(b.dataset.tab==="list-panel"&&allItems.length===0)loadAll();if(b.dataset.tab==="search-panel"){initSearch();if(allItems.length===0){loadAll();setTimeout(function(){if(allItems.length>0)renderSearchResults(allItems);},2500);}else{renderSearchResults(allItems);}}if(b.dataset.tab==="handel-panel"){loadHandel();}if(b.dataset.tab==="analyse-panel"){renderAnalysePanel();}});});
-function goTabFn(id,lfMode){document.querySelectorAll(".bnav-btn").forEach(function(b){b.classList.toggle("on",b.dataset.tab===id);});document.querySelectorAll(".panel").forEach(function(p){p.classList.toggle("on",p.id===id);});if(lfMode){lf=lfMode;renderList();}if(id==="list-panel"&&allItems.length===0)loadAll();if(id==="home-panel"){setGreeting();loadStats();if(!allItems.length){loadAll();}else{buildKAProgress();buildWeekChart();updateMyStats();}}}
+document.querySelectorAll(".bnav-btn").forEach(function(b){b.addEventListener("click",function(){document.querySelectorAll(".bnav-btn").forEach(function(x){x.classList.remove("on");});document.querySelectorAll(".panel").forEach(function(x){x.classList.remove("on");});b.classList.add("on");var p=document.getElementById(b.dataset.tab);if(p)p.classList.add("on");if(b.dataset.tab==="home-panel"){setGreeting();loadStats();if(!allItems.length){loadAll();}else{buildKAProgress();buildWeekChart();updateMyStats();}}if(b.dataset.tab==="list-panel"&&allItems.length===0)loadAll();if(b.dataset.tab==="search-panel"){initSearch();if(allItems.length===0){loadAll();setTimeout(function(){if(allItems.length>0)renderSearchResults(allItems);},2500);}else{renderSearchResults(allItems);}}if(b.dataset.tab==="handel-panel"){loadHandel();}if(b.dataset.tab==="analyse-panel"){renderAnalysePanel();}if(b.dataset.tab==="sets-panel"){renderSetsPanel();}});});
+function goTabFn(id,lfMode){document.querySelectorAll(".bnav-btn").forEach(function(b){b.classList.toggle("on",b.dataset.tab===id);});document.querySelectorAll(".panel").forEach(function(p){p.classList.toggle("on",p.id===id);});if(lfMode){lf=lfMode;renderList();}if(id==="list-panel"&&allItems.length===0)loadAll();if(id==="home-panel"){setGreeting();loadStats();if(!allItems.length){loadAll();}else{buildKAProgress();buildWeekChart();updateMyStats();}}if(id==="sets-panel"){renderSetsPanel();}}
+function ensureSetsPanelUI(){
+  if(document.getElementById("sets-panel"))return;
+  var panel=document.createElement("section");
+  panel.id="sets-panel";
+  panel.className="panel";
+  panel.innerHTML='<div class="wrap"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0;color:var(--acc)">Sets</h3><button class="btn btn-outline-secondary btn-sm" onclick="renderSetsPanel()">Aktualisieren</button></div><div id="sets-list"></div></div>';
+  document.body.appendChild(panel);
+  var bnav=document.querySelector(".bnav");
+  if(bnav&&!document.getElementById("bnav-sets-btn")){
+    var btn=document.createElement("button");
+    btn.id="bnav-sets-btn";
+    btn.className="bnav-btn";
+    btn.dataset.tab="sets-panel";
+    btn.innerHTML='<i class="bi bi-box-seam"></i><span>Sets</span>';
+    btn.addEventListener("click",function(){goTabFn("sets-panel");renderSetsPanel();});
+    bnav.appendChild(btn);
+  }
+}
+function renderSetsPanel(){
+  var out=document.getElementById("sets-list");if(!out)return;
+  gasGet("getSetBundles",{},function(r){
+    var sets=(r&&r.ok)?(r.data||[]):[];
+    if(!sets.length){out.innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Keine Sets gespeichert.</p></div>';return;}
+    out.innerHTML=sets.map(function(s,ix){
+      var items=(s.items||[]).map(function(i){return i.name||i.scanId;}).join(", ");
+      return '<div class="ic"><div class="ic-top"><div class="ic-name">'+esc(s.name||s.setId||("Set "+ix))+'</div><span class="chip">'+esc(s.plattform||"-")+'</span></div><div style="font-size:11px;color:var(--w3)">'+esc(items.substring(0,250))+(items.length>250?"…":"")+'</div><div style="margin-top:8px;display:flex;gap:6px"><button class="btn btn-outline-primary btn-sm" onclick="exportSetInlineForKA('+ix+')">Für Kleinanzeigen</button></div></div>';
+    }).join("");
+    window._setsPanelData=sets;
+  },function(){out.innerHTML='<div class="empty"><i class="bi bi-wifi-off"></i><p>Sets konnten nicht geladen werden.</p></div>';});
+}
+function exportSetInlineForKA(ix){
+  var s=(window._setsPanelData||[])[ix];if(!s)return;
+  var txt=(s.name||"Set")+" | "+(s.plattform||"")+" | "+(s.items||[]).map(function(i){return i.name||i.scanId;}).join(", ");
+  try{navigator.clipboard.writeText(txt);}catch(e){}
+  toast("Set-Text kopiert.","ok");
+}
 
 // ── STATS ─────────────────────────────────────────────────────────
 function loadStats(){gasGet("getStats",{},function(r){if(!r||!r.ok)return;var s=r.stats||{};document.getElementById("st-sw").textContent=(s.konsolen||0)+(s.spiele||0);document.getElementById("st-h").textContent=s.handys||0;document.getElementById("st-pc").textContent=s.pcs||0;document.getElementById("st-def").textContent=s.defekte||0;document.getElementById("st-heu").textContent=s.heute||0;var ve=document.getElementById("st-vk");if(ve)ve.textContent=s.verkauf||0;var ee=document.getElementById("st-ek");if(ee)ee.textContent=s.einkauf||0;},function(){});}
@@ -465,7 +501,7 @@ function stopCam(){camStop();}
 
 // ── FOTOS ─────────────────────────────────────────────────────────
 function triggerPhotoInput(mode){var id=mode==="cam"?"f-photo-cam":"f-photo-gallery";var el=document.getElementById(id);if(!el){toast("Foto-Input nicht gefunden.","err");return;}el.onchange=function(){if(this.files&&this.files[0])processPhotoFile(this.files[0]);this.value="";};el.click();}
-function processPhotoFile(file){if(!file)return;if(file.size>15*1024*1024){toast("Max. 15 MB pro Foto.","err");return;}var name=(file.name||"foto.jpg").replace(/[^a-zA-Z0-9._-]/g,"_");var img=new Image(),url=URL.createObjectURL(file);img.onload=function(){URL.revokeObjectURL(url);var MAX=800,w=img.width,h=img.height;if(w>MAX||h>MAX){if(w>h){h=Math.round(h*(MAX/w));w=MAX;}else{w=Math.round(w*(MAX/h));h=MAX;}}var canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;var ctx=canvas.getContext("2d");ctx.fillStyle="#ffffff";ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);var b64=canvas.toDataURL("image/jpeg",0.72);if(!b64||b64.indexOf("base64,")===-1){toast("Bild konnte nicht verarbeitet werden.","err");return;}photos.push({b64:b64,name:name});renderAllPhotos();toast("Foto hinzugefügt ✅","ok",2000);};img.onerror=function(){toast("Bild konnte nicht geladen werden.","err");};img.src=url;}
+function processPhotoFile(file){if(!file)return;if(file.size>15*1024*1024){toast("Max. 15 MB pro Foto.","err");return;}if(photos.length>=10){toast("Maximal 10 Bilder pro Produkt.","err");return;}var name=(file.name||"foto.jpg").replace(/[^a-zA-Z0-9._-]/g,"_");var img=new Image(),url=URL.createObjectURL(file);img.onload=function(){URL.revokeObjectURL(url);var MAX=1200,w=img.width,h=img.height;if(w>MAX||h>MAX){if(w>h){h=Math.round(h*(MAX/w));w=MAX;}else{w=Math.round(w*(MAX/h));h=MAX;}}var canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;var ctx=canvas.getContext("2d");ctx.fillStyle="#ffffff";ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);var b64=canvas.toDataURL("image/jpeg",0.78);if(!b64||b64.indexOf("base64,")===-1){toast("Bild konnte nicht verarbeitet werden.","err");return;}photos.push({b64:b64,name:name});renderAllPhotos();toast("Foto hinzugefügt ✅","ok",2000);};img.onerror=function(){toast("Bild konnte nicht geladen werden.","err");};img.src=url;}
 function renderAllPhotos(){var mw=document.getElementById("photo-main-wrap"),thumbs=document.getElementById("photo-thumbs");if(!mw||!thumbs)return;mw.innerHTML="";thumbs.innerHTML="";if(photos.length===0){renderAddThumbBtn();return;}mw.innerHTML='<div class="photo-main-preview"><img src="'+photos[0].b64+'"/><button class="rm-main-photo" onclick="removePhoto(0)">✕ Entfernen</button></div>';for(var i=1;i<photos.length;i++){var div=document.createElement("div");div.className="photo-thumb";div.innerHTML='<img src="'+photos[i].b64+'"/><button class="rm-thumb" onclick="removePhoto('+i+')">✕</button>';thumbs.appendChild(div);}renderAddThumbBtn();}
 function renderAddThumbBtn(){var t=document.getElementById("photo-thumbs");if(!t)return;var btn=document.createElement("div");btn.className="add-thumb";btn.innerHTML='<i class="bi bi-plus"></i>';btn.onclick=function(){triggerPhotoInput("gallery");};t.appendChild(btn);}
 function removePhoto(idx){photos.splice(idx,1);renderAllPhotos();}
@@ -479,6 +515,9 @@ function doSave(){
   var probTyp=probChoice==="nein"?"":probType||"";
   var probD=probChoice==="nein"?"":(gv("f-prob-beschr"));
   var fotoB64arr=photos.map(function(p){return p.b64;});
+  if(fotoB64arr.length<1){setBL(btn,false,orig);toast("Mindestens 1 Bild ist Pflicht.","err");return;}
+  if(fotoB64arr.length>10){setBL(btn,false,orig);toast("Maximal 10 Bilder erlaubt.","err");return;}
+  if(curType==="controller"&&!scanId){scanId="CTRL-"+Date.now();}
   var d={scanId:scanId,mitarbeiter:ma,problemTyp:probTyp,problemBeschr:probD,fotos:fotoB64arr,
          einkaufspreis:gv("f-einkaufspreis"),warentyp:gv("f-warentyp")||"Gebrauchtware"};
   var fn="";
@@ -546,6 +585,7 @@ function renderList(){
   var ddSub=(document.getElementById("lager-dd-sub")||{value:""}).value;
   var ddSub2=(document.getElementById("lager-dd-sub2")||{value:""}).value;
   var f=allItems.filter(function(i){
+    if(i.type==="setbundle")return false;
     var tm=true;
     if(lf==="spielwaren")tm=(i.type==="konsole"||i.type==="spiel"||i.type==="controller");
     else if(lf==="handy")tm=(i.type==="handy");
@@ -567,7 +607,7 @@ function renderList(){
       if(ddSub&&String(i.typ_||"").toLowerCase()!==String(ddSub||"").toLowerCase())return false;
     }
     if(!q)return true;
-    var n=i.name||i.spiel||i.modell||i.geraet||i.setId||"";
+    var n=i.name||i.spiel||i.modell||i.geraet||"";
     var hay=[n,i.scanId,i.mitarbeiter,i.zustand,i.problemTyp,i.problemBeschr,i.kategorie,i.ursprung,i.notizen].map(function(v){return String(v||"").toLowerCase();}).join(" ");
     return hay.indexOf(q)>-1;
   });
@@ -648,7 +688,7 @@ function mkCard(item){
   if(item.type==="defekt"){chips+='<span class="chip"><i class="bi bi-box-arrow-in-right"></i>&nbsp;<b>'+esc(item.ursprung||"")+'</b></span>';note=item.problemBeschr||"";}
   var rIdx=cardRegistry.length;
   var fotosHtml="";
-  if(item.fotos&&item.fotos.length>0){fotosHtml='<div class="card-fotos">';item.fotos.forEach(function(b64,fi){fotosHtml+='<div class="card-foto" onclick="openLightbox('+rIdx+','+fi+')"><img src="'+esc(b64)+'" loading="lazy"/></div>';});fotosHtml+='</div>';}
+  if(item.fotos&&item.fotos.length>0){fotosHtml='<div class="card-fotos">';item.fotos.slice(0,2).forEach(function(b64,fi){fotosHtml+='<div class="card-foto" style="width:34px;height:34px" onclick="openLightbox('+rIdx+','+fi+')"><img src="'+esc(b64)+'" loading="lazy" style="object-fit:cover"/></div>';});if(item.fotos.length>2)fotosHtml+='<div class="card-foto" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:10px">+'+(item.fotos.length-2)+'</div>';fotosHtml+='</div>';}
   cardRegistry.push(item);
   var actions='<div class="ic-actions">';
   if(item.type!=="defekt"&&item.type!=="setbundle"){actions+='<button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation();openEditStepper('+rIdx+')"><i class="bi bi-pencil-fill me-1"></i>Bearbeiten</button><button class="btn btn-outline-danger btn-sm" onclick="confirmDelete('+rIdx+')"><i class="bi bi-trash3"></i></button>';}
@@ -664,7 +704,7 @@ function openEditStepper(rIdx){var item=cardRegistry[rIdx];if(!item)return;docum
 function confirmDelete(rIdx){var item=cardRegistry[rIdx];if(!item)return;var nm=item.name||item.spiel||item.modell||"?";document.getElementById("del-modal-text").textContent='"'+nm+'" wirklich löschen?';document.getElementById("del-modal-confirm").onclick=function(){closeDelModal();doDelete(item);};document.getElementById("del-modal").classList.add("open");}
 function confirmDeleteDefekt(rIdx){var item=cardRegistry[rIdx];if(!item)return;document.getElementById("del-modal-text").textContent='"'+(item.geraet||"?")+'" wirklich löschen?';document.getElementById("del-modal-confirm").onclick=function(){closeDelModal();doDeleteDefekt(item);};document.getElementById("del-modal").classList.add("open");}
 function closeDelModal(){document.getElementById("del-modal").classList.remove("open");}
-function doDelete(item){var fns={konsole:"deleteKonsole",spiel:"deleteSpiel",handy:"deleteHandy",pc:"deletePC"};var fn=fns[item.type];if(!fn){toast("Nicht verfügbar.","err");return;}gasGet(fn,{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast(r.msg,"ok");allItems=[];loadAll();loadStats();}else{toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){toast("Fehler: "+e,"err");});}
+function doDelete(item){var fns={konsole:"deleteKonsole",spiel:"deleteSpiel",controller:"deleteSpiel",handy:"deleteHandy",pc:"deletePC"};var fn=fns[item.type];if(!fn){toast("Nicht verfügbar.","err");return;}gasGet(fn,{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast(r.msg,"ok");allItems=[];loadAll();loadStats();}else{toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){toast("Fehler: "+e,"err");});}
 function doDeleteDefekt(item){if(String(item.rowIndex||"").indexOf("virtual-")===0){toast("Virtueller Defekt-Eintrag kann nur im Ursprungsartikel bearbeitet werden.","info",2600);return;}gasGet("deleteDefekt",{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast(r.msg,"ok");allItems=[];loadAll();loadStats();}else{toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){toast("Fehler: "+e,"err");});}
 
 // ── SUCHE ─────────────────────────────────────────────────────────
@@ -676,7 +716,7 @@ function useRecent(idx){var q=recentSearches[idx];document.getElementById("s-bc-
 
 function doSearch(){var q=document.getElementById("s-bc-in").value.trim();if(!q){renderSearchResults(allItems);return;}saveRecentSearch(q);liveSearch(q);}
 function applySearchSort(){renderSearchResults(searchResults.length>0?searchResults:allItems);}
-function renderSearchResults(items){searchResults=items||[];var cat=document.getElementById("search-cat")?document.getElementById("search-cat").value:"all";var sort=document.getElementById("search-sort")?document.getElementById("search-sort").value:"neu";var filtered=searchResults.filter(function(i){if(cat==="all")return true;if(cat==="spielwaren")return i.type==="konsole"||i.type==="spiel"||i.type==="controller";return i.type===cat;});filtered=filtered.slice().sort(function(a,b){var na=a.name||a.spiel||a.modell||a.geraet||"",nb=b.name||b.spiel||b.modell||b.geraet||"",da=a.datum||"",db=b.datum||"";if(sort==="neu")return db.localeCompare(da);if(sort==="alt")return da.localeCompare(db);if(sort==="az")return na.localeCompare(nb,"de");if(sort==="za")return nb.localeCompare(na,"de");return 0;});var countEl=document.getElementById("search-count");if(countEl){countEl.style.display="block";countEl.textContent=filtered.length+" Ergebnisse";}cardRegistry=[];if(!filtered.length){document.getElementById("search-out").innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Keine Ergebnisse.</p></div>';return;}document.getElementById("search-out").innerHTML=filtered.map(function(i){return mkCard(i);}).join("");}
+function renderSearchResults(items){searchResults=items||[];var cat=document.getElementById("search-cat")?document.getElementById("search-cat").value:"all";var sort=document.getElementById("search-sort")?document.getElementById("search-sort").value:"neu";var filtered=searchResults.filter(function(i){if(i.type==="setbundle")return false;if(cat==="all")return true;if(cat==="spielwaren")return i.type==="konsole"||i.type==="spiel"||i.type==="controller";return i.type===cat;});filtered=filtered.slice().sort(function(a,b){var na=a.name||a.spiel||a.modell||a.geraet||"",nb=b.name||b.spiel||b.modell||b.geraet||"",da=a.datum||"",db=b.datum||"";if(sort==="neu")return db.localeCompare(da);if(sort==="alt")return da.localeCompare(db);if(sort==="az")return na.localeCompare(nb,"de");if(sort==="za")return nb.localeCompare(na,"de");return 0;});var countEl=document.getElementById("search-count");if(countEl){countEl.style.display="block";countEl.textContent=filtered.length+" Ergebnisse";}cardRegistry=[];if(!filtered.length){document.getElementById("search-out").innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Keine Ergebnisse.</p></div>';return;}document.getElementById("search-out").innerHTML=filtered.map(function(i){return mkCard(i);}).join("");}
 var sBcInEl=document.getElementById("s-bc-in");if(sBcInEl)sBcInEl.addEventListener("keydown",function(e){if(e.key==="Enter")doSearch();});
 
 // ── DIAGNOSE ─────────────────────────────────────────────────────
@@ -741,7 +781,7 @@ function addNotification(title,body,type,action){if(!Array.isArray(notifications
 function updateNotifBadge(){var notifArr=Array.isArray(notifications)?notifications:[];var unread=notifArr.filter(function(n){return!n.read;}).length;var badge=document.getElementById("notif-count-badge");if(badge){if(unread>0){badge.style.display="flex";badge.textContent=unread>9?"9+":unread;}else{badge.style.display="none";}}}
 function openNotifications(){if(!Array.isArray(notifications))notifications=[];notifications.forEach(function(n){n.read=true;});saveNotifications();updateNotifBadge();renderNotifList();var ov=document.getElementById("notif-overlay");if(ov)ov.classList.add("open");}
 function closeNotifications(){var ov=document.getElementById("notif-overlay");if(ov)ov.classList.remove("open");}
-function renderNotifList(){var list=document.getElementById("notif-list");if(!list)return;var notifArr=Array.isArray(notifications)?notifications:[];if(!notifArr.length){list.innerHTML='<div class="notif-empty"><i class="bi bi-bell-slash"></i><p>Keine Benachrichtigungen</p></div>';return;}list.innerHTML=notifArr.map(function(n){var cls=n.type==="alert"?"alert":n.type==="warn"?"warn":"";var actionBtn=n.action==="bestand-pruefmodus"?'<button class="btn btn-outline-primary btn-sm" style="margin-top:8px" onclick="openBestandPruefmodus()">Prüfmodus öffnen</button>':"";return'<div class="notif-item '+cls+'"><div class="notif-title">'+esc(n.title)+'</div><div class="notif-body">'+esc(n.body)+'</div>'+actionBtn+'<div class="notif-time">'+esc(n.time)+'</div><button class="notif-rm" onclick="removeNotif('+n.id+')">✕</button></div>';}).join("");}
+function renderNotifList(){var list=document.getElementById("notif-list");if(!list)return;var notifArr=Array.isArray(notifications)?notifications:[];if(!notifArr.length){list.innerHTML='<div class="notif-empty"><i class="bi bi-bell-slash"></i><p>Keine Benachrichtigungen</p></div>';return;}list.innerHTML=notifArr.map(function(n){var cls=n.type==="alert"?"alert":n.type==="warn"?"warn":"";var actionBtn=n.action==="bestand-pruefmodus"?'<button class="btn btn-outline-primary btn-sm" style="margin-top:8px" onclick="event.stopPropagation();openBestandPruefmodus()">Prüfmodus öffnen</button>':(n.action==="task-open"?'<button class="btn btn-outline-primary btn-sm" style="margin-top:8px" onclick="event.stopPropagation();openTasksMaster()">Tasks öffnen</button>':"");var click=(n.action==="bestand-pruefmodus"?' onclick="openBestandPruefmodus()" ':'');return'<div class="notif-item '+cls+'"'+click+'><div class="notif-title">'+esc(n.title)+'</div><div class="notif-body">'+esc(n.body)+'</div>'+actionBtn+'<div class="notif-time">'+esc(n.time)+'</div><button class="notif-rm" onclick="event.stopPropagation();removeNotif('+n.id+')">✕</button></div>';}).join("");}
 function removeNotif(id){if(!Array.isArray(notifications))notifications=[];notifications=notifications.filter(function(n){return n.id!==id;});saveNotifications();renderNotifList();updateNotifBadge();}
 function clearAllNotifications(){if(!confirm("Alle Benachrichtigungen löschen?"))return;notifications=[];saveNotifications();renderNotifList();updateNotifBadge();}
 function checkLongStorageItems(){if(!Array.isArray(allItems)||allItems.length===0)return;if(!Array.isArray(notifications))notifications=[];var now=new Date(),threshold=30;allItems.forEach(function(item){if(!item.datum)return;var parts=item.datum.split(".");if(parts.length<3)return;var d=new Date(parts[2].split(" ")[0],parts[1]-1,parts[0]);if(isNaN(d))return;var days=Math.floor((now-d)/(1000*60*60*24));if(days>=threshold){var nm=item.name||item.spiel||item.modell||item.geraet||"Unbekannt";var already=notifications.find(function(n){return n.body&&n.body.indexOf(nm)>-1&&n.title.indexOf("Lager")>-1;});if(!already)addNotification("⏳ Lange im Lager",'"'+nm+'" lagert seit '+days+' Tagen.',"warn");}});
@@ -1558,6 +1598,17 @@ function openDetail(rIdx){
   if(kaFotos.length>0){ detailShowFotoTab("anzeige"); }
   else if(defFotos.length>0){ detailShowFotoTab("defekt"); }
   else { heroEl.className="detail-hero-empty";heroEl.innerHTML="📦"; thumbsEl.style.display="none"; }
+  if(heroEl){
+    var startX=null,activeList=kaFotos.length?kaFotos:defFotos,activeIdx=0;
+    heroEl.ontouchstart=function(e){if(e.touches&&e.touches[0])startX=e.touches[0].clientX;};
+    heroEl.ontouchend=function(e){
+      if(startX===null||!e.changedTouches||!e.changedTouches[0])return;
+      var dx=e.changedTouches[0].clientX-startX;startX=null;
+      if(Math.abs(dx)<35||!activeList.length)return;
+      if(dx<0)activeIdx=Math.min(activeList.length-1,activeIdx+1);else activeIdx=Math.max(0,activeIdx-1);
+      var src=activeList[activeIdx];if(src)heroEl.innerHTML='<img src="'+esc(src)+'" style="width:100%;height:100%;object-fit:cover"/>';
+    };
+  }
 
   // KA Photos separate
   var upWrap=document.getElementById("detail-upload-photos-wrap");
@@ -1630,11 +1681,12 @@ function _getSuggestedPrice(item){
 function _buildSpecs(item){
   var rows=[];
   function row(k,v){if(v&&String(v).trim())rows.push('<div class="detail-spec"><span class="detail-spec-key">'+esc(k)+'</span><span class="detail-spec-val">'+esc(String(v))+'</span></div>');}
-  row("Datum",item.datum);row("Mitarbeiter",item.mitarbeiter);row("Zustand",item.zustand);
+  row("Datum",item.datum);row("Mitarbeiter",item.mitarbeiter);row("Zustand",item.zustand);row("EK-Preis",item.einkaufspreis?item.einkaufspreis+"€":"");
   if(item.type==="konsole"){row("Speicher",item.speicherGB?(item.speicherGB+" GB"):"");row("Farbe",item.farbe);}
   if(item.type==="spiel"){row("System",item.system);row("USK",item.usk);row("Sprache",item.sprache);}
   if(item.type==="handy"){row("Speicher",item.speicherGB?(item.speicherGB+" GB"):"");row("RAM",item.ram?(item.ram+" GB"):"");row("Farbe",item.farbe);row("Netzwerk",item.netzwerk);row("IMEI",item.imei);}
   if(item.type==="pc"){row("Typ",item.typ_);row("Prozessor",item.prozessor);row("RAM",item.ram?(item.ram+" GB"):"");row("Speicher",item.speicherGB?(item.speicherGB+" GB"):"");row("GPU",item.grafikkarte);row("OS",item.betriebssystem);}
+  if(item.type==="controller"){row("System",item.system);row("Hinweise",item.hinweise);}
   if(item.problemTyp)row("Problemtyp",item.problemTyp);
   row("Kategorien",item.kategorien);
   if(item.scanId)row("Scan-ID",item.scanId);
@@ -1958,17 +2010,20 @@ function renderBestandsmasterPro(){
 function bmNewCheck(){
   var list=bmLoad();
   var note=prompt("Name / Notiz zur Prüfung (optional):","")||"";
-  var items=(allItems||[]).filter(function(i){return i.type!=="defekt"&&i.type!=="setbundle";}).map(function(i){return{id:"itm-"+(i.type||"x")+"-"+(i.rowIndex||i.scanId||Math.random()),type:i.type,name:i.name||i.spiel||i.modell||i.scanId||"Unbekannt",scanId:i.scanId||"",checked:false,photo:"",note:""};});
-  list.unshift({id:"bm-"+Date.now(),name:note||("Prüfung #"+(list.length+1)),time:new Date().toLocaleString("de-DE"),status:"offen",items:items,by:emp});
+  var items=(allItems||[]).filter(function(i){return i.type!=="defekt"&&i.type!=="setbundle";}).map(function(i){var cat=i.type==="spiel"?"spiele":i.type==="konsole"?"konsolen":i.type==="controller"?"controller":i.type==="handy"?"handys":"pcs";return{id:"itm-"+(i.type||"x")+"-"+(i.rowIndex||i.scanId||Math.random()),type:i.type,cat:cat,name:i.name||i.spiel||i.modell||i.scanId||"Unbekannt",scanId:i.scanId||"",checked:false,photo:"",note:""};});
+  list.unshift({id:"bm-"+Date.now(),name:note||("Prüfung #"+(list.length+1)),time:new Date().toLocaleString("de-DE"),status:"offen",currentCat:"spiele",items:items,by:emp});
   bmSave(list); renderBestandsmasterPro(); addNotification("📋 Bestandskontrolle","Prüfung gespeichert von "+emp+".","info","bestand-pruefmodus");
 }
 function bmDelete(idx){ var list=bmLoad(); list.splice(idx,1); bmSave(list); renderBestandsmasterPro(); }
 function bmOpenCheck(idx){
   var list=bmLoad();var check=list[idx];if(!check)return;
   var body=document.getElementById("bm-body");if(!body)return;
-  var rows=(check.items||[]).map(function(it,i){return '<div style="display:flex;gap:8px;align-items:center;padding:8px;border:1px solid var(--e1);border-radius:8px;margin-bottom:6px"><div style="flex:1"><div style="font-size:12px;color:var(--w1);font-weight:700">'+esc(it.name)+'</div><div style="font-size:10px;color:var(--w4)">'+esc(it.scanId||"Kein Barcode")+' · '+esc(it.type||"")+'</div></div><button class="btn btn-outline-secondary btn-sm" onclick="bmAddPhoto('+idx+','+i+')">'+(it.photo?"Foto ersetzen":"Foto")+'</button><button class="btn btn-sm '+(it.checked?'btn-success':'btn-outline-primary')+'" onclick="bmToggleItem('+idx+','+i+')">'+(it.checked?'Erledigt':'Abhaken')+'</button></div>';}).join("");
-  body.innerHTML='<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><button class="btn btn-outline-secondary btn-sm" onclick="renderBestandsmasterPro()">← Zur Übersicht</button><div class="chip">'+esc(check.name)+'</div><div class="chip">Status: '+esc(check.status||"offen")+'</div></div><div style="margin-bottom:8px"><button class="btn btn-primary btn-sm" onclick="bmFinalizeCheck('+idx+')">Check abschließen</button></div><div>'+rows+'</div>';
+  var cats=["spiele","konsolen","controller","handys","pcs"];
+  var current=check.currentCat||cats[0];
+  var rows=(check.items||[]).map(function(it,i){return {it:it,i:i};}).filter(function(x){return x.it.cat===current;}).map(function(x){var it=x.it,i=x.i;return '<div style="display:flex;gap:8px;align-items:center;padding:8px;border:1px solid var(--e1);border-radius:8px;margin-bottom:6px"><div style="flex:1"><div style="font-size:12px;color:var(--w1);font-weight:700">'+esc(it.name)+'</div><div style="font-size:10px;color:var(--w4)">'+esc(it.scanId||"Kein Barcode")+' · '+esc(it.type||"")+(it.newZustand?' · Neu: '+esc(it.newZustand):'')+'</div></div><button class="btn btn-outline-secondary btn-sm" onclick="bmAddPhoto('+idx+','+i+')">'+(it.photo?"Foto ersetzen":"Foto")+'</button><button class="btn btn-sm '+(it.checked?'btn-success':'btn-outline-primary')+'" onclick="bmToggleItem('+idx+','+i+')">'+(it.checked?'Erledigt':'Abhaken')+'</button></div>';}).join("");
+  body.innerHTML='<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><button class="btn btn-outline-secondary btn-sm" onclick="renderBestandsmasterPro()">← Zur Übersicht</button><div class="chip">'+esc(check.name)+'</div><div class="chip">Status: '+esc(check.status||"offen")+'</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'+cats.map(function(c){return '<button class="btn btn-sm '+(c===current?'btn-primary':'btn-outline-primary')+'" onclick="bmSetCategory('+idx+',\''+c+'\')">'+c.toUpperCase()+'</button>';}).join("")+'</div><div style="margin-bottom:8px"><button class="btn btn-primary btn-sm" onclick="bmFinalizeCheck('+idx+')">Check abschließen</button></div><div>'+(rows||'<div class="empty"><i class="bi bi-inbox"></i><p>Keine Produkte in Kategorie.</p></div>')+'</div>';
 }
+function bmSetCategory(cIdx,cat){var list=bmLoad();if(!list[cIdx])return;list[cIdx].currentCat=cat;bmSave(list);bmOpenCheck(cIdx);}
 function bmAddPhoto(cIdx,iIdx){
   var inp=document.createElement("input");inp.type="file";inp.accept="image/*";inp.capture="environment";
   inp.onchange=function(){
@@ -1987,6 +2042,16 @@ function bmToggleItem(cIdx,iIdx){
   var list=bmLoad();if(!list[cIdx]||!list[cIdx].items[iIdx])return;
   var it=list[cIdx].items[iIdx];
   if(!it.photo){toast("Vor dem Abhaken ist ein Foto erforderlich.","err");return;}
+  if(!it.checked){
+    var ok=confirm("Ist Zustand wie beim Einlagern?");
+    if(!ok){
+      var z=prompt("Neuen Zustand eingeben (z.B. Defekt, Gut, Sehr gut):","Defekt")||"Defekt";
+      it.newZustand=z;
+      if(String(z).toLowerCase().indexOf("defekt")>-1){
+        createTaskFromBestandIssue(it,"Bestandsprüfung meldet Defekt");
+      }
+    }
+  }
   it.checked=!it.checked;bmSave(list);bmOpenCheck(cIdx);
 }
 function bmFinalizeCheck(cIdx){
@@ -1995,6 +2060,49 @@ function bmFinalizeCheck(cIdx){
   if(items.some(function(i){return !i.checked;})){toast("Bitte alle Produkte abhaken.","err");return;}
   check.status="abgeschlossen";check.completedAt=new Date().toLocaleString("de-DE");
   bmSave(list);renderBestandsmasterPro();toast("Bestandsprüfung abgeschlossen ✅","ok");
+}
+function tasksKey(){return "smp_tasks_v1";}
+function loadTasks(){try{tasksCache=JSON.parse(localStorage.getItem(tasksKey())||"[]");}catch(e){tasksCache=[];}if(!Array.isArray(tasksCache))tasksCache=[];}
+function saveTasks(){try{localStorage.setItem(tasksKey(),JSON.stringify(tasksCache));}catch(e){}}
+function canManageTasks(){var r=normalizeRole(empRolle);return r==="co-chef"||r==="inhaber";}
+function createTaskFromBestandIssue(item,title){
+  loadTasks();
+  tasksCache.unshift({id:"tsk-"+Date.now()+"-"+Math.floor(Math.random()*9999),title:title||"Bestandsproblem",status:"open",created:new Date().toLocaleString("de-DE"),owner:emp,assignee:emp,source:"BestandsmasterPro",itemName:item.name||item.scanId||"Unbekannt",itemType:item.type||"",step:1,steps:["Erledigt gemeldet","Prüfung Co-Chef/Inhaber"]});
+  saveTasks();
+  addNotification("🛠️ Task erstellt","Problem bei Bestandsprüfung: "+(item.name||item.scanId||"Unbekannt"),"alert","task-open");
+}
+function ensureTasksOverlay(){
+  if(document.getElementById("tasksmaster-overlay"))return;
+  var ov=document.createElement("div");
+  ov.id="tasksmaster-overlay";
+  ov.style.cssText="display:none;position:fixed;inset:0;z-index:10055;background:radial-gradient(circle at 20% 0,#101a2a 0,#070b11 52%,#05070b 100%);padding:16px;overflow:auto";
+  ov.innerHTML='<div style="max-width:920px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-family:Bebas Neue,sans-serif;letter-spacing:2px;font-size:28px;color:var(--acc)">TASKSMASTERPRO</div><button class="btn btn-outline-secondary btn-sm" onclick="closeTasksMaster()">Schließen</button></div><div id="tasks-body" style="background:linear-gradient(180deg,#0f1724,#0b111b);border:1px solid rgba(88,166,255,.22);border-radius:14px;padding:14px"></div></div>';
+  document.body.appendChild(ov);
+}
+function openTasksMaster(){ensureTasksOverlay();loadTasks();document.getElementById("tasksmaster-overlay").style.display="block";renderTasksMaster();}
+function closeTasksMaster(){var ov=document.getElementById("tasksmaster-overlay");if(ov)ov.style.display="none";}
+function renderTasksMaster(){
+  var body=document.getElementById("tasks-body");if(!body)return;
+  loadTasks();
+  var visible=tasksCache.filter(function(t){return canManageTasks()||String(t.assignee||"").toLowerCase()===String(emp||"").toLowerCase()||String(t.owner||"").toLowerCase()===String(emp||"").toLowerCase();});
+  body.innerHTML='<div style="display:flex;gap:8px;margin-bottom:10px"><input id="task-title-in" class="fc" placeholder="Neue Task"/><input id="task-assignee-in" class="fc" placeholder="Mitarbeiter" value="'+esc(emp||"")+'"/><button class="btn btn-primary" onclick="addTask()">Task erstellen</button></div>'+(visible.length?visible.map(function(t){var canApprove=canManageTasks()&&t.status==="done_waiting";return'<div class="ic"><div class="ic-top"><div class="ic-name">'+esc(t.title)+'</div><span class="chip">'+esc(t.status)+'</span></div><div style="font-size:11px;color:var(--w3)">Zuständig: '+esc(t.assignee||"-")+' · Quelle: '+esc(t.source||"-")+'</div><div style="display:flex;gap:6px;margin-top:8px">'+(t.status==="open"?'<button class="btn btn-outline-primary btn-sm" onclick="taskStepDone(\''+esc(t.id)+'\')">Erledigt</button>':'')+(canApprove?'<button class="btn btn-success btn-sm" onclick="taskApprove(\''+esc(t.id)+'\')">Prüfung bestätigen</button>':'')+'</div></div>';}).join(""):'<div class="empty"><i class="bi bi-inbox"></i><p>Keine Tasks</p></div>');
+}
+function addTask(){
+  var title=gv("task-title-in").trim(),assignee=gv("task-assignee-in").trim()||emp;
+  if(!title)return;
+  loadTasks();
+  tasksCache.unshift({id:"tsk-"+Date.now()+"-"+Math.floor(Math.random()*9999),title:title,status:"open",created:new Date().toLocaleString("de-DE"),owner:emp,assignee:assignee,source:"TasksMasterPro",step:1,steps:["Erledigt gemeldet","Prüfung Co-Chef/Inhaber"]});
+  saveTasks();renderTasksMaster();
+}
+function taskStepDone(id){
+  loadTasks();var t=tasksCache.find(function(x){return x.id===id;});if(!t)return;
+  t.status="done_waiting";saveTasks();renderTasksMaster();
+  addNotification("✅ Task erledigt gemeldet",t.title,"info","task-open");
+}
+function taskApprove(id){
+  loadTasks();var t=tasksCache.find(function(x){return x.id===id;});if(!t)return;
+  t.status="closed";t.approvedBy=emp;t.approvedAt=new Date().toLocaleString("de-DE");
+  saveTasks();renderTasksMaster();
 }
 
 // ================================================================
@@ -3784,6 +3892,7 @@ function saveRTForm() {
 }
 
 var setBuilderAnswers={},setBuilderDraft=null,setBuilderStep=1,setBuilderLoading=false;
+var setsCache=[],tasksCache=[];
 function ensureHomeSetBuilderTab(){
   var home=document.getElementById("home-panel");
   if(!home||document.getElementById("home-subtabs"))return;
@@ -3791,26 +3900,33 @@ function ensureHomeSetBuilderTab(){
   var subt=document.createElement("div");
   subt.id="home-subtabs";
   subt.style.cssText="display:flex;gap:8px;margin:4px 0 12px";
-  subt.innerHTML='<button id="home-tab-dashboard" class="ltab on" onclick="setHomeSubtab(\'dashboard\')">Dashboard</button><button id="home-tab-setbuilder" class="ltab" onclick="setHomeSubtab(\'setbuilder\')">Set Builder</button>';
+  subt.innerHTML='<button id="home-tab-dashboard" class="ltab on" onclick="setHomeSubtab(\'dashboard\')">Dashboard</button><button id="home-tab-setbuilder" class="ltab" onclick="setHomeSubtab(\'setbuilder\')">KIsetMasterPro</button><button id="home-tab-tasksmaster" class="ltab" onclick="setHomeSubtab(\'tasksmaster\')">TasksMasterPro</button>';
   var sb=document.createElement("div");
   sb.id="home-setbuilder";
   sb.style.display="none";
-  sb.innerHTML='<div style="background:var(--b2);border:1px solid var(--e1);border-radius:12px;padding:12px"><div style="font-size:14px;font-weight:700;color:var(--acc);margin-bottom:4px">KI Set Builder</div><div style="font-size:11px;color:var(--w3);margin-bottom:10px">Eigenständiger Assistent für plattformkonforme, wirtschaftliche Bundle-Sets.</div><button class="btn btn-primary" onclick="openSetBuilderFlow()">Set Builder starten</button></div>';
+  sb.innerHTML='<div style="background:var(--b2);border:1px solid var(--e1);border-radius:12px;padding:12px"><div style="font-size:14px;font-weight:700;color:var(--acc);margin-bottom:4px">KIsetMasterPro</div><div style="font-size:11px;color:var(--w3);margin-bottom:10px">Sets erstellen und verwalten.</div><button class="btn btn-primary" onclick="openSetBuilderFlow()">KIsetMasterPro starten</button></div>';
+  var tm=document.createElement("div");
+  tm.id="home-tasksmaster";
+  tm.style.display="none";
+  tm.innerHTML='<div style="background:var(--b2);border:1px solid var(--e1);border-radius:12px;padding:12px"><div style="font-size:14px;font-weight:700;color:var(--acc);margin-bottom:4px">TasksMasterPro</div><div style="font-size:11px;color:var(--w3);margin-bottom:10px">Aufgaben erstellen, verfolgen und abschließen.</div><button class="btn btn-primary" onclick="openTasksMaster()">TasksMasterPro öffnen</button></div>';
   wrap.insertBefore(subt,wrap.firstChild);
   wrap.insertBefore(sb,subt.nextSibling);
+  wrap.insertBefore(tm,sb.nextSibling);
 }
 function setHomeSubtab(tab){
-  var d=document.getElementById("home-tab-dashboard"),s=document.getElementById("home-tab-setbuilder"),box=document.getElementById("home-setbuilder");
+  var d=document.getElementById("home-tab-dashboard"),s=document.getElementById("home-tab-setbuilder"),t=document.getElementById("home-tab-tasksmaster"),box=document.getElementById("home-setbuilder"),tb=document.getElementById("home-tasksmaster");
   if(d)d.className="ltab"+(tab==="dashboard"?" on":"");
   if(s)s.className="ltab"+(tab==="setbuilder"?" on":"");
+  if(t)t.className="ltab"+(tab==="tasksmaster"?" on":"");
   if(box)box.style.display=tab==="setbuilder"?"block":"none";
+  if(tb)tb.style.display=tab==="tasksmaster"?"block":"none";
 }
 function ensureSetBuilderOverlay(){
   if(document.getElementById("setbuilder-overlay"))return;
   var ov=document.createElement("div");
   ov.id="setbuilder-overlay";
   ov.style.cssText="display:none;position:fixed;inset:0;z-index:10050;background:radial-gradient(circle at 20% 0,#101a2a 0,#070b11 52%,#05070b 100%);padding:16px;overflow:auto";
-  ov.innerHTML='<div style="max-width:920px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-family:Bebas Neue,sans-serif;letter-spacing:2px;font-size:28px;color:var(--acc)">KI SET BUILDER</div><button class="btn btn-outline-secondary btn-sm" onclick="closeSetBuilderFlow()">Schließen</button></div><div id="sb-flow-body" style="background:linear-gradient(180deg,#0f1724,#0b111b);border:1px solid rgba(88,166,255,.22);border-radius:14px;padding:14px"></div></div>';
+  ov.innerHTML='<div style="max-width:920px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-family:Bebas Neue,sans-serif;letter-spacing:2px;font-size:28px;color:var(--acc)">KISETMASTERPRO</div><button class="btn btn-outline-secondary btn-sm" onclick="closeSetBuilderFlow()">Schließen</button></div><div id="sb-flow-body" style="background:linear-gradient(180deg,#0f1724,#0b111b);border:1px solid rgba(88,166,255,.22);border-radius:14px;padding:14px"></div></div>';
   document.body.appendChild(ov);
 }
 function openSetBuilderFlow(){
@@ -3827,11 +3943,12 @@ function closeSetBuilderFlow(){
 function renderSetBuilderFlow(){
   var body=document.getElementById("sb-flow-body");if(!body)return;
   if(setBuilderStep===0){
-    body.innerHTML='<div style="font-size:20px;font-weight:800;color:var(--w1);margin-bottom:6px">So funktioniert der KI Set Builder</div><div style="font-size:12px;color:var(--w3);line-height:1.7">Der Builder nutzt ausschließlich vorhandenen Lagerbestand. Er erstellt plattformkonforme Sets und priorisiert langsamdrehende oder wenig profitable Produkte für sinnvolle Bundles.</div><button class="btn btn-primary mt-3" onclick="setBuilderStep=1;renderSetBuilderFlow()">Starten</button>';
+    body.innerHTML='<div style="font-size:20px;font-weight:800;color:var(--w1);margin-bottom:6px">So funktioniert KIsetMasterPro</div><div style="font-size:12px;color:var(--w3);line-height:1.7">Erstellt aus vorhandenem Lagerbestand realistische Sets mit Preisvorschlägen. Du kannst Stepper oder Chat nutzen.</div><div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-primary" onclick="setBuilderStep=1;renderSetBuilderFlow()">Sets erstellen</button><button class="btn btn-outline-primary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Bestehende Sets verwalten</button></div>';
     return;
   }
+  if(setBuilderStep===99){renderSetManager(body);return;}
   if(setBuilderLoading){
-    body.innerHTML='<div style="display:flex;gap:10px;align-items:center"><span class="spin-b"></span><div><div style="font-size:16px;color:var(--w1);font-weight:700">Set wird erstellt</div><div style="font-size:12px;color:var(--w3)">Plattformkonformität und Wirtschaftlichkeit werden geprüft…</div></div></div>';
+    body.innerHTML='<div style="display:flex;gap:10px;align-items:center"><span class="spin-b"></span><div><div style="font-size:16px;color:var(--w1);font-weight:700">Set wird erstellt</div><div style="font-size:12px;color:var(--w3)">Passende Produkte werden kombiniert…</div></div></div>';
     return;
   }
   var steps=[
@@ -3846,13 +3963,34 @@ function renderSetBuilderFlow(){
     setTimeout(function(){buildSetWithAI();setBuilderLoading=false;renderSetBuilderFlow();},900);
     return;
   }
+  if(setBuilderStep===1){
+    body.innerHTML='<div style="font-size:12px;color:var(--w4);margin-bottom:6px">Alternativ: Chat für Set-Anfragen</div><div style="display:flex;gap:8px"><input id="sb-chat-in" class="fc" placeholder="z.B. PS4 + 3 Spiele + Controller"/><button class="btn btn-outline-primary" onclick="sbHandleChat()">Chat senden</button></div><div id="sb-chat-out" style="font-size:11px;color:var(--w3);margin-top:8px"></div><hr style="border-color:var(--e1);margin:10px 0"/>'+('<div style="font-size:12px;color:var(--w4);margin-bottom:4px">Schritt 1 / 4</div><div style="font-size:16px;font-weight:700;color:var(--w1);margin-bottom:8px">'+esc(step.q)+'</div><select id="sb-step-in" class="fc">'+step.opts.map(function(o){return"<option>"+esc(o)+"</option>";}).join("")+'</select><div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-outline-secondary" onclick="setBuilderStep=0;renderSetBuilderFlow()">Zurück</button><button class="btn btn-primary" onclick="setBuilderAnswers[\''+step.id+'\']=document.getElementById(\'sb-step-in\').value;setBuilderStep++;renderSetBuilderFlow()">Weiter</button></div>');
+    return;
+  }
   var input=step.type==="select"?'<select id="sb-step-in" class="fc">'+step.opts.map(function(o){return"<option>"+esc(o)+"</option>";}).join("")+'</select>':'<input id="sb-step-in" class="fc" type="number" min="0" step="1" placeholder="'+esc(step.ph||"")+'"/>';
   body.innerHTML='<div style="font-size:12px;color:var(--w4);margin-bottom:4px">Schritt '+setBuilderStep+' / '+steps.length+'</div><div style="font-size:16px;font-weight:700;color:var(--w1);margin-bottom:8px">'+esc(step.q)+'</div>'+input+'<div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-outline-secondary" '+(setBuilderStep===1?'disabled':'')+' onclick="setBuilderStep=Math.max(1,setBuilderStep-1);renderSetBuilderFlow()">Zurück</button><button class="btn btn-primary" onclick="setBuilderAnswers[\''+step.id+'\']=document.getElementById(\'sb-step-in\').value;setBuilderStep++;renderSetBuilderFlow()">Weiter</button></div>';
+}
+function sbParseRequest(text){
+  var q=String(text||"").toLowerCase().trim();
+  if(!q)return null;
+  if(!/(set|bundle|\+|spiele|spiel|controller|ps4|ps5|xbox|nintendo|switch|pc)/.test(q))return null;
+  return {plattform:_sbNormalizePlatform(q)||"PlayStation",games:((q.match(/(\d+)\s*spiel/)||[])[1]|0)||3};
+}
+function sbHandleChat(){
+  var q=gv("sb-chat-in"),out=document.getElementById("sb-chat-out");
+  var req=sbParseRequest(q);
+  if(!req){if(out)out.textContent="Ich reagiere nur auf Set-Anfragen.";return;}
+  setBuilderAnswers={ziel:"Schneller Verkauf",plattform:req.plattform,budget:"0",zustand:"Gebraucht",gamesReq:req.games};
+  buildSetWithAI();
+  if(out&&setBuilderDraft){
+    out.innerHTML='Set erstellt: '+esc(setBuilderDraft.name)+' · '+setBuilderDraft.items.length+' Produkte · Preisvorschlag: '+esc(setBuilderDraft.priceFast)+' / '+esc(setBuilderDraft.priceMax);
+    var body=document.getElementById("sb-flow-body");if(body)body.scrollTop=99999;
+  }
 }
 function confirmSetBundle(){
   if(!setBuilderDraft||!setBuilderDraft.items||!setBuilderDraft.items.length){toast("Kein Set erstellt.","err");return;}
   gasPost("saveSetBundle",{name:setBuilderDraft.name,mitarbeiter:emp,plattform:setBuilderDraft.plattform,budget:setBuilderDraft.budget,zustand:setBuilderDraft.zustand,items:setBuilderDraft.items,notizen:"Bestätigt via Set Builder"},function(r){
-    if(r&&r.ok){toast("Set bestätigt und im Lager gebündelt gespeichert ✅","ok");setBuilderDraft=null;closeSetBuilderFlow();loadAll();}
+    if(r&&r.ok){toast("Set gespeichert ✅","ok");setBuilderDraft=null;loadAll();setBuilderStep=99;renderSetBuilderFlow();}
     else{toast("Fehler: "+(r?r.fehler:"?"),"err");}
   },function(e){toast("Fehler: "+e,"err");});
 }
@@ -3866,7 +4004,8 @@ function _sbSoldMap(){
   return map;
 }
 function buildSetWithAI(){
-  var p=setBuilderAnswers.plattform||"PlayStation",budget=parseFloat(setBuilderAnswers.budget||0),ziel=setBuilderAnswers.ziel||"Lager bereinigen",cond=setBuilderAnswers.zustand||"Gebraucht";
+  var p=setBuilderAnswers.plattform||"PlayStation",budget=parseFloat(setBuilderAnswers.budget||0),ziel=setBuilderAnswers.ziel||"Lager bereinigen",cond=setBuilderAnswers.zustand||"Gebraucht",gamesNeed=parseInt(setBuilderAnswers.gamesReq||3,10)||3;
+  if(!allVerkauf||!allVerkauf.length){gasGet("getAllVerkauf",{},function(r){if(r&&r.ok){allVerkauf=r.data||[];buildSetWithAI();}},function(){});return;}
   var sold=_sbSoldMap();
   var stock=(allItems||[]).filter(function(i){return i.type!=="defekt"&&i.type!=="setbundle";});
   var cons=stock.filter(function(i){return i.type==="konsole"&&_sbDetectPlatform(i)===p;}).sort(function(a,b){return (parseFloat(a.einkaufspreis||0)||0)-(parseFloat(b.einkaufspreis||0)||0);});
@@ -3879,12 +4018,28 @@ function buildSetWithAI(){
     return sa===sb?ea-eb:sa-sb;
   });
   var picks=[],push=function(arr,n){for(var i=0;i<arr.length&&n>0;i++){if(picks.indexOf(arr[i])===-1){picks.push(arr[i]);n--;}}};
-  push(cons,1);push(games,3);push(ctrl,1);
+  push(cons,1);push(games,gamesNeed);push(ctrl,1);
   var total=picks.reduce(function(s,i){return s+(parseFloat(i.einkaufspreis||0)||0);},0);
-  if(budget>0&&total>budget){picks=picks.filter(function(i){return i.type!=="spiel";});push(games.slice(3),1);total=picks.reduce(function(s,i){return s+(parseFloat(i.einkaufspreis||0)||0);},0);}
-  setBuilderDraft={name:p+" "+(ziel==="Maximaler Gewinn"?"Profit":"Smart")+" Set",plattform:p,budget:budget,zustand:cond,items:picks.map(function(i){return {typ:i.type,name:i.name||i.spiel||i.modell||i.scanId,scanId:i.scanId||"",ek:parseFloat(i.einkaufspreis||0)||0};}),total:Math.round(total*100)/100};
+  if(budget>0&&total>budget){picks=picks.filter(function(i){return i.type!=="spiel";});push(games.slice(gamesNeed),1);total=picks.reduce(function(s,i){return s+(parseFloat(i.einkaufspreis||0)||0);},0);}
+  if(!picks.length){setBuilderDraft=null;var bd=document.getElementById("sb-flow-body");if(bd)bd.innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Keine passenden Produkte für '+esc(p)+'</p></div><button class="btn btn-outline-secondary" onclick="setBuilderStep=1;renderSetBuilderFlow()">Zurück</button>';return;}
+  var priceFast=Math.round((total*1.18)*100)/100,priceMax=Math.round((total*1.28)*100)/100;
+  setBuilderDraft={name:p+" "+(ziel==="Maximaler Gewinn"?"Profit":"Smart")+" Set",plattform:p,budget:budget,zustand:cond,items:picks.map(function(i){return {typ:i.type,name:i.name||i.spiel||i.modell||i.scanId,scanId:i.scanId||"",ek:parseFloat(i.einkaufspreis||0)||0};}),total:Math.round(total*100)/100,priceFast:priceFast.toFixed(2)+"€ VB (schneller Verkauf)",priceMax:priceMax.toFixed(2)+"€ VB (max Gewinn)"};
   var body=document.getElementById("sb-flow-body");if(!body)return;
-  body.innerHTML='<div style="font-size:18px;font-weight:800;color:var(--w1);margin-bottom:8px">Set Vorschlag</div><div class="chips" style="margin-bottom:8px"><span class="chip">Plattform: '+esc(p)+'</span><span class="chip">Ziel: '+esc(ziel)+'</span><span class="chip">Budget: '+(budget||0)+'€</span><span class="chip">EK gesamt: '+setBuilderDraft.total+'€</span></div><div style="font-size:12px;color:var(--w3);line-height:1.7;margin-bottom:10px">'+setBuilderDraft.items.map(function(i){return"• "+esc(i.name)+" ("+i.ek+"€)";}).join("<br>")+'</div><div style="display:flex;gap:8px"><button class="btn btn-outline-secondary" onclick="setBuilderStep=1;renderSetBuilderFlow()">Neu berechnen</button><button class="btn btn-success" onclick="confirmSetBundle()">Set bestätigen</button></div>';
+  body.innerHTML='<div style="font-size:18px;font-weight:800;color:var(--w1);margin-bottom:8px">Set Vorschlag</div><div class="chips" style="margin-bottom:8px"><span class="chip">Plattform: '+esc(p)+'</span><span class="chip">Ziel: '+esc(ziel)+'</span><span class="chip">EK gesamt: '+setBuilderDraft.total+'€</span></div><div style="font-size:12px;color:var(--w3);line-height:1.7;margin-bottom:10px">'+setBuilderDraft.items.map(function(i){return"• "+esc(i.name)+" ("+i.ek+"€)";}).join("<br>")+'</div><div class="chips" style="margin-bottom:10px"><span class="chip">'+esc(setBuilderDraft.priceMax)+'</span><span class="chip">'+esc(setBuilderDraft.priceFast)+'</span></div><div style="display:flex;gap:8px"><button class="btn btn-outline-secondary" onclick="setBuilderStep=1;renderSetBuilderFlow()">Neu berechnen</button><button class="btn btn-success" onclick="confirmSetBundle()">Set speichern</button><button class="btn btn-outline-primary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets verwalten</button></div>';
+}
+function renderSetManager(body){
+  gasGet("getSetBundles",{},function(r){
+    setsCache=(r&&r.ok)?(r.data||[]):[];
+    body.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:18px;font-weight:800;color:var(--w1)">Gespeicherte Sets</div><button class="btn btn-outline-secondary btn-sm" onclick="setBuilderStep=1;renderSetBuilderFlow()">Neues Set</button></div>'+(setsCache.length?setsCache.map(function(s,ix){var items=s.items||[];var txt=items.map(function(i){return (i.name||"")+" ["+(i.scanId||"-")+"]";}).join(", ");return '<div style="background:var(--b2);border:1px solid var(--e1);border-radius:10px;padding:10px;margin-bottom:8px"><div style="display:flex;justify-content:space-between"><b>'+esc(s.name||s.setId)+'</b><span class="chip">'+esc(s.plattform||"-")+'</span></div><div style="font-size:11px;color:var(--w3);margin:6px 0">'+esc(txt.substring(0,220))+(txt.length>220?"…":"")+'</div><div style="display:flex;gap:6px"><button class="btn btn-outline-primary btn-sm" onclick="exportSetForKA('+ix+')">Für Kleinanzeigen</button></div></div>';}).join(""):'<div class="empty"><i class="bi bi-inbox"></i><p>Keine Sets vorhanden.</p></div>');
+  },function(){body.innerHTML='<div class="empty"><i class="bi bi-wifi-off"></i><p>Sets konnten nicht geladen werden.</p></div>';});
+}
+function exportSetForKA(ix){
+  var s=setsCache[ix];if(!s)return;
+  var items=(s.items||[]).map(function(i){return i.name||i.scanId;}).join(", ");
+  var txt=(s.name||"Set")+" | "+(s.plattform||"")+" | "+items;
+  try{navigator.clipboard.writeText(txt);}catch(e){}
+  toast("Set-Text für Kleinanzeigen kopiert.","ok");
+  goTabFn("list-panel");
 }
 
 window.addEventListener("load",function(){
@@ -3912,7 +4067,9 @@ window.addEventListener("load",function(){
   setupEnterKeys();
   setupKeyboardShortcuts();
   ensureHomeSetBuilderTab();
+  ensureSetsPanelUI();
   ensureReportRangeUI();
+  ensureTasksOverlay();
   setTimeout(initGlobalCamList,300);
   setTimeout(runSmartNotifications,3000);
   setInterval(runSmartNotifications,24*60*60*1000);
