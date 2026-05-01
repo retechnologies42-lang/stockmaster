@@ -1,7 +1,7 @@
 
 
 
-var GAS_URL = "https://script.google.com/macros/s/AKfycbxlhvcgDUThMyon8B2CNPfHgU3owr_40eVKFRfjE6p-ecQBjznY2wCdBbdayCMp/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbyL2LZPd2UxUeD6c6twgEgauTW0tuLzvtfUry73GcnkPHfnqRdJWzKpNlGYf1Nrow/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -502,7 +502,7 @@ function stopCam(){camStop();}
 // ── FOTOS ─────────────────────────────────────────────────────────
 function triggerPhotoInput(mode){var id=mode==="cam"?"f-photo-cam":"f-photo-gallery";var el=document.getElementById(id);if(!el){toast("Foto-Input nicht gefunden.","err");return;}el.onchange=function(){if(this.files&&this.files[0])processPhotoFile(this.files[0]);this.value="";};el.click();}
 function processPhotoFile(file){if(!file)return;if(file.size>15*1024*1024){toast("Max. 15 MB pro Foto.","err");return;}if(photos.length>=10){toast("Maximal 10 Bilder pro Produkt.","err");return;}var name=(file.name||"foto.jpg").replace(/[^a-zA-Z0-9._-]/g,"_");var img=new Image(),url=URL.createObjectURL(file);img.onload=function(){URL.revokeObjectURL(url);var MAX=1200,w=img.width,h=img.height;if(w>MAX||h>MAX){if(w>h){h=Math.round(h*(MAX/w));w=MAX;}else{w=Math.round(w*(MAX/h));h=MAX;}}var canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;var ctx=canvas.getContext("2d");ctx.fillStyle="#ffffff";ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);var b64=canvas.toDataURL("image/jpeg",0.78);if(!b64||b64.indexOf("base64,")===-1){toast("Bild konnte nicht verarbeitet werden.","err");return;}photos.push({b64:b64,name:name});renderAllPhotos();toast("Foto hinzugefügt ✅","ok",2000);};img.onerror=function(){toast("Bild konnte nicht geladen werden.","err");};img.src=url;}
-function renderAllPhotos(){var mw=document.getElementById("photo-main-wrap"),thumbs=document.getElementById("photo-thumbs");if(!mw||!thumbs)return;mw.innerHTML="";thumbs.innerHTML="";if(photos.length===0){renderAddThumbBtn();return;}mw.innerHTML='<div class="photo-main-preview"><img src="'+photos[0].b64+'"/><button class="rm-main-photo" onclick="removePhoto(0)">✕ Entfernen</button></div>';for(var i=1;i<photos.length;i++){var div=document.createElement("div");div.className="photo-thumb";div.innerHTML='<img src="'+photos[i].b64+'"/><button class="rm-thumb" onclick="removePhoto('+i+')">✕</button>';thumbs.appendChild(div);}renderAddThumbBtn();}
+function renderAllPhotos(){var mw=document.getElementById("photo-main-wrap"),thumbs=document.getElementById("photo-thumbs");if(!mw||!thumbs)return;mw.innerHTML="";thumbs.innerHTML="";if(photos.length===0){renderAddThumbBtn();return;}mw.innerHTML='<div class="photo-main-preview" style="max-height:180px"><img src="'+photos[0].b64+'" style="max-height:180px;object-fit:contain"/><button class="rm-main-photo" onclick="removePhoto(0)">✕ Entfernen</button></div>';for(var i=1;i<photos.length;i++){var div=document.createElement("div");div.className="photo-thumb";div.style.width="42px";div.style.height="42px";div.innerHTML='<img src="'+photos[i].b64+'" style="object-fit:cover"/><button class="rm-thumb" onclick="removePhoto('+i+')">✕</button>';thumbs.appendChild(div);}renderAddThumbBtn();}
 function renderAddThumbBtn(){var t=document.getElementById("photo-thumbs");if(!t)return;var btn=document.createElement("div");btn.className="add-thumb";btn.innerHTML='<i class="bi bi-plus"></i>';btn.onclick=function(){triggerPhotoInput("gallery");};t.appendChild(btn);}
 function removePhoto(idx){photos.splice(idx,1);renderAllPhotos();}
 
@@ -515,7 +515,6 @@ function doSave(){
   var probTyp=probChoice==="nein"?"":probType||"";
   var probD=probChoice==="nein"?"":(gv("f-prob-beschr"));
   var fotoB64arr=photos.map(function(p){return p.b64;});
-  if(fotoB64arr.length<1){setBL(btn,false,orig);toast("Mindestens 1 Bild ist Pflicht.","err");return;}
   if(fotoB64arr.length>10){setBL(btn,false,orig);toast("Maximal 10 Bilder erlaubt.","err");return;}
   if(curType==="controller"&&!scanId){scanId="CTRL-"+Date.now();}
   var d={scanId:scanId,mitarbeiter:ma,problemTyp:probTyp,problemBeschr:probD,fotos:fotoB64arr,
@@ -1979,12 +1978,28 @@ function ensureBestandsmasterBtn(){
   var ov=document.getElementById("profil-overlay");
   if(!ov||document.getElementById("btn-bestandsmasterpro"))return;
   var container=ov.querySelector("div[style*='padding:20px 13px']")||ov;
+  var row=document.createElement("div");
+  row.style.cssText="display:flex;gap:8px;margin-bottom:10px";
   var btn=document.createElement("button");
   btn.id="btn-bestandsmasterpro";
-  btn.className="btn btn-outline-primary w-100 mb-3";
+  btn.className="btn btn-outline-primary";
+  btn.style.flex="1";
   btn.innerHTML='Zum BestandsmasterPro';
   btn.onclick=function(){openBestandsmasterPro();};
-  container.insertBefore(btn,container.children[1]||null);
+  var btn2=document.createElement("button");
+  btn2.id="btn-kisetmasterpro";
+  btn2.className="btn btn-outline-primary";
+  btn2.style.flex="1";
+  btn2.innerHTML='KIsetMasterPro';
+  btn2.onclick=function(){openSetBuilderFlow();};
+  var btn3=document.createElement("button");
+  btn3.id="btn-tasksmasterpro";
+  btn3.className="btn btn-outline-primary";
+  btn3.style.flex="1";
+  btn3.innerHTML='TasksMasterPro';
+  btn3.onclick=function(){openTasksMaster();};
+  row.appendChild(btn);row.appendChild(btn2);row.appendChild(btn3);
+  container.insertBefore(row,container.children[1]||null);
 }
 
 function ensureBestandsmasterOverlay(){
@@ -2085,7 +2100,14 @@ function renderTasksMaster(){
   var body=document.getElementById("tasks-body");if(!body)return;
   loadTasks();
   var visible=tasksCache.filter(function(t){return canManageTasks()||String(t.assignee||"").toLowerCase()===String(emp||"").toLowerCase()||String(t.owner||"").toLowerCase()===String(emp||"").toLowerCase();});
-  body.innerHTML='<div style="display:flex;gap:8px;margin-bottom:10px"><input id="task-title-in" class="fc" placeholder="Neue Task"/><input id="task-assignee-in" class="fc" placeholder="Mitarbeiter" value="'+esc(emp||"")+'"/><button class="btn btn-primary" onclick="addTask()">Task erstellen</button></div>'+(visible.length?visible.map(function(t){var canApprove=canManageTasks()&&t.status==="done_waiting";return'<div class="ic"><div class="ic-top"><div class="ic-name">'+esc(t.title)+'</div><span class="chip">'+esc(t.status)+'</span></div><div style="font-size:11px;color:var(--w3)">Zuständig: '+esc(t.assignee||"-")+' · Quelle: '+esc(t.source||"-")+'</div><div style="display:flex;gap:6px;margin-top:8px">'+(t.status==="open"?'<button class="btn btn-outline-primary btn-sm" onclick="taskStepDone(\''+esc(t.id)+'\')">Erledigt</button>':'')+(canApprove?'<button class="btn btn-success btn-sm" onclick="taskApprove(\''+esc(t.id)+'\')">Prüfung bestätigen</button>':'')+'</div></div>';}).join(""):'<div class="empty"><i class="bi bi-inbox"></i><p>Keine Tasks</p></div>');
+  gasGet("getAccounts",{},function(r){
+    var acc=(r&&r.ok)?(r.data||[]):[];
+    var opts=acc.filter(function(a){return String(a.status||"").toLowerCase()==="aktiv";}).map(function(a){return '<option value="'+esc(a.name)+'">'+esc(a.name)+'</option>';}).join("");
+    body.innerHTML='<div style="display:flex;gap:8px;margin-bottom:10px"><input id="task-title-in" class="fc" placeholder="Neue Task"/><select id="task-assignee-in" class="fc">'+opts+'</select><button class="btn btn-primary" onclick="addTask()">Task erstellen</button></div>'+(visible.length?visible.map(function(t){var canApprove=canManageTasks()&&t.status==="done_waiting";return'<div class="ic"><div class="ic-top"><div class="ic-name">'+esc(t.title)+'</div><span class="chip">'+esc(t.status)+'</span></div><div style="font-size:11px;color:var(--w3)">Zuständig: '+esc(t.assignee||"-")+' · Quelle: '+esc(t.source||"-")+'</div><div style="display:flex;gap:6px;margin-top:8px">'+(t.status==="open"?'<button class="btn btn-outline-primary btn-sm" onclick="taskStepDone(\''+esc(t.id)+'\')">Erledigt</button>':'')+(canApprove?'<button class="btn btn-success btn-sm" onclick="taskApprove(\''+esc(t.id)+'\')">Prüfung bestätigen</button>':'')+'</div></div>';}).join(""):'<div class="empty"><i class="bi bi-inbox"></i><p>Keine Tasks</p></div>');
+    var sel=document.getElementById("task-assignee-in");if(sel&&!sel.value&&emp)sel.value=emp;
+  },function(){
+    body.innerHTML='<div style="display:flex;gap:8px;margin-bottom:10px"><input id="task-title-in" class="fc" placeholder="Neue Task"/><button class="btn btn-primary" onclick="addTask()">Task erstellen</button></div>'+(visible.length?visible.map(function(t){var canApprove=canManageTasks()&&t.status==="done_waiting";return'<div class="ic"><div class="ic-top"><div class="ic-name">'+esc(t.title)+'</div><span class="chip">'+esc(t.status)+'</span></div><div style="font-size:11px;color:var(--w3)">Zuständig: '+esc(t.assignee||"-")+'</div><div style="display:flex;gap:6px;margin-top:8px">'+(t.status==="open"?'<button class="btn btn-outline-primary btn-sm" onclick="taskStepDone(\''+esc(t.id)+'\')">Erledigt</button>':'')+(canApprove?'<button class="btn btn-success btn-sm" onclick="taskApprove(\''+esc(t.id)+'\')">Prüfung bestätigen</button>':'')+'</div></div>';}).join(""):'<div class="empty"><i class="bi bi-inbox"></i><p>Keine Tasks</p></div>');
+  });
 }
 function addTask(){
   var title=gv("task-title-in").trim(),assignee=gv("task-assignee-in").trim()||emp;
@@ -3892,7 +3914,10 @@ function saveRTForm() {
 }
 
 var setBuilderAnswers={},setBuilderDraft=null,setBuilderStep=1,setBuilderLoading=false;
-var setsCache=[],tasksCache=[];
+var setsCache=[],tasksCache=[],setChats=[],setDraftImages=[];
+function setChatsKey(){return "smp_set_chats_v1";}
+function loadSetChats(){try{setChats=JSON.parse(localStorage.getItem(setChatsKey())||"[]");}catch(e){setChats=[];}if(!Array.isArray(setChats))setChats=[];}
+function saveSetChats(){try{localStorage.setItem(setChatsKey(),JSON.stringify(setChats.slice(0,100)));}catch(e){}}
 function ensureHomeSetBuilderTab(){
   var home=document.getElementById("home-panel");
   if(!home||document.getElementById("home-subtabs"))return;
@@ -3900,26 +3925,24 @@ function ensureHomeSetBuilderTab(){
   var subt=document.createElement("div");
   subt.id="home-subtabs";
   subt.style.cssText="display:flex;gap:8px;margin:4px 0 12px";
-  subt.innerHTML='<button id="home-tab-dashboard" class="ltab on" onclick="setHomeSubtab(\'dashboard\')">Dashboard</button><button id="home-tab-setbuilder" class="ltab" onclick="setHomeSubtab(\'setbuilder\')">KIsetMasterPro</button><button id="home-tab-tasksmaster" class="ltab" onclick="setHomeSubtab(\'tasksmaster\')">TasksMasterPro</button>';
+  subt.innerHTML='<button id="home-tab-dashboard" class="ltab on" onclick="setHomeSubtab(\'dashboard\')">Dashboard</button>';
   var sb=document.createElement("div");
   sb.id="home-setbuilder";
   sb.style.display="none";
-  sb.innerHTML='<div style="background:var(--b2);border:1px solid var(--e1);border-radius:12px;padding:12px"><div style="font-size:14px;font-weight:700;color:var(--acc);margin-bottom:4px">KIsetMasterPro</div><div style="font-size:11px;color:var(--w3);margin-bottom:10px">Sets erstellen und verwalten.</div><button class="btn btn-primary" onclick="openSetBuilderFlow()">KIsetMasterPro starten</button></div>';
+  sb.innerHTML='';
   var tm=document.createElement("div");
   tm.id="home-tasksmaster";
   tm.style.display="none";
-  tm.innerHTML='<div style="background:var(--b2);border:1px solid var(--e1);border-radius:12px;padding:12px"><div style="font-size:14px;font-weight:700;color:var(--acc);margin-bottom:4px">TasksMasterPro</div><div style="font-size:11px;color:var(--w3);margin-bottom:10px">Aufgaben erstellen, verfolgen und abschließen.</div><button class="btn btn-primary" onclick="openTasksMaster()">TasksMasterPro öffnen</button></div>';
+  tm.innerHTML='';
   wrap.insertBefore(subt,wrap.firstChild);
   wrap.insertBefore(sb,subt.nextSibling);
   wrap.insertBefore(tm,sb.nextSibling);
 }
 function setHomeSubtab(tab){
-  var d=document.getElementById("home-tab-dashboard"),s=document.getElementById("home-tab-setbuilder"),t=document.getElementById("home-tab-tasksmaster"),box=document.getElementById("home-setbuilder"),tb=document.getElementById("home-tasksmaster");
+  var d=document.getElementById("home-tab-dashboard"),box=document.getElementById("home-setbuilder"),tb=document.getElementById("home-tasksmaster");
   if(d)d.className="ltab"+(tab==="dashboard"?" on":"");
-  if(s)s.className="ltab"+(tab==="setbuilder"?" on":"");
-  if(t)t.className="ltab"+(tab==="tasksmaster"?" on":"");
-  if(box)box.style.display=tab==="setbuilder"?"block":"none";
-  if(tb)tb.style.display=tab==="tasksmaster"?"block":"none";
+  if(box)box.style.display="none";
+  if(tb)tb.style.display="none";
 }
 function ensureSetBuilderOverlay(){
   if(document.getElementById("setbuilder-overlay"))return;
@@ -3942,8 +3965,9 @@ function closeSetBuilderFlow(){
 }
 function renderSetBuilderFlow(){
   var body=document.getElementById("sb-flow-body");if(!body)return;
+  loadSetChats();
   if(setBuilderStep===0){
-    body.innerHTML='<div style="font-size:20px;font-weight:800;color:var(--w1);margin-bottom:6px">So funktioniert KIsetMasterPro</div><div style="font-size:12px;color:var(--w3);line-height:1.7">Erstellt aus vorhandenem Lagerbestand realistische Sets mit Preisvorschlägen. Du kannst Stepper oder Chat nutzen.</div><div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-primary" onclick="setBuilderStep=1;renderSetBuilderFlow()">Sets erstellen</button><button class="btn btn-outline-primary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Bestehende Sets verwalten</button></div>';
+    body.innerHTML='<div style="font-size:20px;font-weight:800;color:#3fb950;margin-bottom:6px">So funktioniert KIsetMasterPro</div><div style="font-size:12px;color:var(--w3);line-height:1.7">Reiner Chat-Modus für Set-Anfragen + Set/Chat-Verwaltung.</div><div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-primary" onclick="setBuilderStep=1;renderSetBuilderFlow()">Chat starten</button><button class="btn btn-outline-primary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets verwalten</button></div>';
     return;
   }
   if(setBuilderStep===99){renderSetManager(body);return;}
@@ -3951,24 +3975,8 @@ function renderSetBuilderFlow(){
     body.innerHTML='<div style="display:flex;gap:10px;align-items:center"><span class="spin-b"></span><div><div style="font-size:16px;color:var(--w1);font-weight:700">Set wird erstellt</div><div style="font-size:12px;color:var(--w3)">Passende Produkte werden kombiniert…</div></div></div>';
     return;
   }
-  var steps=[
-    {id:"ziel",q:"Was ist das Ziel des Sets?",type:"select",opts:["Schneller Verkauf","Maximaler Gewinn","Lager bereinigen"]},
-    {id:"plattform",q:"Für welche Plattform soll das Set sein?",type:"select",opts:["PlayStation","Xbox","Nintendo","PC"]},
-    {id:"budget",q:"Budgetobergrenze in Euro?",type:"number",ph:"z.B. 280"},
-    {id:"zustand",q:"Welche Zustandsklasse bevorzugst du?",type:"select",opts:["Gebraucht","Sehr gut","Neuwertig"]}
-  ];
-  var idx=setBuilderStep-1,step=steps[idx];
-  if(!step){
-    setBuilderLoading=true;renderSetBuilderFlow();
-    setTimeout(function(){buildSetWithAI();setBuilderLoading=false;renderSetBuilderFlow();},900);
-    return;
-  }
-  if(setBuilderStep===1){
-    body.innerHTML='<div style="font-size:12px;color:var(--w4);margin-bottom:6px">Alternativ: Chat für Set-Anfragen</div><div style="display:flex;gap:8px"><input id="sb-chat-in" class="fc" placeholder="z.B. PS4 + 3 Spiele + Controller"/><button class="btn btn-outline-primary" onclick="sbHandleChat()">Chat senden</button></div><div id="sb-chat-out" style="font-size:11px;color:var(--w3);margin-top:8px"></div><hr style="border-color:var(--e1);margin:10px 0"/>'+('<div style="font-size:12px;color:var(--w4);margin-bottom:4px">Schritt 1 / 4</div><div style="font-size:16px;font-weight:700;color:var(--w1);margin-bottom:8px">'+esc(step.q)+'</div><select id="sb-step-in" class="fc">'+step.opts.map(function(o){return"<option>"+esc(o)+"</option>";}).join("")+'</select><div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-outline-secondary" onclick="setBuilderStep=0;renderSetBuilderFlow()">Zurück</button><button class="btn btn-primary" onclick="setBuilderAnswers[\''+step.id+'\']=document.getElementById(\'sb-step-in\').value;setBuilderStep++;renderSetBuilderFlow()">Weiter</button></div>');
-    return;
-  }
-  var input=step.type==="select"?'<select id="sb-step-in" class="fc">'+step.opts.map(function(o){return"<option>"+esc(o)+"</option>";}).join("")+'</select>':'<input id="sb-step-in" class="fc" type="number" min="0" step="1" placeholder="'+esc(step.ph||"")+'"/>';
-  body.innerHTML='<div style="font-size:12px;color:var(--w4);margin-bottom:4px">Schritt '+setBuilderStep+' / '+steps.length+'</div><div style="font-size:16px;font-weight:700;color:var(--w1);margin-bottom:8px">'+esc(step.q)+'</div>'+input+'<div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-outline-secondary" '+(setBuilderStep===1?'disabled':'')+' onclick="setBuilderStep=Math.max(1,setBuilderStep-1);renderSetBuilderFlow()">Zurück</button><button class="btn btn-primary" onclick="setBuilderAnswers[\''+step.id+'\']=document.getElementById(\'sb-step-in\').value;setBuilderStep++;renderSetBuilderFlow()">Weiter</button></div>';
+  var chatHtml=setChats.slice(0,20).map(function(c,ix){return '<div style="background:#0f1724;border:1px solid var(--e1);border-radius:8px;padding:8px;margin-bottom:6px"><div style="font-size:11px;color:var(--w2)">'+esc(c.q||"")+'</div><div style="font-size:10px;color:var(--w4);margin-top:2px">'+esc(c.time||"")+'</div><div style="display:flex;gap:6px;margin-top:6px"><button class="btn btn-outline-primary btn-sm" onclick="reloadSetChat('+ix+')">Laden</button><button class="btn btn-outline-secondary btn-sm" onclick="editSetChat('+ix+')">Bearbeiten</button><button class="btn btn-outline-danger btn-sm" onclick="deleteSetChat('+ix+')">Löschen</button></div></div>';}).join("");
+  body.innerHTML='<div style="font-size:14px;color:#3fb950;font-weight:700;margin-bottom:8px">Set-Chat</div><div style="display:flex;gap:8px"><input id="sb-chat-in" class="fc" placeholder="z.B. PS4 + 3 Spiele + Controller"/><button class="btn btn-outline-primary" onclick="sbHandleChat()">Senden</button><button class="btn btn-outline-secondary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets</button></div><div id="sb-chat-out" style="font-size:11px;color:var(--w3);margin-top:8px"></div><hr style="border-color:var(--e1);margin:10px 0"/><div style="font-size:12px;color:var(--w4);margin-bottom:6px">Vorherige Chats</div><div style="max-height:320px;overflow:auto">'+(chatHtml||'<div class="empty"><p>Keine Chats</p></div>')+'</div>';
 }
 function sbParseRequest(text){
   var q=String(text||"").toLowerCase().trim();
@@ -3984,15 +3992,32 @@ function sbHandleChat(){
   buildSetWithAI();
   if(out&&setBuilderDraft){
     out.innerHTML='Set erstellt: '+esc(setBuilderDraft.name)+' · '+setBuilderDraft.items.length+' Produkte · Preisvorschlag: '+esc(setBuilderDraft.priceFast)+' / '+esc(setBuilderDraft.priceMax);
-    var body=document.getElementById("sb-flow-body");if(body)body.scrollTop=99999;
+    setChats.unshift({q:q,time:new Date().toLocaleString("de-DE"),draft:setBuilderDraft});
+    saveSetChats();
   }
 }
+function reloadSetChat(ix){loadSetChats();var c=setChats[ix];if(!c)return;var inp=document.getElementById("sb-chat-in");if(inp)inp.value=c.q||"";if(c.draft){setBuilderDraft=c.draft;var out=document.getElementById("sb-chat-out");if(out)out.innerHTML='Set geladen: '+esc(setBuilderDraft.name)+' · '+esc(setBuilderDraft.priceFast)+' / '+esc(setBuilderDraft.priceMax);}}
+function editSetChat(ix){loadSetChats();var c=setChats[ix];if(!c)return;var n=prompt("Chat bearbeiten:",c.q||"");if(!n)return;c.q=n;setChats[ix]=c;saveSetChats();renderSetBuilderFlow();}
+function deleteSetChat(ix){loadSetChats();setChats.splice(ix,1);saveSetChats();renderSetBuilderFlow();}
 function confirmSetBundle(){
   if(!setBuilderDraft||!setBuilderDraft.items||!setBuilderDraft.items.length){toast("Kein Set erstellt.","err");return;}
-  gasPost("saveSetBundle",{name:setBuilderDraft.name,mitarbeiter:emp,plattform:setBuilderDraft.plattform,budget:setBuilderDraft.budget,zustand:setBuilderDraft.zustand,items:setBuilderDraft.items,notizen:"Bestätigt via Set Builder"},function(r){
+  var setName=gv("sb-set-name").trim()||setBuilderDraft.name;
+  gasPost("saveSetBundle",{name:setName,mitarbeiter:emp,plattform:setBuilderDraft.plattform,budget:setBuilderDraft.budget,zustand:setBuilderDraft.zustand,items:setBuilderDraft.items,notizen:"Bestätigt via KIsetMasterPro"},function(r){
     if(r&&r.ok){toast("Set gespeichert ✅","ok");setBuilderDraft=null;loadAll();setBuilderStep=99;renderSetBuilderFlow();}
     else{toast("Fehler: "+(r?r.fehler:"?"),"err");}
   },function(e){toast("Fehler: "+e,"err");});
+}
+function sbAddSetImage(){var inp=document.createElement("input");inp.type="file";inp.accept="image/*";inp.onchange=function(){if(!this.files||!this.files[0])return;var fr=new FileReader();fr.onload=function(){if(setDraftImages.length<10)setDraftImages.push(String(fr.result||""));sbRenderSetImages();};fr.readAsDataURL(this.files[0]);};inp.click();}
+function sbRenderSetImages(){var el=document.getElementById("sb-set-images");if(!el)return;el.innerHTML=(setDraftImages||[]).map(function(b,i){return'<div class="card-foto" style="width:44px;height:44px"><img src="'+esc(b)+'"/><button class="rm-thumb" onclick="setDraftImages.splice('+i+',1);sbRenderSetImages()">✕</button></div>';}).join("")+'<div class="add-thumb" style="width:44px;height:44px" onclick="sbAddSetImage()"><i class="bi bi-plus"></i></div>';}
+function sbAnalyzeSet(){
+  if(!setBuilderDraft)return;
+  var vals={konsole:70,controller:30,spiel:10,handy:80,pc:150};
+  var sum=0;(setBuilderDraft.items||[]).forEach(function(i){sum+=(vals[i.typ]||15);});
+  var imgScore=Math.min(20,(setDraftImages||[]).length*4);
+  var attr=Math.max(1,Math.min(10,Math.round((sum/25)+(imgScore/10))));
+  var fast=(sum*0.95).toFixed(0),max=(sum*1.12).toFixed(0);
+  var out=document.getElementById("sb-set-analysis");if(!out)return;
+  out.innerHTML='Set sinnvoll und marktgängig.<br>Geschätzter Verkaufspreis:<br>ca. '+fast+'–'+(parseInt(fast,10)+20)+'€ VB (schneller Verkauf)<br>ca. '+max+'–'+(parseInt(max,10)+20)+'€ VB (maximaler Gewinn)<br>Attraktivität: '+attr+'/10<br>Empfehlung: Gute Bilder + Bundle als sofort spielbereit hervorheben.';
 }
 function _sbNormalizePlatform(s){var t=String(s||"").toLowerCase();if(t.indexOf("playstation")>-1||/\bps\d/.test(t))return"PlayStation";if(t.indexOf("xbox")>-1)return"Xbox";if(t.indexOf("nintendo")>-1||t.indexOf("switch")>-1)return"Nintendo";if(t.indexOf("pc")>-1)return"PC";return"";}
 function _sbDetectPlatform(item){
@@ -4025,7 +4050,9 @@ function buildSetWithAI(){
   var priceFast=Math.round((total*1.18)*100)/100,priceMax=Math.round((total*1.28)*100)/100;
   setBuilderDraft={name:p+" "+(ziel==="Maximaler Gewinn"?"Profit":"Smart")+" Set",plattform:p,budget:budget,zustand:cond,items:picks.map(function(i){return {typ:i.type,name:i.name||i.spiel||i.modell||i.scanId,scanId:i.scanId||"",ek:parseFloat(i.einkaufspreis||0)||0};}),total:Math.round(total*100)/100,priceFast:priceFast.toFixed(2)+"€ VB (schneller Verkauf)",priceMax:priceMax.toFixed(2)+"€ VB (max Gewinn)"};
   var body=document.getElementById("sb-flow-body");if(!body)return;
-  body.innerHTML='<div style="font-size:18px;font-weight:800;color:var(--w1);margin-bottom:8px">Set Vorschlag</div><div class="chips" style="margin-bottom:8px"><span class="chip">Plattform: '+esc(p)+'</span><span class="chip">Ziel: '+esc(ziel)+'</span><span class="chip">EK gesamt: '+setBuilderDraft.total+'€</span></div><div style="font-size:12px;color:var(--w3);line-height:1.7;margin-bottom:10px">'+setBuilderDraft.items.map(function(i){return"• "+esc(i.name)+" ("+i.ek+"€)";}).join("<br>")+'</div><div class="chips" style="margin-bottom:10px"><span class="chip">'+esc(setBuilderDraft.priceMax)+'</span><span class="chip">'+esc(setBuilderDraft.priceFast)+'</span></div><div style="display:flex;gap:8px"><button class="btn btn-outline-secondary" onclick="setBuilderStep=1;renderSetBuilderFlow()">Neu berechnen</button><button class="btn btn-success" onclick="confirmSetBundle()">Set speichern</button><button class="btn btn-outline-primary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets verwalten</button></div>';
+  setDraftImages=[];
+  body.innerHTML='<div style="font-size:18px;font-weight:800;color:var(--w1);margin-bottom:8px">Set Vorschlag</div><div class="chips" style="margin-bottom:8px"><span class="chip">Plattform: '+esc(p)+'</span><span class="chip">Ziel: '+esc(ziel)+'</span><span class="chip">EK gesamt: '+setBuilderDraft.total+'€</span></div><div style="font-size:12px;color:var(--w3);line-height:1.7;margin-bottom:10px">'+setBuilderDraft.items.map(function(i){return"• "+esc(i.name)+" ("+i.ek+"€)";}).join("<br>")+'</div><div class="chips" style="margin-bottom:10px"><span class="chip">'+esc(setBuilderDraft.priceMax)+'</span><span class="chip">'+esc(setBuilderDraft.priceFast)+'</span></div><div style="display:flex;gap:8px;margin-bottom:8px"><input id="sb-set-name" class="fc" placeholder="Set-Name" value="'+esc(setBuilderDraft.name)+'"/><button class="btn btn-outline-primary" onclick="sbAnalyzeSet()">KI-Einschätzung</button></div><div id="sb-set-images" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div><div id="sb-set-analysis" style="font-size:11px;color:var(--w3);margin-bottom:10px"></div><div style="display:flex;gap:8px"><button class="btn btn-outline-secondary" onclick="setBuilderStep=1;renderSetBuilderFlow()">Neu berechnen</button><button class="btn btn-success" onclick="confirmSetBundle()">Set speichern</button><button class="btn btn-outline-primary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets verwalten</button></div>';
+  sbRenderSetImages();
 }
 function renderSetManager(body){
   gasGet("getSetBundles",{},function(r){
