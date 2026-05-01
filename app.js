@@ -2216,8 +2216,52 @@ function openProfil() {
   openProfilFor(emp);
 }
 
+function ensureProfileDashboardStyles(){
+  if(document.getElementById("profile-dashboard-style"))return;
+  var st=document.createElement("style");
+  st.id="profile-dashboard-style";
+  st.textContent=".pd-wrap{margin:12px 0 0;display:flex;flex-direction:column;gap:16px}.pd-sec{background:#0f1115;border:1px solid #1f2937;border-radius:14px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,.2)}.pd-title{font-size:22px;font-weight:800;color:#fff;margin:0 0 4px}.pd-sub{font-size:12px;color:#8b949e}.pd-grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.pd-grid-5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.pd-module{background:#0f1115;border:1px solid #222;border-radius:14px;padding:16px;cursor:pointer;transition:all .16s ease}.pd-module:hover{transform:scale(1.02);box-shadow:0 0 20px rgba(0,255,136,.22);border-color:#00ff8866}.pd-module .i{font-size:22px;color:#00ff88}.pd-module .t{font-size:14px;font-weight:700;color:#fff;margin-top:8px}.pd-module .d{font-size:11px;color:#8b949e;margin-top:4px}.pd-kpi{background:#0f1115;border:1px solid #222;border-radius:12px;padding:12px}.pd-kpi .n{font-size:24px;font-weight:900;color:#fff;line-height:1}.pd-kpi .l{font-size:11px;color:#8b949e;margin-top:4px}.pd-kpi .x{font-size:10px;color:#8b949e;margin-top:4px}.pd-kpi .u{color:#00ff88}.pd-kpi .d{color:#f85149}.pd-act{display:flex;flex-direction:column;gap:8px}.pd-act-item{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid #1f2937;border-radius:10px;cursor:pointer;transition:all .14s}.pd-act-item:hover{border-color:#00ff8866;background:#12181f}.pd-act-ic{color:#00ff88;font-size:15px;min-width:18px}.pd-act-t{font-size:12px;color:#e6edf3}.pd-quick{display:flex;gap:8px;flex-wrap:wrap}.pd-quick .btn{border-color:#00ff8866}.pd-log-item{display:flex;gap:10px;padding:8px 0;border-bottom:1px dashed #1f2937}.pd-log-item:last-child{border-bottom:none}.pd-log-ic{color:#8b949e}.pd-log-t{font-size:11px;color:#9ca3af}.pd-skeleton{height:14px;background:linear-gradient(90deg,#111 25%,#1b1f24 45%,#111 65%);background-size:200% 100%;animation:pds .9s linear infinite;border-radius:8px}.pd-skeleton.card{height:88px}@keyframes pds{0%{background-position:200% 0}100%{background-position:-200% 0}}@media(max-width:980px){.pd-grid-5{grid-template-columns:repeat(2,minmax(0,1fr))}.pd-grid-3{grid-template-columns:1fr}}";
+  document.head.appendChild(st);
+}
+function _pdParseDate(v){
+  if(!v)return null;
+  var s=String(v||"");var m=s.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);if(!m)return null;
+  return new Date(parseInt(m[3],10),parseInt(m[2],10)-1,parseInt(m[1],10));
+}
+function _pdIsSameDay(d,a){return d&&a&&d.getFullYear()===a.getFullYear()&&d.getMonth()===a.getMonth()&&d.getDate()===a.getDate();}
+function _pdRelCount(arr,getDateFn,dayOffset){
+  var base=new Date();base.setHours(0,0,0,0);base.setDate(base.getDate()+dayOffset);
+  return arr.filter(function(x){var d=getDateFn(x);return _pdIsSameDay(d,base);}).length;
+}
+function _pdRoleRank(r){r=normalizeRole(r);if(r==="inhaber")return 4;if(r==="co-chef")return 3;if(r==="senior")return 2;return 1;}
+function _pdBuildPossibleSets(items){
+  var byP={};items.forEach(function(i){if(i.type==="defekt"||i.type==="setbundle")return;var p=_sbDetectPlatform(i)||"Other";if(!byP[p])byP[p]={konsole:0,spiel:0,controller:0};if(i.type==="konsole"||i.type==="spiel"||i.type==="controller")byP[p][i.type]++;});
+  var c=0;Object.keys(byP).forEach(function(k){var o=byP[k];if(o.konsole>0&&o.spiel>=2)c++;});
+  return c;
+}
+function _pdRenderSkeleton(root){
+  root.innerHTML='<div class="pd-wrap"><div class="pd-sec"><div class="pd-skeleton" style="width:220px"></div><div class="pd-skeleton" style="width:320px;margin-top:8px"></div><div class="pd-skeleton card" style="margin-top:12px"></div></div><div class="pd-grid-3"><div class="pd-skeleton card"></div><div class="pd-skeleton card"></div><div class="pd-skeleton card"></div></div></div>';
+}
+function _pdRenderDashboard(root,ctx){
+  var actions=ctx.actions.slice(0,6).map(function(a){return '<div class="pd-act-item" onclick="'+a.click+'"><div class="pd-act-ic">'+a.icon+'</div><div class="pd-act-t">'+esc(a.text)+'</div></div>';}).join("");
+  var modules='<div class="pd-grid-3"><div class="pd-module" onclick="openBestandsmasterPro()"><div class="i"><i class="bi bi-boxes"></i></div><div class="t">BestandsmasterPro</div><div class="d">Bestandsprüfung und Qualitätskontrolle</div></div><div class="pd-module" onclick="openSetBuilderFlow()"><div class="i"><i class="bi bi-cpu"></i></div><div class="t">KIsetMasterPro</div><div class="d">Sets erstellen, optimieren und verwalten</div></div><div class="pd-module" onclick="openTasksMaster()"><div class="i"><i class="bi bi-check2-square"></i></div><div class="t">TasksMasterPro</div><div class="d">Aufgaben steuern und Fortschritt tracken</div></div></div>';
+  var kpis=ctx.kpis.map(function(k){return '<div class="pd-kpi"><div class="n">'+esc(String(k.value))+'</div><div class="l">'+esc(k.label)+'</div><div class="x">'+(k.delta>0?'<span class="u">↑ +'+k.delta+'</span>':k.delta<0?'<span class="d">↓ '+k.delta+'</span>':'<span>± 0</span>')+' seit gestern</div></div>';}).join("");
+  var quick='<div class="pd-quick"><button class="btn btn-success btn-sm" onclick="goTabFn(\'scan-panel\')"><i class="bi bi-plus-circle me-1"></i>Produkt hinzufügen</button><button class="btn btn-success btn-sm" onclick="goTabFn(\'scan-panel\');setTimeout(function(){try{startCam();}catch(e){}},120)"><i class="bi bi-upc-scan me-1"></i>Scan starten</button><button class="btn btn-success btn-sm" onclick="openTasksMaster()"><i class="bi bi-list-task me-1"></i>Task erstellen</button></div>';
+  var logHtml=(ctx.activityGrouped.today.concat(ctx.activityGrouped.yesterday).slice(0,ctx.showAll?999:5)).map(function(e){return '<div class="pd-log-item"><div class="pd-log-ic">'+e.icon+'</div><div><div style="font-size:12px;color:#e6edf3">'+esc(e.title)+'</div><div class="pd-log-t">'+esc(e.time)+' • '+esc(e.details||"")+'</div></div></div>';}).join("")||'<div class="pd-sub">Keine Aktivitäten</div>';
+  var recs=ctx.recommendations.map(function(r){return '<div class="pd-act-item" onclick="'+r.click+'"><div class="pd-act-ic"><i class="bi bi-magic"></i></div><div class="pd-act-t">'+esc(r.text)+'</div></div>';}).join("");
+  var roleExtra="";
+  if(_pdRoleRank(ctx.role)>=3){
+    roleExtra+='<div class="pd-sec"><div class="pd-title">Mitarbeiter Übersicht</div><div class="pd-sub">Erledigte Tasks je Mitarbeiter</div><div style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px">'+ctx.teamTaskStats.map(function(x){return '<div style="border:1px solid #222;border-radius:10px;padding:10px"><div style="font-size:12px;color:#e6edf3">'+esc(x.name)+'</div><div style="font-size:18px;color:#00ff88;font-weight:800">'+x.done+'</div></div>';}).join("")+'</div></div>';
+  }
+  if(_pdRoleRank(ctx.role)>=4){
+    roleExtra+='<div class="pd-sec"><div class="pd-title">Inhaber Kennzahlen</div><div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px"><div class="pd-kpi"><div class="n">'+esc(ctx.owner.monthRevenue.toFixed(2))+'€</div><div class="l">Umsatz Monat</div></div><div class="pd-kpi"><div class="n">'+esc(ctx.owner.monthProfit.toFixed(2))+'€</div><div class="l">Gewinn Monat</div></div><div class="pd-kpi"><div class="n">'+esc(ctx.owner.topEmployee||"–")+'</div><div class="l">Top Mitarbeiter</div></div></div></div>';
+  }
+  root.innerHTML='<div class="pd-wrap"><div class="pd-sec"><div class="pd-title">Willkommen zurück, '+esc(ctx.name)+'</div><div class="pd-sub">Heute '+ctx.openTasks+' Tasks offen • '+ctx.readyToSell+' Produkte verkaufsbereit</div></div><div class="pd-sec"><div class="pd-title">Deine heutigen Aktionen</div><div class="pd-sub">Wichtigste nächsten Schritte</div><div class="pd-act" style="margin-top:10px">'+actions+'</div></div>'+modules+'<div class="pd-sec"><div class="pd-title">KPIs</div><div class="pd-grid-5" style="margin-top:10px">'+kpis+'</div></div><div class="pd-sec"><div class="pd-title">Schnellaktionen</div>'+quick+'</div><div class="pd-sec"><div class="pd-title">KI Empfehlungen</div><div class="pd-act" style="margin-top:10px">'+recs+'</div></div><div class="pd-sec"><div style="display:flex;justify-content:space-between;align-items:center"><div class="pd-title">Aktivitätslog</div><button class="btn btn-outline-secondary btn-sm" onclick="toggleProfileLogMore()">'+(ctx.showAll?'Weniger':'Mehr anzeigen')+'</button></div><div class="pd-sub">Heute / Gestern</div><div style="margin-top:8px">'+logHtml+'</div></div>'+roleExtra+'</div>';
+}
+function toggleProfileLogMore(){window._profileShowAllLog=!window._profileShowAllLog;if(window._profileDashboardCtx&&window._profileDashRoot)_pdRenderDashboard(window._profileDashRoot,Object.assign({},window._profileDashboardCtx,{showAll:!!window._profileShowAllLog}));}
 function openProfilFor(name) {
   if (!name) return;
+  ensureProfileDashboardStyles();
   if(!Array.isArray(mitarbeiterStats))mitarbeiterStats=[];
   var stat = mitarbeiterStats.find(function(m) { return m.name === name; });
   var ini = name.split(" ").map(function(w){return w[0]||"";}).join("").toUpperCase().substring(0,2);
@@ -2234,6 +2278,11 @@ function openProfilFor(name) {
   var p7e=document.getElementById("ps-7d-eingelagert");if(p7e)p7e.textContent=ein7;
   var p7v=document.getElementById("ps-7d-verkauft");if(p7v)p7v.textContent=vk7;
   ensureBestandsmasterBtn();
+  var ov=document.getElementById("profil-overlay");
+  var container=ov?(ov.querySelector("div[style*='padding:20px 13px']")||ov):null;
+  var dash=document.getElementById("profil-dashboard-root");
+  if(!dash&&container){dash=document.createElement("div");dash.id="profil-dashboard-root";container.insertBefore(dash,container.children[2]||null);}
+  if(dash)_pdRenderSkeleton(dash);
   // Load activity log
   var logEl = document.getElementById("profil-log");
   if (logEl) logEl.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center;padding:8px"><span class="spin-b"></span> Lade…</div>';
@@ -2272,7 +2321,64 @@ function openProfilFor(name) {
       }
       logEl.appendChild(item);
     });
+    try{
+      loadTasks();
+      var items=(allItems||[]).filter(function(i){return i.type!=="setbundle";});
+      var sales=(allVerkauf||[]);
+      var tasks=(tasksCache||[]);
+      var ownOpenTasks=tasks.filter(function(t){return t.status!=="closed"&&(String(t.assignee||"").toLowerCase()===String(name||"").toLowerCase()||String(t.owner||"").toLowerCase()===String(name||"").toLowerCase());});
+      var noImg=items.filter(function(i){return !i.fotos||!i.fotos.length;});
+      var noPrice=items.filter(function(i){return !(parseFloat(i.kaPreis||0)>0||parseFloat(i.einkaufspreis||0)>0);});
+      var incompleteSets=(setRowsCache||[]).filter(function(s){return !(s.items||[]).length||!(s.plattform||"").trim();});
+      var ownItems=items.filter(function(i){return String(i.mitarbeiter||"").toLowerCase()===String(name||"").toLowerCase();});
+      var readyToSell=items.filter(function(i){return (i.fotos&&i.fotos.length)&& (parseFloat(i.kaPreis||0)>0||parseFloat(i.einkaufspreis||0)>0);}).length;
+      var inSetCount=Object.keys(setMembershipByScanId||{}).length;
+      var day0=function(a){var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+a);return d;};
+      var today=day0(0),yesterday=day0(-1);
+      var entryDate=function(i){return _pdParseDate(i.datum||"");};
+      var saleDate=function(v){return _pdParseDate(v.datum||"");};
+      var kpis=[
+        {label:"Eingelagert",value:ownItems.length,delta:_pdRelCount(ownItems,entryDate,0)-_pdRelCount(ownItems,entryDate,-1)},
+        {label:"Verkäufe",value:sales.filter(function(v){return String(v.mitarbeiter||"").toLowerCase()===String(name||"").toLowerCase();}).length,delta:_pdRelCount(sales.filter(function(v){return String(v.mitarbeiter||"").toLowerCase()===String(name||"").toLowerCase();}),saleDate,0)-_pdRelCount(sales.filter(function(v){return String(v.mitarbeiter||"").toLowerCase()===String(name||"").toLowerCase();}),saleDate,-1)},
+        {label:"Produkte gesamt",value:items.length,delta:_pdRelCount(items,entryDate,0)-_pdRelCount(items,entryDate,-1)},
+        {label:"Im Set",value:inSetCount,delta:0},
+        {label:"Ohne Bild",value:noImg.length,delta:_pdRelCount(noImg,entryDate,0)-_pdRelCount(noImg,entryDate,-1)}
+      ];
+      var warnNoImg=noImg.slice(0,1).map(function(){return{icon:'<i class="bi bi-image"></i>',text:noImg.length+' Produkte ohne Bilder',click:"goTabFn('list-panel','all');var s=document.getElementById('lager-dd-status');if(s){s.value='ohnebild';renderList();}" };});
+      var warnNoPrice=noPrice.slice(0,1).map(function(){return{icon:'<i class="bi bi-currency-euro"></i>',text:noPrice.length+' Produkte ohne Preis',click:"goTabFn('list-panel','all');var q=document.getElementById('list-q');if(q){q.value='';renderList();}" };});
+      var warnSets=incompleteSets.slice(0,1).map(function(){return{icon:'<i class="bi bi-box-seam"></i>',text:incompleteSets.length+' unvollständige Sets',click:"goTabFn('sets-panel');renderSetsPanel();" };});
+      var taskActs=ownOpenTasks.slice(0,3).map(function(t){return{icon:'<i class="bi bi-list-task"></i>',text:t.title||"Offene Task",click:"openTasksMaster()"};});
+      var actions=taskActs.concat(warnNoImg,warnNoPrice,warnSets);
+      if(!actions.length)actions=[{icon:'<i class="bi bi-check2-circle"></i>',text:"Keine offenen Prioritäten",click:"goTabFn('home-panel')"}];
+      var thisMonthStart=new Date();thisMonthStart.setDate(1);thisMonthStart.setHours(0,0,0,0);
+      var monthSales=sales.filter(function(v){var d=saleDate(v);return d&&d>=thisMonthStart;});
+      var monthRevenue=monthSales.reduce(function(s,v){return s+(parseFloat(v.verkaufspreis||0)||0);},0);
+      var monthProfit=monthSales.reduce(function(s,v){return s+(parseFloat(v.marge||v.profitNet||0)||0);},0);
+      var byEmp={};monthSales.forEach(function(v){var n=String(v.mitarbeiter||"Unbekannt");byEmp[n]=(byEmp[n]||0)+1;});
+      var topEmp=Object.keys(byEmp).sort(function(a,b){return byEmp[b]-byEmp[a];})[0]||"–";
+      var teamTaskStats=Object.keys(tasks.reduce(function(m,t){var n=String(t.assignee||t.owner||"Unbekannt");if(!m[n])m[n]=0;if(t.status==="closed")m[n]++;return m;},{})).map(function(n){return{name:n,done:tasks.filter(function(t){return String(t.assignee||t.owner||"Unbekannt")===n&&t.status==="closed";}).length};}).sort(function(a,b){return b.done-a.done;}).slice(0,6);
+      var longStale=items.filter(function(i){var d=entryDate(i);if(!d)return false;return (Date.now()-d.getTime())>45*86400000;}).length;
+      var recs=[
+        {text:noPrice.length+' Produkte ohne Preis',click:"goTabFn('list-panel','all');"},
+        {text:_pdBuildPossibleSets(items)+' mögliche Sets erkannt',click:"openSetBuilderFlow()"},
+        {text:longStale+' Produkte schwer verkäuflich',click:"goTabFn('list-panel','all');"}
+      ];
+      var grouped={today:[],yesterday:[]};
+      (r.data||[]).forEach(function(e){
+        var d=_pdParseDate(e.datum||"");
+        var icon=e.typ==="verkauf"?"<i class='bi bi-cash-coin'></i>":e.typ==="lager"?"<i class='bi bi-box-seam'></i>":e.typ==="auth"?"<i class='bi bi-person-check'></i>":"<i class='bi bi-activity'></i>";
+        var row={icon:icon,title:e.aktion||"Aktivität",details:e.details||"",time:e.datum||""};
+        if(_pdIsSameDay(d,today))grouped.today.push(row);else if(_pdIsSameDay(d,yesterday))grouped.yesterday.push(row);
+      });
+      if(!grouped.today.length&&r.data&&r.data.length)grouped.today=(r.data.slice(0,3)||[]).map(function(e){return{icon:"<i class='bi bi-activity'></i>",title:e.aktion||"Aktivität",details:e.details||"",time:e.datum||""};});
+      if(dash){
+        window._profileDashRoot=dash;
+        window._profileDashboardCtx={name:name,openTasks:ownOpenTasks.length,readyToSell:readyToSell,actions:actions,kpis:kpis,recommendations:recs,activityGrouped:grouped,showAll:!!window._profileShowAllLog,role:normalizeRole(empRolle),teamTaskStats:teamTaskStats,owner:{monthRevenue:monthRevenue,monthProfit:monthProfit,topEmployee:topEmp}};
+        _pdRenderDashboard(dash,window._profileDashboardCtx);
+      }
+    }catch(err){}
   }, function() {});
+  enrichProfilWithAccountInfo(name);
   document.getElementById("profil-overlay").classList.add("open");
 }
 
@@ -2281,7 +2387,7 @@ function ensureBestandsmasterBtn(){
   if(!ov||document.getElementById("btn-bestandsmasterpro"))return;
   var container=ov.querySelector("div[style*='padding:20px 13px']")||ov;
   var row=document.createElement("div");
-  row.style.cssText="display:flex;gap:8px;margin-bottom:10px";
+  row.style.cssText="display:none";
   var btn=document.createElement("button");
   btn.id="btn-bestandsmasterpro";
   btn.className="btn btn-outline-primary";
