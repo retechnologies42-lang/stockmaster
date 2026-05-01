@@ -1,7 +1,7 @@
 
 
 
-var GAS_URL = "https://script.google.com/macros/s/AKfycbzZ2yUwwPHp5QomclZqzBrXOXzC9gyw9c0uaoGMGE7P0A31M62Fy8wNNvJXT_D6bw/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbySO8hUlkcbStV6E8VyWEDF5GvE5UddIVr5opM66gJ3RjL8zzQYka9gpXNBAuJGIQ/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -115,7 +115,7 @@ function showProfileSetupOverlay(ctx){
   window._psuCurrentPw=ctx.currentPassword||"";
   var nm=document.getElementById("psu-name");if(nm)nm.textContent=ctx.name||"";
   var link=document.getElementById("psu-clause-link");
-  if(link){link.setAttribute("data-href",ctx.klauselUrl||"#");link.setAttribute("href",ctx.klauselUrl||"#");}
+  if(link){link.setAttribute("data-href",ctx.klauselUrl||("#"));link.setAttribute("href",ctx.klauselUrl||("#"));}
   ["psu-pw1","psu-pw2"].forEach(function(id){var el=document.getElementById(id);if(el)el.value="";});
   var cr=document.getElementById("psu-chk-read"),cf=document.getElementById("psu-chk-final");
   if(cr){cr.checked=false;cr.disabled=true;}if(cf){cf.checked=false;cf.disabled=true;}
@@ -143,6 +143,8 @@ function submitProfileSetup(){
     setBL(btn,false);
     if(r&&r.ok){
       var ov=document.getElementById("profile-setup-overlay");if(ov)ov.style.display="none";
+      if(window._psuPendingLoginName){ applyEmp(window._psuPendingLoginName,window._psuPendingLoginRolle||"mitarbeiter"); loadStats(); checkUnconfirmedNotifs(); }
+      window._psuPendingLoginName=""; window._psuPendingLoginRolle="";
       toast("Profil aktiv ✅","ok");
     }else{
       if(dg){dg.className="diag derr";dg.textContent=r?r.fehler:"Fehler";dg.style.display="block";}
@@ -276,7 +278,8 @@ function configS2(t){var tt={konsole:"Name der Konsole",spiel:"Spieltitel",contr
 function configS3(t){
   var h="";
   if(t==="konsole"){document.getElementById("s3-title").textContent="Speicher & Farbe";h='<div class="row g-2 mb-3"><div class="col-6"><label class="fl">Speicher (GB)</label><input type="number" id="f-gb" class="fc" placeholder="z.B. 825"/></div><div class="col-6"><label class="fl">Farbe</label><input type="text" id="f-farbe" class="fc" placeholder="z.B. Weiß"/></div></div>';}
-  else if(t==="spiel"||t==="controller"){document.getElementById("s3-title").textContent=(t==="controller"?"Controller-Details":"Spiel-Details");h='<div class="mb-3"><label class="fl">System / Plattform</label>'+selHTML("f-sys",["PlayStation 5","PlayStation 4","PlayStation 3","Xbox Series X/S","Xbox One","Xbox 360","Nintendo Switch","Nintendo 3DS","Nintendo Wii","Nintendo Wii U","Game Boy Advance","Nintendo DS","PC","Controller","Sonstiges"])+'</div><div class="row g-2 mb-3"><div class="col-4"><label class="fl">USK</label>'+selHTML("f-usk",["","USK 0","USK 6","USK 12","USK 16","USK 18"])+'</div><div class="col-4"><label class="fl">Sprache</label>'+selHTML("f-sprache",["Deutsch","Englisch","Multilingual","Sonstiges"])+'</div><div class="col-4"><label class="fl" style="display:flex;align-items:center;gap:4px">Zustand <button type="button" onclick="showZustandInfo()" style="width:17px;height:17px;background:var(--blue);border:none;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#fff;cursor:pointer;flex-shrink:0;padding:0">i</button></label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div></div><div class="mb-3"><label class="fl">Hinweise</label><textarea id="f-hinweise" class="fc" placeholder="z.B. Cover fehlt…"></textarea></div>';}
+  else if(t==="spiel"){document.getElementById("s3-title").textContent="Spiel-Details";h='<div class="mb-3"><label class="fl">System / Plattform</label>'+selHTML("f-sys",["PlayStation 5","PlayStation 4","PlayStation 3","Xbox Series X/S","Xbox One","Xbox 360","Nintendo Switch","Nintendo 3DS","Nintendo Wii","Nintendo Wii U","Game Boy Advance","Nintendo DS","PC","Sonstiges"])+'</div><div class="row g-2 mb-3"><div class="col-4"><label class="fl">USK</label>'+selHTML("f-usk",["","USK 0","USK 6","USK 12","USK 16","USK 18"])+'</div><div class="col-4"><label class="fl">Sprache</label>'+selHTML("f-sprache",["Deutsch","Englisch","Multilingual","Sonstiges"])+'</div><div class="col-4"><label class="fl" style="display:flex;align-items:center;gap:4px">Zustand <button type="button" onclick="showZustandInfo()" style="width:17px;height:17px;background:var(--blue);border:none;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#fff;cursor:pointer;flex-shrink:0;padding:0">i</button></label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div></div><div class="mb-3"><label class="fl">Hinweise</label><textarea id="f-hinweise" class="fc" placeholder="z.B. Cover fehlt…"></textarea></div>';}
+  else if(t==="controller"){document.getElementById("s3-title").textContent="Controller-Details";h='<div class="row g-2 mb-3"><div class="col-6"><label class="fl">Plattform *</label>'+selHTML("f-sys",["Controller","PlayStation","Xbox","Nintendo","PC","Universal"])+'</div><div class="col-6"><label class="fl">Verbindung</label>'+selHTML("f-conn",["Wireless","Bluetooth","USB-C","Micro-USB","Kabel"])+'</div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Marke</label><input type="text" id="f-brand-c" class="fc" placeholder="z.B. Sony"/></div><div class="col-6"><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div></div><div class="mb-3"><label class="fl">Stickdrift</label>'+selHTML("f-drift",["Nein","Leicht","Stark"])+'</div><div class="mb-3"><label class="fl">Hinweise</label><textarea id="f-hinweise" class="fc" placeholder="z.B. Trigger klemmt leicht"></textarea></div>';}
   else if(t==="handy"){document.getElementById("s3-title").textContent="Technische Daten";h='<div class="row g-2 mb-3"><div class="col-6"><label class="fl">Speicher (GB)</label><input type="number" id="f-gb" class="fc" placeholder="z.B. 256"/></div><div class="col-6"><label class="fl">RAM (GB)</label><input type="number" id="f-ram" class="fc" placeholder="z.B. 8"/></div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Farbe</label><input type="text" id="f-farbe" class="fc" placeholder="z.B. Midnight Black"/></div><div class="col-6"><label class="fl">Netzwerk</label>'+selHTML("f-netz",["","4G/LTE","5G","Dual-SIM 5G","Sonstiges"])+'</div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div><div class="col-6"><label class="fl">IMEI (optional)</label><input type="text" id="f-imei" class="fc" placeholder="15-stellig"/></div></div>';}
   else if(t==="pc"){document.getElementById("s3-title").textContent="Hardware-Spezifikationen";h='<div class="mb-3"><label class="fl">Typ – Bitte zuerst wählen</label><div class="cg2"><button class="cbtn" id="pc-l" onclick="selPCTyp(\'Laptop\')"><span class="ci">💻</span>Laptop</button><button class="cbtn" id="pc-d" onclick="selPCTyp(\'Desktop\')"><span class="ci">🖥️</span>Desktop</button></div><input type="hidden" id="f-pc-typ" value=""/></div><div id="pc-fields-wrap" style="display:none"></div>';}
   document.getElementById("s3-fields").innerHTML=h;
@@ -461,7 +464,8 @@ function doSave(){
   var fn="";
 
   if(curType==="konsole"){d.name=name;d.speicherGB=gv("f-gb");d.farbe=gv("f-farbe");fn=isEditMode?"updateKonsole":"saveKonsole";}
-  else if(curType==="spiel"||curType==="controller"){d.spiel=name;d.system=(forcedSpielSystem||gv("f-sys")||"Controller");d.zustand=gv("f-zustand");d.usk=gv("f-usk");d.sprache=gv("f-sprache");d.hinweise=gv("f-hinweise");fn=isEditMode?"updateSpiel":"saveSpiel";}
+  else if(curType==="spiel"){d.spiel=name;d.system=gv("f-sys");d.zustand=gv("f-zustand");d.usk=gv("f-usk");d.sprache=gv("f-sprache");d.hinweise=gv("f-hinweise");fn=isEditMode?"updateSpiel":"saveSpiel";}
+  else if(curType==="controller"){d.spiel=name;d.system="Controller";d.zustand=gv("f-zustand");d.usk="";d.sprache="";d.hinweise=["Marke: "+(gv("f-brand-c")||"-"),"Verbindung: "+(gv("f-conn")||"-"),"Stickdrift: "+(gv("f-drift")||"Nein"),gv("f-hinweise")||""].join(" | ");fn=isEditMode?"updateSpiel":"saveSpiel";}
   else if(curType==="handy"){d.modell=name;d.speicherGB=gv("f-gb");d.ram=gv("f-ram");d.farbe=gv("f-farbe");d.netzwerk=gv("f-netz");d.imei=gv("f-imei");d.zustand=gv("f-zustand");fn=isEditMode?"updateHandy":"saveHandy";}
   else if(curType==="pc"){var pcTyp=gv("f-pc-typ");d.modell=(gv("f-brand")||name);d.typ=pcTyp;d.prozessor=gv("f-cpu");d.ram=gv("f-ram");d.speicherGB=gv("f-gb");d.speicherTyp=gv("f-stype");d.grafikkarte=gv("f-gpu");d.mainboard=gv("f-mb");d.netzteil=gv("f-psu");d.anschluesse=gv("f-ports");d.betriebssystem=gv("f-os");d.zustand=gv("f-zustand");if(pcTyp==="Laptop"){d.anschluesse=gv("f-screen")+" | Akku: "+gv("f-battery");}fn=isEditMode?"updatePC":"savePC";}
 
@@ -514,9 +518,42 @@ function loadAll(force){
   gasGet("getAllPCs",{},function(r){if(r&&r.ok)pd=r.data||[];tryR();},function(){tryR();});
   gasGet("getAllDefekte",{},function(r){if(r&&r.ok)dd=r.data||[];tryR();},function(){tryR();});
 }
-function renderList(){cardRegistry=[];var q=document.getElementById("list-q").value.toLowerCase();var f=allItems.filter(function(i){var tm=true;if(lf==="spielwaren")tm=(i.type==="konsole"||i.type==="spiel");else if(lf==="handy")tm=(i.type==="handy");else if(lf==="pc")tm=(i.type==="pc");else if(lf==="defekt")tm=(i.type==="defekt");if(!tm)return false;if(!q)return true;var n=i.name||i.spiel||i.modell||i.geraet||"";var hay=[n,i.scanId,i.mitarbeiter,i.zustand,i.problemTyp,i.problemBeschr,i.kategorie,i.ursprung].map(function(v){return String(v||"").toLowerCase();}).join(" ");return hay.indexOf(q)>-1;});document.getElementById("list-count").textContent=f.length+" Einträge";var cntEl=document.getElementById("lager-cat-count");if(cntEl)cntEl.textContent="("+f.length+" Artikel)";if(!f.length){document.getElementById("list-body").innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Nichts gefunden.</p></div>';return;}document.getElementById("list-body").innerHTML=f.map(function(i){return mkCard(i);}).join("");}
+function renderList(){cardRegistry=[];ensureLagerDropdownUI();var q=document.getElementById("list-q").value.toLowerCase();var ddMain=(document.getElementById("lager-dd-main")||{value:""}).value;var ddSub=(document.getElementById("lager-dd-sub")||{value:""}).value;var ddSub2=(document.getElementById("lager-dd-sub2")||{value:""}).value;var f=allItems.filter(function(i){var tm=true;if(lf==="spielwaren")tm=(i.type==="konsole"||i.type==="spiel");else if(lf==="handy")tm=(i.type==="handy");else if(lf==="pc")tm=(i.type==="pc");else if(lf==="defekt")tm=(i.type==="defekt");if(!tm)return false;if(ddMain==="spielwaren"){if(ddSub==="konsole"&&i.type!=="konsole")return false;if(ddSub==="spiel"&&(i.type!=="spiel"||String(i.system||"").toLowerCase()==="controller"))return false;if(ddSub==="controller"&&(i.type!=="spiel"||String(i.system||"").toLowerCase()!=="controller"))return false;}if(ddMain==="handy"){if(i.type!=="handy")return false;if(ddSub&&String(i.modell||"").indexOf(ddSub)!==0)return false;if(ddSub2&&String(i.modell||"")!==ddSub2)return false;}if(ddMain==="pc"){if(i.type!=="pc")return false;if(ddSub&&String(i.typ_||"").toLowerCase()!==String(ddSub||"").toLowerCase())return false;}if(!q)return true;var n=i.name||i.spiel||i.modell||i.geraet||"";var hay=[n,i.scanId,i.mitarbeiter,i.zustand,i.problemTyp,i.problemBeschr,i.kategorie,i.ursprung].map(function(v){return String(v||"").toLowerCase();}).join(" ");return hay.indexOf(q)>-1;});document.getElementById("list-count").textContent=f.length+" Einträge";var cntEl=document.getElementById("lager-cat-count");if(cntEl)cntEl.textContent="("+f.length+" Artikel)";if(!f.length){document.getElementById("list-body").innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Nichts gefunden.</p></div>';return;}document.getElementById("list-body").innerHTML=f.map(function(i){return mkCard(i);}).join("");}
 var lfArr=["all","spielwaren","handy","pc","defekt"],lfLabels={"all":"Gesamtes Lager","spielwaren":"🎮 Spielwaren","handy":"📱 Handys","pc":"💻 PCs & Laptops","defekt":"⚠️ Defekte Geräte"};
 function setLF(m){lf=m;var tabs=document.querySelectorAll("#list-panel .lager-tabs .ltab");var idx=lfArr.indexOf(m);tabs.forEach(function(t,i){t.classList.toggle("on",i===idx);});var hdr=document.getElementById("lager-category-header"),lbl=document.getElementById("lager-cat-label");if(hdr&&lbl){if(m==="all"){hdr.style.display="none";}else{hdr.style.display="block";lbl.textContent=lfLabels[m]||m;}}renderList();}
+function ensureLagerDropdownUI(){
+  var wrap=document.querySelector("#list-panel .wrap");
+  if(!wrap||document.getElementById("lager-dd-wrap"))return;
+  var box=document.createElement("div");
+  box.id="lager-dd-wrap";
+  box.style.cssText="display:flex;gap:6px;margin:-4px 0 10px;flex-wrap:wrap";
+  box.innerHTML='<select id="lager-dd-main" class="fc" style="width:auto;min-width:140px;font-size:11px;padding:8px 10px"><option value="">Kategorie-Filter</option><option value="spielwaren">Spielwaren</option><option value="handy">Handys</option><option value="pc">PC</option></select><select id="lager-dd-sub" class="fc" style="width:auto;min-width:150px;font-size:11px;padding:8px 10px;display:none"></select><select id="lager-dd-sub2" class="fc" style="width:auto;min-width:150px;font-size:11px;padding:8px 10px;display:none"></select>';
+  var body=document.getElementById("list-body");
+  if(body&&body.parentNode===wrap)wrap.insertBefore(box,body);
+  document.getElementById("lager-dd-main").onchange=function(){updateLagerDropdowns();renderList();};
+  document.getElementById("lager-dd-sub").onchange=function(){updateLagerDropdowns(true);renderList();};
+  document.getElementById("lager-dd-sub2").onchange=function(){renderList();};
+}
+function updateLagerDropdowns(skipReset){
+  var main=document.getElementById("lager-dd-main"),sub=document.getElementById("lager-dd-sub"),sub2=document.getElementById("lager-dd-sub2");
+  if(!main||!sub||!sub2)return;
+  var m=main.value||"";
+  if(!skipReset){sub.value="";sub2.value="";}
+  if(!m){sub.style.display="none";sub2.style.display="none";return;}
+  sub.style.display="block";
+  if(m==="spielwaren"){
+    sub.innerHTML='<option value="">Typ</option><option value="konsole">Konsolen</option><option value="spiel">Spiele</option><option value="controller">Controller</option>';
+    sub2.style.display="none";
+  }else if(m==="handy"){
+    var brands={};allItems.filter(function(i){return i.type==="handy";}).forEach(function(i){var b=(String(i.modell||"").split(" ")[0]||"").trim();if(b)brands[b]=1;});
+    var opts=Object.keys(brands).sort();
+    sub.innerHTML='<option value="">Marke</option>'+opts.map(function(b){return'<option value="'+esc(b)+'">'+esc(b)+'</option>';}).join("");
+    if(sub.value){var models={};allItems.filter(function(i){return i.type==="handy"&&String(i.modell||"").indexOf(sub.value)===0;}).forEach(function(i){models[i.modell]=1;});var mopts=Object.keys(models).sort();sub2.innerHTML='<option value="">Modell</option>'+mopts.map(function(x){return'<option value="'+esc(x)+'">'+esc(x)+'</option>';}).join("");sub2.style.display="block";}else{sub2.style.display="none";}
+  }else{
+    sub.innerHTML='<option value="">Typ</option><option value="Laptop">Laptop</option><option value="Desktop">Desktop</option>';
+    sub2.style.display="none";
+  }
+}
 
 function mkCard(item){
   // Fix 7: Kleinanzeigen Status
@@ -567,7 +604,7 @@ function confirmDelete(rIdx){var item=cardRegistry[rIdx];if(!item)return;var nm=
 function confirmDeleteDefekt(rIdx){var item=cardRegistry[rIdx];if(!item)return;document.getElementById("del-modal-text").textContent='"'+(item.geraet||"?")+'" wirklich löschen?';document.getElementById("del-modal-confirm").onclick=function(){closeDelModal();doDeleteDefekt(item);};document.getElementById("del-modal").classList.add("open");}
 function closeDelModal(){document.getElementById("del-modal").classList.remove("open");}
 function doDelete(item){var fns={konsole:"deleteKonsole",spiel:"deleteSpiel",handy:"deleteHandy",pc:"deletePC"};var fn=fns[item.type];if(!fn){toast("Nicht verfügbar.","err");return;}gasGet(fn,{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast(r.msg,"ok");allItems=[];loadAll();loadStats();}else{toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){toast("Fehler: "+e,"err");});}
-function doDeleteDefekt(item){gasGet("deleteDefekt",{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast(r.msg,"ok");allItems=[];loadAll();loadStats();}else{toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){toast("Fehler: "+e,"err");});}
+function doDeleteDefekt(item){if(String(item.rowIndex||"").indexOf("virtual-")===0){toast("Virtueller Defekt-Eintrag kann nur im Ursprungsartikel bearbeitet werden.","info",2600);return;}gasGet("deleteDefekt",{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast(r.msg,"ok");allItems=[];loadAll();loadStats();}else{toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){toast("Fehler: "+e,"err");});}
 
 // ── SUCHE ─────────────────────────────────────────────────────────
 var recentSearches=[],searchResults=[];
@@ -659,7 +696,7 @@ try{
     }
   }
 }catch(e){}}
-function openBestandPruefmodus(){goTabFn("list-panel","all");var q=document.getElementById("list-q");if(q)q.value="defekt";renderList();toast("Prüfmodus aktiv: Defekte und Bestände prüfen.","info",2800);}
+function openBestandPruefmodus(){openBestandsmasterPro();toast("BestandsmasterPro geöffnet.","info",1800);}
 
 // ================================================================
 // SCAN MODE
@@ -783,9 +820,10 @@ function ensureHandelDateFilterUI(){
   if(!panel || document.getElementById("handel-date-filter-box")) return;
   var wrap=document.createElement("div");
   wrap.id="handel-date-filter-box";
-  wrap.style.cssText="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap";
+  wrap.style.cssText="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap;background:var(--b2);border:1px solid var(--e1);border-radius:8px;padding:8px 10px";
   wrap.innerHTML=''
-    +'<select id="handel-date-mode" class="fc" style="width:auto;min-width:145px;font-size:11px;padding:8px 10px;font-family:\'Space Mono\',monospace">'
+    +'<span style="font-size:10px;color:var(--w4);font-family:monospace;letter-spacing:.5px">ZEITFILTER</span>'
+    +'<select id="handel-date-mode" class="fc" style="width:auto;min-width:145px;font-size:11px;padding:8px 10px;font-family:\'Space Mono\',monospace;background:var(--b1)">'
     +'<option value="thismonth">DIESER MONAT</option>'
     +'<option value="lastmonth">LETZTER MONAT</option>'
     +'<option value="all">GESAMT</option>'
@@ -1778,6 +1816,7 @@ function openProfilFor(name) {
   (allVerkauf||[]).forEach(function(v){if((v.mitarbeiter||"").toLowerCase()!==name.toLowerCase())return;if(!v.datum)return;var pts=v.datum.split(".");if(pts.length<3)return;var dd=new Date(pts[2].split(" ")[0],pts[1]-1,pts[0]);if(dd>=sevenAgo)vk7++;});
   var p7e=document.getElementById("ps-7d-eingelagert");if(p7e)p7e.textContent=ein7;
   var p7v=document.getElementById("ps-7d-verkauft");if(p7v)p7v.textContent=vk7;
+  ensureBestandsmasterBtn();
   // Load activity log
   var logEl = document.getElementById("profil-log");
   if (logEl) logEl.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center;padding:8px"><span class="spin-b"></span> Lade…</div>';
@@ -1819,6 +1858,49 @@ function openProfilFor(name) {
   }, function() {});
   document.getElementById("profil-overlay").classList.add("open");
 }
+
+function ensureBestandsmasterBtn(){
+  var ov=document.getElementById("profil-overlay");
+  if(!ov||document.getElementById("btn-bestandsmasterpro"))return;
+  var container=ov.querySelector("div[style*='padding:20px 13px']")||ov;
+  var btn=document.createElement("button");
+  btn.id="btn-bestandsmasterpro";
+  btn.className="btn btn-outline-primary w-100 mb-3";
+  btn.innerHTML='Zum BestandsmasterPro';
+  btn.onclick=function(){openBestandsmasterPro();};
+  container.insertBefore(btn,container.children[1]||null);
+}
+
+function ensureBestandsmasterOverlay(){
+  if(document.getElementById("bestandsmaster-overlay"))return;
+  var ov=document.createElement("div");
+  ov.id="bestandsmaster-overlay";
+  ov.style.cssText="display:none;position:fixed;inset:0;background:#05070b;z-index:10020;overflow:auto;padding:14px";
+  ov.innerHTML='<div style="max-width:820px;margin:0 auto"><div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><button class="btn btn-outline-secondary btn-sm" onclick="closeBestandsmasterPro()">← Zurück zum STKMPro</button><div style="margin-left:auto;font-family:monospace;font-size:11px;color:var(--w3)">BestandsmasterPro</div></div><div style="background:var(--b2);border:1px solid var(--e1);border-radius:10px;padding:12px;margin-bottom:10px"><div style="font-size:12px;color:var(--w3)">Angemeldet als</div><div id="bm-user" style="font-size:18px;font-weight:800;color:var(--acc)"></div></div><div id="bm-body"></div></div>';
+  document.body.appendChild(ov);
+}
+function bmStorageKey(){ return "bmp_checks_"+String(emp||"Unbekannt").toLowerCase(); }
+function bmLoad(){ try{return JSON.parse(localStorage.getItem(bmStorageKey())||"[]");}catch(e){return[];} }
+function bmSave(arr){ try{localStorage.setItem(bmStorageKey(),JSON.stringify(arr||[]));}catch(e){} }
+function openBestandsmasterPro(){ ensureBestandsmasterOverlay(); document.getElementById("bm-user").textContent=emp||"Unbekannt"; document.getElementById("bestandsmaster-overlay").style.display="block"; renderBestandsmasterPro(); }
+function closeBestandsmasterPro(){ var ov=document.getElementById("bestandsmaster-overlay"); if(ov)ov.style.display="none"; }
+function renderBestandsmasterPro(){
+  var body=document.getElementById("bm-body"); if(!body) return;
+  var list=bmLoad();
+  var now=new Date().toLocaleString("de-DE");
+  body.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><button class="btn btn-primary btn-sm" onclick="bmNewCheck()">Neue Bestandsprüfung</button><button class="btn btn-outline-secondary btn-sm" onclick="renderBestandsmasterPro()">Aktualisieren</button></div>'+(list.length?list.map(function(it,idx){return '<div style="background:var(--b2);border:1px solid var(--e1);border-radius:10px;padding:10px;margin-bottom:8px"><div style="display:flex;justify-content:space-between"><b>'+esc(it.name||"Prüfung")+'</b><span style="font-size:10px;color:var(--w4)">'+esc(it.time||now)+'</span></div><div style="font-size:11px;color:var(--w3);margin-top:4px">Defekt: '+(it.defekt||0)+' · Spielwaren: '+(it.spielwaren||0)+' · Handy: '+(it.handy||0)+' · PC: '+(it.pc||0)+'</div><div style="font-size:11px;color:var(--w2);margin-top:4px">'+esc(it.note||"")+'</div><button class="btn btn-outline-danger btn-sm mt-2" onclick="bmDelete('+idx+')">Löschen</button></div>';}).join(""):'<div class="empty"><i class="bi bi-clipboard2-check"></i><p>Keine Prüfungen vorhanden</p></div>');
+}
+function bmNewCheck(){
+  var list=bmLoad();
+  var def=allItems.filter(function(i){return i.type==="defekt";}).length;
+  var sw=allItems.filter(function(i){return i.type==="konsole"||i.type==="spiel";}).length;
+  var h=allItems.filter(function(i){return i.type==="handy";}).length;
+  var pc=allItems.filter(function(i){return i.type==="pc";}).length;
+  var note=prompt("Notiz zur Prüfung (optional):","")||"";
+  list.unshift({name:"Prüfung #"+(list.length+1),time:new Date().toLocaleString("de-DE"),defekt:def,spielwaren:sw,handy:h,pc:pc,note:note,by:emp});
+  bmSave(list); renderBestandsmasterPro(); addNotification("📋 Bestandskontrolle","Prüfung gespeichert von "+emp+".","info","bestand-pruefmodus");
+}
+function bmDelete(idx){ var list=bmLoad(); list.splice(idx,1); bmSave(list); renderBestandsmasterPro(); }
 
 // ================================================================
 // REKLAMATION
@@ -2147,18 +2229,19 @@ function doLogin(){
         document.getElementById("pw-err").style.display="none";
         var loginName=r.name||input;
         if(r.name&&input.indexOf("@")>-1)loginName=r.name;
-        if(r.needsProfileSetup){
-          applyEmp(loginName,r.rolle||"mitarbeiter");
-          showProfileSetupOverlay({name:loginName,klauselUrl:r.klauselUrl||"",currentPassword:pw});
-          loadStats();
-          checkUnconfirmedNotifs();
-          return;
-        }
         applyEmp(loginName,r.rolle||"mitarbeiter");
         toast("Hey "+loginName+" 🚀","ok");
         loadStats();
         checkUnconfirmedNotifs();
       } else {
+        if(r&&r.accountNotActive){
+          document.getElementById("pw-err").style.display="none";
+          window._psuPendingLoginName=r.name||input;
+          window._psuPendingLoginRolle=r.rolle||"mitarbeiter";
+          showProfileSetupOverlay({name:r.name||input,klauselUrl:r.klauselUrl||"",currentPassword:pw});
+          showLoginErr("⚠️ Account noch nicht aktiv.");
+          return;
+        }
         showLoginErr("❌ "+(r&&r.fehler?r.fehler:"Falsches Passwort."));
         var p=document.getElementById("pw-in");if(p)p.focus();
       }
