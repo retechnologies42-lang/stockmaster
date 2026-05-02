@@ -245,3 +245,12 @@
 .kpi-dash-hit{cursor:pointer;flex:1;min-width:0;padding:4px 6px;margin:-4px -6px;border-radius:var(--r);transition:background .12s}
 .kpi-dash-hit:hover{background:rgba(0,255,136,.06)}
 .kpi-dash-hit:active{background:rgba(0,255,136,.1)}
+
+#vk-multi-overlay{z-index:220!important}
+.wf-card .wf-actions{flex-wrap:wrap;gap:6px;align-items:center}
+.wf-act-btn.wf-act-lbl{display:inline-flex;align-items:center;gap:5px;padding:6px 10px!important;min-height:36px;font-size:10px!important;font-weight:700;letter-spacing:.2px;white-space:nowrap}
+.wf-act-btn .wf-act-ic{font-size:15px;line-height:1;flex-shrink:0}
+.vk-rm-btn{background:transparent;border:none;color:var(--w4);cursor:pointer;font-size:16px;padding:2px 6px;line-height:1;border-radius:var(--r-sm)}
+.vk-rm-btn:hover{color:var(--col-r);background:rgba(255,59,59,.08)}
+.handel-empty-act .wf-empty-main{box-shadow:0 0 20px rgba(0,255,136,.12)}
+.handel-empty-act .wf-empty-sec{border-color:var(--e2)!important;color:var(--w2)!important}
