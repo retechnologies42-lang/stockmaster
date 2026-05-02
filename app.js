@@ -575,7 +575,8 @@ function saveStepperDraft(){
     var d={
       stepCur:stepCur,
       scanId:gv("f-scanid"),name:gv("f-name"),ma:gv("f-ma"),ek:gv("f-einkaufspreis"),wt:gv("f-warentyp"),
-      sys:gv("f-sys"),zustand:gv("f-zustand"),hinweise:gv("f-hinweise"),
+      sys:gv("f-sys"),zustand:gv("f-zustand"),hinweise:gv("f-hinweise"),product:gv("f-product-c"),conn:gv("f-conn"),drift:gv("f-drift"),box:gv("f-box-c"),acc:gv("f-acc-c"),
+      optOpen:(function(){var e=document.getElementById("s3-optional-wrap");return !!(e&&e.style.display!=="none");})(),
       probChoice:probChoice,probType:probType,probD:gv("f-prob-beschr"),
       photos:(photos||[]).slice(0,12)
     };
@@ -588,10 +589,11 @@ function loadStepperDraft(){
     var d=JSON.parse(raw||"{}");if(!d)return;
     if(!isEditMode){
       sv("f-scanid",d.scanId);sv("f-name",d.name);sv("f-ma",d.ma);sv("f-einkaufspreis",d.ek);sv("f-warentyp",d.wt);
-      sv("f-sys",d.sys);sv("f-zustand",d.zustand);sv("f-hinweise",d.hinweise);sv("f-prob-beschr",d.probD);
+      sv("f-sys",d.sys);sv("f-zustand",d.zustand);sv("f-hinweise",d.hinweise);sv("f-product-c",d.product);sv("f-conn",d.conn);sv("f-drift",d.drift);sv("f-box-c",d.box);sv("f-acc-c",d.acc);sv("f-prob-beschr",d.probD);
       if(Array.isArray(d.photos)){photos=d.photos.slice(0,12);renderAllPhotos();}
       if(d.probChoice){selProb(d.probChoice);}
       if(d.probType){selProbType(d.probType);}
+      if(curType==="controller"){refreshControllerChipState();if(d.optOpen){var bx=document.getElementById("s3-optional-wrap"),bt=document.getElementById("s3-toggle-more");if(bx)bx.style.display="block";if(bt)bt.textContent="Weitere Details ausblenden";}}
       if(d.stepCur&&d.stepCur>=1&&d.stepCur<=stepTotal)stepCur=d.stepCur;
       updateProgress();showStep(stepCur);
     }
@@ -612,6 +614,48 @@ function applySmartSuggestions(){
   if(n.indexOf("ps5")>-1||n.indexOf("playstation")>-1)sys.value="PlayStation";
   else if(n.indexOf("xbox")>-1)sys.value="Xbox";
   else if(n.indexOf("switch")>-1||n.indexOf("nintendo")>-1)sys.value="Nintendo";
+  var product=document.getElementById("f-product-c");
+  if(product&&!product.value){
+    if(/dualsense|playstation|ps5/i.test(n))product.value="Sony DualSense V2";
+    if(/xbox/i.test(n))product.value="Microsoft Xbox Controller";
+  }
+  refreshControllerChipState();
+  updateStepperCTA();
+}
+function setChipValue(field,val,prefix){
+  var el=document.getElementById(field);if(!el)return;
+  el.value=String(val||"");
+  var wrap=document.getElementById(prefix);if(wrap){
+    var chips=wrap.querySelectorAll(".sm-chip");
+    for(var i=0;i<chips.length;i++){
+      var c=chips[i];
+      c.classList.toggle("on",(c.getAttribute("data-v")||"")===String(val||""));
+    }
+  }
+  saveStepperDraft();
+  updateStepperCTA();
+}
+function refreshControllerChipState(){
+  ["f-sys","f-zustand","f-drift"].forEach(function(id){
+    var el=document.getElementById(id);if(!el)return;
+    var pf=id==="f-sys"?"chip-sys":id==="f-zustand"?"chip-zst":"chip-drift";
+    setChipValue(id,el.value||"",pf);
+  });
+}
+function toggleControllerDetails(){
+  var box=document.getElementById("s3-optional-wrap");
+  var btn=document.getElementById("s3-toggle-more");
+  if(!box||!btn)return;
+  var open=box.style.display!=="none";
+  box.style.display=open?"none":"block";
+  btn.textContent=open?"Weitere Details anzeigen":"Weitere Details ausblenden";
+}
+function updateStepperCTA(){
+  var bn=document.getElementById("btn-next");if(!bn)return;
+  var needs=(stepCur===3&&curType==="controller");
+  var ok=!needs||(!!gv("f-sys")&&!!gv("f-zustand"));
+  bn.disabled=!ok;
+  bn.textContent=ok?"Weiter":"Bitte Pflichtfelder ausfüllen";
 }
 function setDefaultWarentyp(){
   var wt=document.getElementById("f-warentyp");if(!wt||wt.value)return;
@@ -661,11 +705,43 @@ function configS3(t){
   var h="";
   if(t==="konsole"){document.getElementById("s3-title").textContent="Speicher & Farbe";h='<div class="row g-2 mb-3"><div class="col-6"><label class="fl">Speicher (GB)</label><input type="number" id="f-gb" class="fc" placeholder="z.B. 825"/></div><div class="col-6"><label class="fl">Farbe</label><input type="text" id="f-farbe" class="fc" placeholder="z.B. Weiß"/></div></div><div class="mb-3"><label class="fl">Zustand *</label>'+selHTML("f-zustand",["Neu","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div>';}
   else if(t==="spiel"){document.getElementById("s3-title").textContent="Spiel-Details";h='<div class="mb-3"><label class="fl">System / Plattform</label>'+selHTML("f-sys",["PlayStation 5","PlayStation 4","PlayStation 3","Xbox Series X/S","Xbox One","Xbox 360","Nintendo Switch","Nintendo 3DS","Nintendo Wii","Nintendo Wii U","Game Boy Advance","Nintendo DS","PC","Sonstiges"])+'</div><div class="row g-2 mb-3"><div class="col-4"><label class="fl">USK</label>'+selHTML("f-usk",["","USK 0","USK 6","USK 12","USK 16","USK 18"])+'</div><div class="col-4"><label class="fl">Sprache</label>'+selHTML("f-sprache",["Deutsch","Englisch","Multilingual","Sonstiges"])+'</div><div class="col-4"><label class="fl" style="display:flex;align-items:center;gap:4px">Zustand <button type="button" onclick="showZustandInfo()" style="width:17px;height:17px;background:var(--blue);border:none;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#fff;cursor:pointer;flex-shrink:0;padding:0">i</button></label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div></div><div class="mb-3"><label class="fl">Hinweise</label><textarea id="f-hinweise" class="fc" placeholder="z.B. Cover fehlt…"></textarea></div>';}
-  else if(t==="controller"){document.getElementById("s3-title").textContent="Controller-Details";h='<div class="row g-2 mb-3"><div class="col-6"><label class="fl">Plattform *</label>'+selHTML("f-sys",["PlayStation","Xbox","Nintendo","PC","Universal"])+'</div><div class="col-6"><label class="fl">Verbindung</label>'+selHTML("f-conn",["Wireless","Bluetooth","USB-C","Micro-USB","Kabel"])+'</div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Marke <span style="opacity:.7">(empf.)</span></label><input type="text" id="f-brand-c" class="fc" placeholder="z.B. Sony"/></div><div class="col-6"><label class="fl">Modell <span style="opacity:.7">(empf.)</span></label><input type="text" id="f-model-c" class="fc" placeholder="z.B. DualSense V2"/></div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Zustand *</label>'+selHTML("f-zustand",["Neu","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div><div class="col-6"><label class="fl">Stickdrift</label>'+selHTML("f-drift",["Kein","Leicht","Stark"])+'</div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Originalverpackung</label>'+selHTML("f-box-c",["Nein","Ja"])+'</div><div class="col-6"><label class="fl">Zubehör</label><input type="text" id="f-acc-c" class="fc" placeholder="z.B. Ladekabel, Dock"/></div></div><div class="mb-3"><label class="fl">Hinweise</label><textarea id="f-hinweise" class="fc" placeholder="z.B. Trigger klemmt leicht"></textarea></div>';}
+  else if(t==="controller"){
+    document.getElementById("s3-title").textContent="Details";
+    h='<div class="sm-sec sm-main"><div class="sm-sec-h">Wichtig</div><label class="fl">Plattform *</label><input type="hidden" id="f-sys" value=""/><div id="chip-sys" class="sm-chip-row">'+
+      '<button type="button" class="sm-chip" data-v="PlayStation" onclick="setChipValue(\'f-sys\',\'PlayStation\',\'chip-sys\')">PlayStation</button>'+
+      '<button type="button" class="sm-chip" data-v="Xbox" onclick="setChipValue(\'f-sys\',\'Xbox\',\'chip-sys\')">Xbox</button>'+
+      '<button type="button" class="sm-chip" data-v="Nintendo" onclick="setChipValue(\'f-sys\',\'Nintendo\',\'chip-sys\')">Nintendo</button>'+
+      '<button type="button" class="sm-chip" data-v="PC" onclick="setChipValue(\'f-sys\',\'PC\',\'chip-sys\')">PC</button>'+
+      '<button type="button" class="sm-chip" data-v="Universal" onclick="setChipValue(\'f-sys\',\'Universal\',\'chip-sys\')">Universal</button>'+
+      '</div><label class="fl mt-2">Zustand *</label><input type="hidden" id="f-zustand" value=""/><div id="chip-zst" class="sm-chip-row">'+
+      '<button type="button" class="sm-chip" data-v="Neu" onclick="setChipValue(\'f-zustand\',\'Neu\',\'chip-zst\')">Neu</button>'+
+      '<button type="button" class="sm-chip" data-v="Sehr gut" onclick="setChipValue(\'f-zustand\',\'Sehr gut\',\'chip-zst\')">Sehr gut</button>'+
+      '<button type="button" class="sm-chip" data-v="Gut" onclick="setChipValue(\'f-zustand\',\'Gut\',\'chip-zst\')">Gut</button>'+
+      '<button type="button" class="sm-chip" data-v="Akzeptabel" onclick="setChipValue(\'f-zustand\',\'Akzeptabel\',\'chip-zst\')">Akzeptabel</button>'+
+      '<button type="button" class="sm-chip" data-v="Defekt" onclick="setChipValue(\'f-zustand\',\'Defekt\',\'chip-zst\')">Defekt</button>'+
+      '</div></div>'+
+      '<div class="sm-sec sm-sale"><div class="sm-sec-h">Für besseren Verkauf</div><label class="fl">Produkt (hilft beim Verkauf)</label><input type="text" id="f-product-c" class="fc" placeholder="z. B. Sony DualSense V2"/></div>'+
+      '<button type="button" class="btn btn-outline-secondary w-100 mb-2" id="s3-toggle-more" onclick="toggleControllerDetails()">Weitere Details anzeigen</button>'+
+      '<div id="s3-optional-wrap" style="display:none"><div class="sm-sec sm-opt"><div class="sm-sec-h">Weitere Details (optional)</div>'+
+      '<div class="row g-2 mb-2"><div class="col-6"><label class="fl">Verbindung</label>'+selHTML("f-conn",["","Wireless","Bluetooth","USB-C","Micro-USB","Kabel"])+'</div><div class="col-6"><label class="fl">Originalverpackung (erhöht Wert)</label>'+selHTML("f-box-c",["","Nein","Ja"])+'</div></div>'+
+      '<label class="fl">Stickdrift (wichtig für Käufer!)</label><input type="hidden" id="f-drift" value=""/><div id="chip-drift" class="sm-chip-row mb-2">'+
+      '<button type="button" class="sm-chip" data-v="Kein" onclick="setChipValue(\'f-drift\',\'Kein\',\'chip-drift\')">Kein</button>'+
+      '<button type="button" class="sm-chip" data-v="Leicht" onclick="setChipValue(\'f-drift\',\'Leicht\',\'chip-drift\')">Leicht</button>'+
+      '<button type="button" class="sm-chip" data-v="Stark" onclick="setChipValue(\'f-drift\',\'Stark\',\'chip-drift\')">Stark</button>'+
+      '</div><div class="mb-2"><label class="fl">Zubehör (wichtig für Vollständigkeit)</label><input type="text" id="f-acc-c" class="fc" placeholder="z. B. Ladekabel, Dock"/></div>'+
+      '<div class="mb-1"><label class="fl">Hinweise (z. B. kleine Mängel)</label><textarea id="f-hinweise" class="fc" placeholder="z. B. Trigger klemmt leicht"></textarea></div>'+
+      '<div class="sm-opt-note">Hilft, Rückfragen zu vermeiden</div></div></div>';
+  }
   else if(t==="handy"){document.getElementById("s3-title").textContent="Technische Daten";h='<div class="row g-2 mb-3"><div class="col-6"><label class="fl">Speicher (GB)</label><input type="number" id="f-gb" class="fc" placeholder="z.B. 256"/></div><div class="col-6"><label class="fl">RAM (GB)</label><input type="number" id="f-ram" class="fc" placeholder="z.B. 8"/></div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Farbe</label><input type="text" id="f-farbe" class="fc" placeholder="z.B. Midnight Black"/></div><div class="col-6"><label class="fl">Netzwerk</label>'+selHTML("f-netz",["","4G/LTE","5G","Dual-SIM 5G","Sonstiges"])+'</div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div><div class="col-6"><label class="fl">IMEI (optional)</label><input type="text" id="f-imei" class="fc" placeholder="15-stellig"/></div></div>';}
   else if(t==="pc"){document.getElementById("s3-title").textContent="Hardware-Spezifikationen";h='<div class="mb-3"><label class="fl">Typ – Bitte zuerst wählen</label><div class="cg2"><button class="cbtn" id="pc-l" onclick="selPCTyp(\'Laptop\')"><span class="ci">💻</span>Laptop</button><button class="cbtn" id="pc-d" onclick="selPCTyp(\'Desktop\')"><span class="ci">🖥️</span>Desktop</button></div><input type="hidden" id="f-pc-typ" value=""/></div><div id="pc-fields-wrap" style="display:none"></div>';}
   document.getElementById("s3-fields").innerHTML=h;
   if((t==="controller"||forcedSpielSystem==="Controller")&&document.getElementById("f-sys")&&forcedSpielSystem==="Controller"){document.getElementById("f-sys").value="PlayStation";}
+  if(t==="controller"){
+    var zs=document.getElementById("f-zustand");if(zs&&!zs.value)zs.value="Gut";
+    applySmartSuggestions();
+    refreshControllerChipState();
+    updateStepperCTA();
+  }
 }
 function selHTML(id,opts){return'<select id="'+id+'" class="fc"><option value="">– Auswählen –</option>'+opts.map(function(o){return o?'<option>'+o+'</option>':'';}).join("")+'</select>';}
 function selPCTyp(v){
@@ -681,14 +757,16 @@ function buildDots(){var c=document.getElementById("step-dots");c.innerHTML="";f
 function updateProgress(){
   var pct=Math.round((stepCur/stepTotal)*100);
   document.getElementById("prog-bar").style.width=pct+"%";
-  document.getElementById("prog-label").textContent=(isEditMode?"✏️ ":"")+"Schritt "+stepCur+" von "+stepTotal;
-  var nn=SNAMES[curType]||[];document.getElementById("prog-name").textContent=nn[stepCur-1]||"";
+  var nn=SNAMES[curType]||[];
+  document.getElementById("prog-label").textContent=(isEditMode?"✏️ ":"")+"Schritt "+stepCur+" von "+stepTotal+" – "+(nn[stepCur-1]||"");
+  document.getElementById("prog-name").textContent=nn[stepCur-1]||"";
   for(var i=1;i<=stepTotal;i++){var d=document.getElementById("sd"+i);if(d)d.className="sdot"+(i<stepCur?" done":i===stepCur?" act":"");}
   document.getElementById("btn-back").disabled=false;
   var last=(stepCur===stepTotal);
   document.getElementById("btn-next").style.display=last?"none":"inline-flex";
   var sb=document.getElementById("btn-save-step");sb.style.display=last?"inline-flex":"none";
   sb.innerHTML=isEditMode?'<i class="bi bi-pencil-fill me-1"></i>Aktualisieren':'<i class="bi bi-cloud-upload-fill me-1"></i>Speichern';
+  updateStepperCTA();
 }
 function showStep(n){for(var i=1;i<=stepTotal;i++){var el=document.getElementById("st-s"+i);if(el){el.classList.remove("on");if(i===n)el.classList.add("on");}}}
 function jumpToStepperStep(n){
@@ -915,7 +993,7 @@ function doSave(){
 
   if(curType==="konsole"){d.name=name;d.speicherGB=gv("f-gb");d.farbe=gv("f-farbe");fn=isEditMode?"updateKonsole":"saveKonsole";}
   else if(curType==="spiel"){d.spiel=name;d.system=gv("f-sys");d.zustand=gv("f-zustand");d.usk=gv("f-usk");d.sprache=gv("f-sprache");d.hinweise=gv("f-hinweise");fn=isEditMode?"updateSpiel":"saveSpiel";}
-  else if(curType==="controller"){d.spiel=name;d.system="Controller-"+(gv("f-sys")||"Universal");d.zustand=gv("f-zustand");d.usk="";d.sprache="";d.hinweise=["Plattform: "+(gv("f-sys")||"-"),"Marke: "+(gv("f-brand-c")||"-"),"Modell: "+(gv("f-model-c")||"-"),"Verbindung: "+(gv("f-conn")||"-"),"Stickdrift: "+(gv("f-drift")||"Nein"),"OVP: "+(gv("f-box-c")||"Nein"),"Zubehör: "+(gv("f-acc-c")||"-"),gv("f-hinweise")||""].join(" | ");fn=isEditMode?"updateSpiel":"saveSpiel";}
+  else if(curType==="controller"){d.spiel=name;d.system="Controller-"+(gv("f-sys")||"Universal");d.zustand=gv("f-zustand");d.usk="";d.sprache="";d.hinweise=["Plattform: "+(gv("f-sys")||"-"),"Produkt: "+(gv("f-product-c")||"-"),"Verbindung: "+(gv("f-conn")||"-"),"Stickdrift: "+(gv("f-drift")||"-"),"OVP: "+(gv("f-box-c")||"-"),"Zubehör: "+(gv("f-acc-c")||"-"),gv("f-hinweise")||""].join(" | ");fn=isEditMode?"updateSpiel":"saveSpiel";}
   else if(curType==="handy"){d.modell=name;d.speicherGB=gv("f-gb");d.ram=gv("f-ram");d.farbe=gv("f-farbe");d.netzwerk=gv("f-netz");d.imei=gv("f-imei");d.zustand=gv("f-zustand");fn=isEditMode?"updateHandy":"saveHandy";}
   else if(curType==="pc"){var pcTyp=gv("f-pc-typ");d.modell=(gv("f-brand")||name);d.typ=pcTyp;d.prozessor=gv("f-cpu");d.ram=gv("f-ram");d.speicherGB=gv("f-gb");d.speicherTyp=gv("f-stype");d.grafikkarte=gv("f-gpu");d.mainboard=gv("f-mb");d.netzteil=gv("f-psu");d.anschluesse=gv("f-ports");d.betriebssystem=gv("f-os");d.zustand=gv("f-zustand");if(pcTyp==="Laptop"){d.anschluesse=gv("f-screen")+" | Akku: "+gv("f-battery");}fn=isEditMode?"updatePC":"savePC";}
 
