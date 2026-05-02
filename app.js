@@ -636,9 +636,9 @@ function setChipValue(field,val,prefix){
   updateStepperCTA();
 }
 function refreshControllerChipState(){
-  ["f-sys","f-zustand","f-drift"].forEach(function(id){
+  ["f-sys","f-zustand","f-drift","f-conn","f-box-c"].forEach(function(id){
     var el=document.getElementById(id);if(!el)return;
-    var pf=id==="f-sys"?"chip-sys":id==="f-zustand"?"chip-zst":"chip-drift";
+    var pf=id==="f-sys"?"chip-sys":id==="f-zustand"?"chip-zst":id==="f-drift"?"chip-drift":id==="f-conn"?"chip-conn":"chip-box";
     setChipValue(id,el.value||"",pf);
   });
 }
@@ -655,7 +655,7 @@ function updateStepperCTA(){
   var needs=(stepCur===3&&curType==="controller");
   var ok=!needs||(!!gv("f-sys")&&!!gv("f-zustand"));
   bn.disabled=!ok;
-  bn.textContent=ok?"Weiter":"Bitte Pflichtfelder ausfüllen";
+  bn.textContent=ok?"Weiter":"Bitte Plattform und Zustand wählen";
 }
 function setDefaultWarentyp(){
   var wt=document.getElementById("f-warentyp");if(!wt||wt.value)return;
@@ -723,7 +723,16 @@ function configS3(t){
       '<div class="sm-sec sm-sale"><div class="sm-sec-h">Für besseren Verkauf</div><label class="fl">Produkt (hilft beim Verkauf)</label><input type="text" id="f-product-c" class="fc" placeholder="z. B. Sony DualSense V2"/></div>'+
       '<button type="button" class="btn btn-outline-secondary w-100 mb-2" id="s3-toggle-more" onclick="toggleControllerDetails()">Weitere Details anzeigen</button>'+
       '<div id="s3-optional-wrap" style="display:none"><div class="sm-sec sm-opt"><div class="sm-sec-h">Weitere Details (optional)</div>'+
-      '<div class="row g-2 mb-2"><div class="col-6"><label class="fl">Verbindung</label>'+selHTML("f-conn",["","Wireless","Bluetooth","USB-C","Micro-USB","Kabel"])+'</div><div class="col-6"><label class="fl">Originalverpackung (erhöht Wert)</label>'+selHTML("f-box-c",["","Nein","Ja"])+'</div></div>'+
+      '<label class="fl">Verbindung</label><input type="hidden" id="f-conn" value=""/><div id="chip-conn" class="sm-chip-row mb-2">'+
+      '<button type="button" class="sm-chip" data-v="Wireless" onclick="setChipValue(\'f-conn\',\'Wireless\',\'chip-conn\')">Wireless</button>'+
+      '<button type="button" class="sm-chip" data-v="Bluetooth" onclick="setChipValue(\'f-conn\',\'Bluetooth\',\'chip-conn\')">Bluetooth</button>'+
+      '<button type="button" class="sm-chip" data-v="USB-C" onclick="setChipValue(\'f-conn\',\'USB-C\',\'chip-conn\')">USB-C</button>'+
+      '<button type="button" class="sm-chip" data-v="Micro-USB" onclick="setChipValue(\'f-conn\',\'Micro-USB\',\'chip-conn\')">Micro-USB</button>'+
+      '<button type="button" class="sm-chip" data-v="Kabel" onclick="setChipValue(\'f-conn\',\'Kabel\',\'chip-conn\')">Kabel</button>'+
+      '</div><label class="fl">Originalverpackung (erhöht Wert)</label><input type="hidden" id="f-box-c" value=""/><div id="chip-box" class="sm-chip-row mb-2">'+
+      '<button type="button" class="sm-chip" data-v="Ja" onclick="setChipValue(\'f-box-c\',\'Ja\',\'chip-box\')">Ja</button>'+
+      '<button type="button" class="sm-chip" data-v="Nein" onclick="setChipValue(\'f-box-c\',\'Nein\',\'chip-box\')">Nein</button>'+
+      '</div>'+
       '<label class="fl">Stickdrift (wichtig für Käufer!)</label><input type="hidden" id="f-drift" value=""/><div id="chip-drift" class="sm-chip-row mb-2">'+
       '<button type="button" class="sm-chip" data-v="Kein" onclick="setChipValue(\'f-drift\',\'Kein\',\'chip-drift\')">Kein</button>'+
       '<button type="button" class="sm-chip" data-v="Leicht" onclick="setChipValue(\'f-drift\',\'Leicht\',\'chip-drift\')">Leicht</button>'+
