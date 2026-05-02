@@ -1,7 +1,7 @@
 
 
 
-var GAS_URL = "https://script.google.com/macros/s/AKfycbz1TkCkdhfEZ_6H-gyAF9m4G-wf0aPgJ75ebAJWDMIYBmST5TC9v5RLSHpCLS5EbA/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbwxli-TZlpMOdm3egI8tx944rBYQDA1e3Br61xRRfQdU1L5q04tZ1U-9hN1KrzK/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -463,8 +463,8 @@ function ensureScanFlowNodes(){
 normalizePanelHierarchy();
 normalizeOverlayHierarchy();
 ensureScanFlowNodes();
-document.querySelectorAll(".bnav-btn").forEach(function(b){b.addEventListener("click",function(){if(restrictedActivationMode&&b.dataset.tab!=="klausel-panel"){toast("Nur Klausel-Bereich verfügbar.","err");return;}document.querySelectorAll(".bnav-btn").forEach(function(x){x.classList.remove("on");});document.querySelectorAll(".panel").forEach(function(x){x.classList.remove("on");});b.classList.add("on");var p=document.getElementById(b.dataset.tab);if(p)p.classList.add("on");if(b.dataset.tab==="home-panel"){setGreeting();loadStats();ensureHomeControlHub();if(!allItems.length){loadAll();}else{buildKAProgress();buildWeekChart();updateMyStats();renderHomeControlHub();}}if(b.dataset.tab==="list-panel"&&allItems.length===0)loadAll();if(b.dataset.tab==="search-panel"){initSearch();if(allItems.length===0){loadAll();setTimeout(function(){if(allItems.length>0)renderSearchResults(allItems);},2500);}else{renderSearchResults(allItems);}}if(b.dataset.tab==="handel-panel"){loadHandel();}if(b.dataset.tab==="analyse-panel"){renderAnalysePanel();}if(b.dataset.tab==="sets-panel"){renderSetsPanel();}if(b.dataset.tab==="klausel-panel"){renderKlauselPanel();}});});
-function goTabFn(id,lfMode){if(restrictedActivationMode&&id!=="klausel-panel"){toast("Nur Klausel-Bereich verfügbar.","err");return;}document.querySelectorAll(".bnav-btn").forEach(function(b){b.classList.toggle("on",b.dataset.tab===id);});document.querySelectorAll(".panel").forEach(function(p){p.classList.toggle("on",p.id===id);});if(lfMode){lf=lfMode;renderList();}if(id==="list-panel"&&allItems.length===0)loadAll();if(id==="home-panel"){setGreeting();loadStats();ensureHomeControlHub();if(!allItems.length){loadAll();}else{buildKAProgress();buildWeekChart();updateMyStats();renderHomeControlHub();}}if(id==="sets-panel"){renderSetsPanel();}if(id==="klausel-panel"){renderKlauselPanel();}}
+document.querySelectorAll(".bnav-btn").forEach(function(b){b.addEventListener("click",function(){if(restrictedActivationMode&&b.dataset.tab!=="klausel-panel"){toast("Nur Klausel-Bereich verfügbar.","err");return;}document.querySelectorAll(".bnav-btn").forEach(function(x){x.classList.remove("on");});document.querySelectorAll(".panel").forEach(function(x){x.classList.remove("on");});b.classList.add("on");var p=document.getElementById(b.dataset.tab);if(p)p.classList.add("on");if(b.dataset.tab!=="handel-panel"){var __fabm=document.getElementById("handel-fab-menu");if(__fabm)__fabm.style.display="none";}if(b.dataset.tab==="home-panel"){setGreeting();loadStats();ensureHomeControlHub();if(!allItems.length){loadAll();}else{buildKAProgress();buildWeekChart();updateMyStats();renderHomeControlHub();}}if(b.dataset.tab==="list-panel"&&allItems.length===0)loadAll();if(b.dataset.tab==="search-panel"){initSearch();if(allItems.length===0){loadAll();setTimeout(function(){if(allItems.length>0)renderSearchResults(allItems);},2500);}else{renderSearchResults(allItems);}}if(b.dataset.tab==="handel-panel"){loadHandel();}if(b.dataset.tab==="analyse-panel"){renderAnalysePanel();}if(b.dataset.tab==="sets-panel"){renderSetsPanel();}if(b.dataset.tab==="klausel-panel"){renderKlauselPanel();}});});
+function goTabFn(id,lfMode){if(restrictedActivationMode&&id!=="klausel-panel"){toast("Nur Klausel-Bereich verfügbar.","err");return;}document.querySelectorAll(".bnav-btn").forEach(function(b){b.classList.toggle("on",b.dataset.tab===id);});document.querySelectorAll(".panel").forEach(function(p){p.classList.toggle("on",p.id===id);});if(id!=="handel-panel"){var fm=document.getElementById("handel-fab-menu");if(fm)fm.style.display="none";}if(lfMode){lf=lfMode;renderList();}if(id==="list-panel"&&allItems.length===0)loadAll();if(id==="home-panel"){setGreeting();loadStats();ensureHomeControlHub();if(!allItems.length){loadAll();}else{buildKAProgress();buildWeekChart();updateMyStats();renderHomeControlHub();}}if(id==="analyse-panel"){renderAnalysePanel();}if(id==="sets-panel"){renderSetsPanel();}if(id==="klausel-panel"){renderKlauselPanel();}}
 function ensureSetsPanelUI(){
   if(document.getElementById("sets-panel"))return;
   var panel=document.createElement("section");
@@ -5450,28 +5450,52 @@ function initAnalyseDashUI(){
   _analyseUiBound=true;
   var root=document.getElementById("analyse-panel");
   if(!root)return;
-  root.addEventListener("click",function(ev){
-    var t=ev.target.closest("[data-an-range]");
-    if(t){
-      window._anDash.range=t.getAttribute("data-an-range")||"30d";
-      root.querySelectorAll("[data-an-range]").forEach(function(b){b.classList.toggle("an-seg-active",b===t);});
-      buildGUV();return;
-    }
-    t=ev.target.closest("[data-an-st]");
-    if(t&&t.classList.contains("an-chip")){
-      window._anDash.status=t.getAttribute("data-an-st")||"";
-      root.querySelectorAll("#an-status-chips .an-chip").forEach(function(b){b.classList.toggle("an-chip-active",b===t);});
-      buildGUV();return;
-    }
-    t=ev.target.closest("#an-chart-modes .an-ct");
-    if(t){
-      window._anDash.chartMode=t.getAttribute("data-m")||"gewinn";
-      document.querySelectorAll("#an-chart-modes .an-ct").forEach(function(b){b.classList.toggle("an-ct-on",b===t);});
-      buildGUV();return;
-    }
-  });
+  function bindRangeBtns(){
+    root.querySelectorAll("[data-an-range].an-seg-btn").forEach(function(btn){
+      if(btn.getAttribute("data-an-dash-bound")==="1")return;
+      btn.setAttribute("data-an-dash-bound","1");
+      btn.addEventListener("click",function(ev){
+        ev.preventDefault();
+        window._anDash.range=btn.getAttribute("data-an-range")||"30d";
+        root.querySelectorAll("[data-an-range]").forEach(function(b){b.classList.toggle("an-seg-active",b===btn);});
+        buildGUV();
+      },{passive:false});
+    });
+  }
+  function bindStatusChips(){
+    root.querySelectorAll("#an-status-chips .an-chip").forEach(function(btn){
+      if(btn.getAttribute("data-an-dash-bound")==="1")return;
+      btn.setAttribute("data-an-dash-bound","1");
+      btn.addEventListener("click",function(ev){
+        ev.preventDefault();
+        window._anDash.status=btn.getAttribute("data-an-st")||"";
+        root.querySelectorAll("#an-status-chips .an-chip").forEach(function(b){b.classList.toggle("an-chip-active",b===btn);});
+        buildGUV();
+      },{passive:false});
+    });
+  }
+  function bindChartModes(){
+    var grp=document.getElementById("an-chart-modes");
+    if(!grp)return;
+    grp.querySelectorAll(".an-ct").forEach(function(btn){
+      if(btn.getAttribute("data-an-dash-bound")==="1")return;
+      btn.setAttribute("data-an-dash-bound","1");
+      btn.addEventListener("click",function(ev){
+        ev.preventDefault();
+        window._anDash.chartMode=btn.getAttribute("data-m")||"gewinn";
+        grp.querySelectorAll(".an-ct").forEach(function(b){b.classList.toggle("an-ct-on",b===btn);});
+        buildGUV();
+      },{passive:false});
+    });
+  }
+  bindRangeBtns();
+  bindStatusChips();
+  bindChartModes();
   var ps=document.getElementById("an-filter-plattform");
-  if(ps)ps.addEventListener("change",function(){window._anDash.plattform=this.value||"";buildGUV();});
+  if(ps&&!ps.getAttribute("data-an-dash-bound")){
+    ps.setAttribute("data-an-dash-bound","1");
+    ps.addEventListener("change",function(){window._anDash.plattform=this.value||"";buildGUV();});
+  }
 }
 function setAnalyseChartMode(m){
   window._anDash.chartMode=m||"gewinn";
