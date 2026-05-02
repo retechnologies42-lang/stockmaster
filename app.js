@@ -10,12 +10,12 @@ var firstCamDeviceId=null; // FIX: speichert DeviceId von Kamera 0
 var scanMode="einlagern"; // "einlagern" | "verkauf" | "einkauf"
 var curCat="", curType="";
 var forcedSpielSystem="";
-var stepCur=1, stepTotal=5;
+var stepCur=1, stepTotal=6;
 var probChoice=null, probType=null;
 var photos=[];
 var editingItem=null, isEditMode=false;
 var testRowNum=-1, timerInterval=null;
-var SNAMES={konsole:["Barcode","Name","Details","Mängel","Mitarbeiter"],spiel:["Barcode","Titel","Details","Mängel","Mitarbeiter"],controller:["Barcode","Controller","Details","Mängel","Mitarbeiter"],handy:["Barcode","Modell","Details","Mängel","Mitarbeiter"],pc:["Barcode","Modell","Details","Mängel","Mitarbeiter"]};
+var SNAMES={konsole:["Barcode","Name","Details","Mängel","Fotos","Zusammenfassung"],spiel:["Barcode","Titel","Details","Mängel","Fotos","Zusammenfassung"],controller:["Barcode","Controller","Details","Mängel","Fotos","Zusammenfassung"],handy:["Barcode","Modell","Details","Mängel","Fotos","Zusammenfassung"],pc:["Barcode","Modell","Details","Mängel","Fotos","Zusammenfassung"]};
 var setMembershipByScanId={},setRowsCache=[];
 var restrictedActivationMode=false,restrictedActivationCtx=null;
 var expandedTaskId="",expandedTaskSubtasks={};
@@ -645,10 +645,12 @@ function stepNext(){
   if(stepCur===4){
     if(!probChoice){toast("Mängel auswählen.","err");createDraftIncompleteTask(["Mängelstatus"]);return;}
     if(probChoice==="ja"&&!probType){toast("Mangeltyp auswählen.","err");createDraftIncompleteTask(["Mangeltyp"]);return;}
+  }
+  if(stepCur===5){
     if(photos.length===0){toast("Mindestens 1 Foto erforderlich.","err");createDraftIncompleteTask(["Foto"]);return;}
   }
   if(stepCur<stepTotal){stepCur++;updateProgress();showStep(stepCur);window.scrollTo({top:0,behavior:"smooth"});
-    if(stepCur===4){
+    if(stepCur===5){
       var pr=document.getElementById("photo-row");if(pr)pr.style.display="block";
       showPhotoGuide(curType);
       renderAllPhotos();
@@ -674,8 +676,8 @@ function stepBack(){
 }
 
 // ── MÄNGEL ───────────────────────────────────────────────────────
-function selProb(v){probChoice=v;document.getElementById("pb-nein").className="cbtn"+(v==="nein"?" sel-g":"");document.getElementById("pb-ja").className="cbtn"+(v==="ja"?" sel-r":"");document.getElementById("prob-type-row").style.display=v==="ja"?"block":"none";if(v==="nein"){document.getElementById("prob-descr-row").style.display="none";probType=null;}var pr=document.getElementById("photo-row");if(pr)pr.style.display="block";showPhotoGuide(curType);}
-function selProbType(v){probType=v;document.getElementById("pb-phys").className="cbtn"+(v==="physisch"?" sel-r":"");document.getElementById("pb-soft").className="cbtn"+(v==="software"?" sel":"");document.getElementById("prob-descr-row").style.display="block";var pr=document.getElementById("photo-row");if(pr)pr.style.display="block";showPhotoGuide(curType);}
+function selProb(v){probChoice=v;document.getElementById("pb-nein").className="cbtn"+(v==="nein"?" sel-g":"");document.getElementById("pb-ja").className="cbtn"+(v==="ja"?" sel-r":"");document.getElementById("prob-type-row").style.display=v==="ja"?"block":"none";if(v==="nein"){document.getElementById("prob-descr-row").style.display="none";probType=null;}}
+function selProbType(v){probType=v;document.getElementById("pb-phys").className="cbtn"+(v==="physisch"?" sel-r":"");document.getElementById("pb-soft").className="cbtn"+(v==="software"?" sel":"");document.getElementById("prob-descr-row").style.display="block";}
 
 // ================================================================
 // KAMERA FIX: Kamera 0 immer direkt verwenden
@@ -790,7 +792,7 @@ function camOnCode(code){code=(code||"").trim();var inp=document.getElementById(
 function stopCam(){camStop();}
 
 // ── FOTOS ─────────────────────────────────────────────────────────
-function triggerPhotoInput(mode){var id=mode==="cam"?"f-photo-cam":"f-photo-gallery";var el=document.getElementById(id);if(!el){toast("Foto-Input nicht gefunden.","err");return;}el.onchange=function(){if(this.files&&this.files[0])processPhotoFile(this.files[0]);this.value="";};el.click();}
+function triggerPhotoInput(mode){var id="f-photo-gallery";var el=document.getElementById(id);if(!el){el=document.createElement("input");el.type="file";el.accept="image/*";el.id=id;el.style.cssText="position:absolute;left:-9999px;width:1px;height:1px;opacity:0";document.body.appendChild(el);}el.onchange=function(){if(this.files&&this.files[0])processPhotoFile(this.files[0]);this.value="";};el.click();}
 function processPhotoFile(file){if(!file)return;if(file.size>15*1024*1024){toast("Max. 15 MB pro Foto.","err");return;}if(photos.length>=12){toast("Maximal 12 Bilder pro Produkt.","err");return;}var name=(file.name||"foto.jpg").replace(/[^a-zA-Z0-9._-]/g,"_");var img=new Image(),url=URL.createObjectURL(file);img.onload=function(){URL.revokeObjectURL(url);var MAX=1200,w=img.width,h=img.height;if(w>MAX||h>MAX){if(w>h){h=Math.round(h*(MAX/w));w=MAX;}else{w=Math.round(w*(MAX/h));h=MAX;}}var canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;var ctx=canvas.getContext("2d");ctx.fillStyle="#ffffff";ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);var b64=canvas.toDataURL("image/jpeg",0.78);if(!b64||b64.indexOf("base64,")===-1){toast("Bild konnte nicht verarbeitet werden.","err");return;}photos.push({b64:b64,name:name});renderAllPhotos();toast("Foto hinzugefügt ✅","ok",2000);};img.onerror=function(){toast("Bild konnte nicht geladen werden.","err");};img.src=url;}
 function renderAllPhotos(){var mw=document.getElementById("photo-main-wrap"),thumbs=document.getElementById("photo-thumbs");if(!mw||!thumbs)return;mw.innerHTML="";thumbs.innerHTML="";if(photos.length===0){renderAddThumbBtn();return;}mw.innerHTML='<div class="photo-main-preview" style="max-height:120px"><img src="'+photos[0].b64+'" style="max-height:120px;object-fit:cover"/><div style="display:flex;gap:6px;position:absolute;right:6px;bottom:6px"><button class="rm-main-photo" onclick="movePhoto(0,1)" style="position:static">↓</button><button class="rm-main-photo" onclick="removePhoto(0)" style="position:static">✕</button></div></div>';for(var i=1;i<photos.length;i++){var div=document.createElement("div");div.className="photo-thumb";div.style.width="48px";div.style.height="48px";div.style.position="relative";div.innerHTML='<img src="'+photos[i].b64+'" style="object-fit:cover"/><button class="rm-thumb" onclick="removePhoto('+i+')">✕</button><button class="rm-thumb" style="right:22px" onclick="movePhoto('+i+','+(i-1)+')">↑</button>';thumbs.appendChild(div);}renderAddThumbBtn();}
 function renderAddThumbBtn(){var t=document.getElementById("photo-thumbs");if(!t)return;var btn=document.createElement("div");btn.className="add-thumb";btn.innerHTML='<i class="bi bi-plus"></i>';btn.onclick=function(){triggerPhotoInput("gallery");};t.appendChild(btn);}
@@ -838,6 +840,22 @@ function doSave(){
 function resetStepperState(){probChoice=null;probType=null;photos=[];["f-scanid","f-name","f-ma","f-prob-beschr","f-einkaufspreis"].forEach(function(id){var e=document.getElementById(id);if(e)e.value="";});var mw=document.getElementById("photo-main-wrap");if(mw)mw.innerHTML="";var pt=document.getElementById("photo-thumbs");if(pt)pt.innerHTML="";var ptr=document.getElementById("prob-type-row");if(ptr)ptr.style.display="none";var pdr=document.getElementById("prob-descr-row");if(pdr)pdr.style.display="none";var phr=document.getElementById("photo-row");if(phr)phr.style.display="none";var pn=document.getElementById("pb-nein");if(pn)pn.className="cbtn";var pj=document.getElementById("pb-ja");if(pj)pj.className="cbtn";// Fix 1: Barcode-Banner zurücksetzen
 var so=document.getElementById("scan-ok");if(so)so.style.display="none";var sv2=document.getElementById("scan-ok-val");if(sv2)sv2.textContent="";// Fix 2: Mängel-Buttons zurücksetzen
 var pp=document.getElementById("pb-phys");if(pp)pp.className="cbtn";var ps=document.getElementById("pb-soft");if(ps)ps.className="cbtn";var pg=document.getElementById("photo-guide-box");if(pg)pg.innerHTML="";stopCam();}
+function ensureSeparatePhotoStep(){
+  var s4=document.getElementById("st-s4"),s5=document.getElementById("st-s5");
+  if(!s4||!s5||document.getElementById("st-s6"))return;
+  s5.id="st-s6";
+  var s6=s5;
+  var photoRow=document.getElementById("photo-row");
+  if(!photoRow)return;
+  var new5=document.createElement("div");
+  new5.className="step";
+  new5.id="st-s5";
+  new5.innerHTML='<div class="step-title">FOTOS</div><div class="step-sub">Mind. 1 Pflicht · max. 12 · Reihenfolge per Verschieben.</div>';
+  s6.parentNode.insertBefore(new5,s6);
+  new5.appendChild(photoRow);
+  photoRow.style.display="block";
+  showPhotoGuide(curType||"defekt");
+}
 
 // ── LAGER ─────────────────────────────────────────────────────────
 var _loadAllBusy=false,_loadAllTs=0,_loadAllCache=[];
@@ -1078,7 +1096,7 @@ function mkCard(item){
   var meta='<div class="lager-meta"><span>'+esc(item.datum||"")+'</span><span>'+esc(item.mitarbeiter||"")+'</span><span>Menge: '+qtyDisp+'</span><span>EK: '+esc(item.einkaufspreis?String(item.einkaufspreis)+"€":"—")+'</span></div>';
   cardRegistry.push(item);
   var actions='<div class="lager-actions">';
-  if(item.type!=="defekt"&&item.type!=="setbundle"){actions+='<button class="btn btn-outline-success btn-sm" onclick="event.stopPropagation();openAddToSetModal('+rIdx+')" title="In Set einfügen"><i class="bi bi-plus-circle"></i></button><button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation();openEditStepper('+rIdx+')" title="Bearbeiten"><i class="bi bi-pencil-fill"></i></button><button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDelete('+rIdx+')" title="Löschen"><i class="bi bi-trash3"></i></button>';}
+  if(item.type!=="defekt"&&item.type!=="setbundle"){actions+='<button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation();openEditStepper('+rIdx+')" title="Bearbeiten"><i class="bi bi-pencil-fill"></i></button><button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDelete('+rIdx+')" title="Löschen"><i class="bi bi-trash3"></i></button>';}
   else{actions+='<button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDeleteDefekt('+rIdx+')" title="Löschen"><i class="bi bi-trash3"></i></button>';}
   actions+='</div>';
   var saleMark=inVkSale?'<span class="lager-tag" style="border-color:rgba(255,204,0,.4);color:var(--col-y)">Im Verkauf</span>':"";
@@ -5761,6 +5779,7 @@ function ensureSetBuilderOverlay(){
 }
 function openSetBuilderFlow(){
   ensureSetBuilderOverlay();
+  loadAll(true);
   setBuilderStep=0;setBuilderAnswers={};setBuilderDraft=null;setBuilderLoading=false;
   var nav=document.querySelector(".bottom-nav")||document.querySelector(".bnav");if(nav)nav.style.display="none";
   document.getElementById("setbuilder-overlay").style.display="block";
@@ -5814,7 +5833,12 @@ function confirmSetBundle(){
   if(!setBuilderDraft||!setBuilderDraft.items||!setBuilderDraft.items.length){toast("Kein Set erstellt.","err");return;}
   var setName=gv("sb-set-name").trim()||setBuilderDraft.name;
   gasPost("saveSetBundle",{name:setName,mitarbeiter:emp,plattform:setBuilderDraft.plattform,budget:setBuilderDraft.budget,zustand:setBuilderDraft.zustand,items:setBuilderDraft.items,notizen:"Bestätigt via KIsetMasterPro"},function(r){
-    if(r&&r.ok){toast("Set gespeichert ✅","ok");showCenterSuccess("Set "+setName+" erfolgreich erstellt");setBuilderDraft=null;loadAll();setBuilderStep=99;renderSetBuilderFlow();}
+    if(r&&r.ok){
+      toast("Set gespeichert ✅","ok");
+      showCenterSuccess("Set "+setName+" erfolgreich erstellt");
+      var out=document.getElementById("sb-chat-out");if(out)out.innerHTML='<span style="color:#00ff88;font-weight:700">Set '+esc(setName)+' erfolgreich erstellt</span>';
+      setBuilderDraft=null;loadAll(true);setBuilderStep=99;renderSetBuilderFlow();
+    }
     else{toast("Fehler: "+(r?r.fehler:"?"),"err");}
   },function(e){toast("Fehler: "+e,"err");});
 }
@@ -5937,6 +5961,7 @@ window.addEventListener("load",function(){
   setupEnterKeys();
   setupKeyboardShortcuts();
   ensureHomeSetBuilderTab();
+  ensureSeparatePhotoStep();
   ensureSetsPanelUI();
   removeSetsNavButton();
   ensureKlauselPanelUI();
