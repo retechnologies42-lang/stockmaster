@@ -832,7 +832,7 @@ function loadAll(force){
   var now=Date.now();
   if(!force&&_loadAllCache.length>0&&(now-_loadAllTs)<15000){
     allItems=_loadAllCache.slice();
-    renderList();checkLongStorageItems();buildWeekChart();buildKAProgress();updateMyStats();
+    syncIncompleteProductTasks();renderList();checkLongStorageItems();buildWeekChart();buildKAProgress();updateMyStats();
     return;
   }
   _loadAllBusy=true;
@@ -864,7 +864,7 @@ function loadAll(force){
     _loadAllCache=allItems.slice();
     _loadAllTs=Date.now();
     _loadAllBusy=false;
-    renderList();checkLongStorageItems();buildWeekChart();buildKAProgress();updateMyStats();
+    syncIncompleteProductTasks();renderList();checkLongStorageItems();buildWeekChart();buildKAProgress();updateMyStats();
   }
   gasGet("getAllKonsolen",{},function(r){if(r&&r.ok)kd=r.data||[];tryR();},function(){tryR();});
   gasGet("getAllSpiele",{},function(r){if(r&&r.ok)sd=r.data||[];tryR();},function(){tryR();});
@@ -3071,9 +3071,19 @@ function loadTasks(){
   tasksCache=tasksCache.map(function(t){
     if(!t.id)t.id="tsk-"+Date.now()+"-"+Math.floor(Math.random()*9999);
     if(!Array.isArray(t.subtasks))t.subtasks=[];
+    t.subtasks=t.subtasks.map(function(s){
+      if(!s.id)s.id="sub-"+Date.now()+"-"+Math.floor(Math.random()*9999);
+      if(!s.taskId)s.taskId=t.id;
+      if(!s.title&&s.text)s.title=s.text;
+      if(!s.text&&s.title)s.text=s.title;
+      if(!s.status)s.status=s.done?"done":"open";
+      s.done=String(s.status)==="done"||!!s.done;
+      return s;
+    });
     if(typeof t.order!=="number")t.order=Date.now();
     if(!t.status)t.status="open";
     if(!t.assignee)t.assignee=emp;
+    if(!t.userId)t.userId=t.assignee||emp;
     if(!t.createdBy)t.createdBy=emp;
     if(!t.priority)t.priority="medium";
     return t;
@@ -3133,6 +3143,143 @@ function createMissingTrackingTaskForVerkauf(data, verkaufRowIndex){
   saveTasks();
   notifyOpenTasksCount(assignee);
 }
+function _productTaskId(item){
+  if(!item)return "";
+  var sid=String(item.scanId||"").trim();
+  if(sid)return sid;
+  return String(item.type||"item")+"-"+String(item.rowIndex!=null?item.rowIndex:"");
+}
+function _productTaskTitle(item){
+  return String(item&&((item.name||item.spiel||item.modell||item.geraet||item.scanId))||"Produkt");
+}
+function _isProductIncomplete(item){
+  if(!item||item.type==="setbundle")return false;
+  var nm=String(_productTaskTitle(item)||"").trim();
+  var sid=String(item.scanId||"").trim();
+  var ek=parseFloat(item.einkaufspreis||0)||0;
+  return !nm||!sid||ek<=0;
+}
+function _taskById(id){return tasksCache.find(function(t){return t.id===id;});}
+function getOrCreateTask(userId){
+  loadTasks();
+  var uid=String(userId||emp||"").trim()||emp;
+  var title="Unvollständiges Produkt";
+  var t=tasksCache.find(function(x){
+    return String(x.userId||x.assignee||"").toLowerCase()===uid.toLowerCase()&&String(x.title||"")===title;
+  });
+  if(!t){
+    t={
+      id:"tsk-"+Date.now()+"-"+Math.floor(Math.random()*9999),
+      userId:uid,
+      assignee:uid,
+      createdBy:emp,
+      title:title,
+      description:"Automatisch aus Lager",
+      status:"open",
+      created:new Date().toLocaleString("de-DE"),
+      createdAt:Date.now(),
+      updatedAt:Date.now(),
+      source:"Lager",
+      taskType:"incomplete-product",
+      priority:"medium",
+      subtasks:[],
+      order:Date.now()
+    };
+    tasksCache.unshift(t);
+    saveTasks();
+  }
+  return t;
+}
+function addSubtask(taskId, product){
+  loadTasks();
+  var t=_taskById(taskId);if(!t)return null;
+  var pid=_productTaskId(product);if(!pid)return null;
+  if(!Array.isArray(t.subtasks))t.subtasks=[];
+  var ex=t.subtasks.find(function(s){return String(s.productId||"")===pid;});
+  if(ex)return ex;
+  var st={
+    id:"sub-"+Date.now()+"-"+Math.floor(Math.random()*9999),
+    taskId:t.id,
+    productId:pid,
+    title:_productTaskTitle(product),
+    status:"open",
+    done:false
+  };
+  t.subtasks.push(st);
+  t.updatedAt=Date.now();
+  t.status="open";
+  saveTasks();
+  return st;
+}
+function completeSubtask(productId){
+  loadTasks();
+  var pid=String(productId||"").trim();if(!pid)return null;
+  var hitTask=null;
+  tasksCache.forEach(function(t){
+    (t.subtasks||[]).forEach(function(s){
+      if(String(s.productId||"")===pid){
+        s.status="done";
+        s.done=true;
+        hitTask=t;
+        t.updatedAt=Date.now();
+      }
+    });
+  });
+  saveTasks();
+  return hitTask;
+}
+function checkTaskCompletion(taskId){
+  loadTasks();
+  var t=_taskById(taskId);if(!t)return false;
+  var subs=t.subtasks||[];
+  var allDone=subs.length>0&&subs.every(function(s){return String(s.status||"")=="done"||!!s.done;});
+  t.status=allDone?"done":"open";
+  t.updatedAt=Date.now();
+  saveTasks();
+  return allDone;
+}
+function syncIncompleteProductTasks(){
+  loadTasks();
+  var owner=String(emp||"").trim()||"Team";
+  var main=getOrCreateTask(owner);
+  var seen={};
+  (allItems||[]).forEach(function(p){
+    if(!p||p.type==="setbundle")return;
+    var pid=_productTaskId(p);if(!pid)return;
+    seen[pid]=1;
+    if(_isProductIncomplete(p)){
+      addSubtask(main.id,p);
+    }else{
+      completeSubtask(pid);
+    }
+  });
+  (main.subtasks||[]).forEach(function(s){
+    var pid=String(s.productId||"");
+    if(!seen[pid]){
+      s.status="done";
+      s.done=true;
+    }
+  });
+  checkTaskCompletion(main.id);
+}
+function openProductByTask(productId){
+  var pid=String(productId||"").trim();if(!pid)return;
+  goTabFn("list-panel");
+  setLF("all");
+  var q=document.getElementById("list-q");
+  if(q){q.value=pid;}
+  renderList();
+  var item=(allItems||[]).find(function(i){return _productTaskId(i)===pid;});
+  if(!item)return;
+  var idx=(cardRegistry||[]).findIndex(function(i){return _productTaskId(i)===pid;});
+  if(idx>-1)openDetail(idx);
+}
+function navigate(path){
+  var p=String(path||"");
+  if(p.indexOf("/lager/")===0){
+    openProductByTask(decodeURIComponent(p.slice(7)));
+  }
+}
 function ensureTasksOverlay(){
   ensureMasterModuleUnifiedStyles();
   if(document.getElementById("tasksmaster-overlay"))return;
@@ -3149,7 +3296,7 @@ function _tasksTabsCounts(visible){
   return {
     open:visible.filter(function(t){return t.status==="open";}).length,
     review:visible.filter(function(t){return t.status==="review";}).length,
-    final:visible.filter(function(t){return t.status==="final";}).length
+    final:visible.filter(function(t){return t.status==="final"||t.status==="done";}).length
   };
 }
 function renderTasksMaster(){
@@ -3159,7 +3306,10 @@ function renderTasksMaster(){
   var hdr=document.getElementById("tasksmaster-title");if(hdr)hdr.textContent=isAdminRole()?"TEAM AUFGABEN":"MEINE AUFGABEN";
   var activeTab=window._taskActiveTab||"open";
   var counts=_tasksTabsCounts(visible);
-  var list=visible.filter(function(t){return t.status===activeTab;}).sort(function(a,b){if(activeTab==="open")return (a.order||0)-(b.order||0);return (b.updatedAt||0)-(a.updatedAt||0);});
+  var list=visible.filter(function(t){
+    if(activeTab==="final")return t.status==="final"||t.status==="done";
+    return t.status===activeTab;
+  }).sort(function(a,b){if(activeTab==="open")return (a.order||0)-(b.order||0);return (b.updatedAt||0)-(a.updatedAt||0);});
   function finish(acc){
     var assigneeOpts=(acc||[]).filter(function(a){return String(a.status||"").toLowerCase()==="aktiv";}).map(function(a){return '<option value="'+esc(a.name)+'">'+esc(a.name)+'</option>';}).join("");
     body.innerHTML='<div class="tm-card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap"><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-sm '+(activeTab==="open"?"btn-success tm-tab-on":"btn-outline-secondary")+'" style="border-color:#333" onclick="setTaskTab(\'open\')">Offen ('+counts.open+')</button><button class="btn btn-sm '+(activeTab==="review"?"btn-success tm-tab-on":"btn-outline-secondary")+'" style="border-color:#333" onclick="setTaskTab(\'review\')">In Prüfung ('+counts.review+')</button><button class="btn btn-sm '+(activeTab==="final"?"btn-success tm-tab-on":"btn-outline-secondary")+'" style="border-color:#333" onclick="setTaskTab(\'final\')">Erledigt ('+counts.final+')</button></div>'+(isAdminRole()?'<div style="font-size:11px;color:#f2cc60">'+counts.review+' Prüfungen</div>':'')+'</div><div style="display:grid;grid-template-columns:'+((isAdminRole()?'1fr 180px':'1fr'))+';gap:8px;margin-bottom:10px"><input id="task-new-title" class="fc" style="background:#111;border-color:#222" placeholder="+ Neue Aufgabe" onkeydown="if(event.key===\'Enter\'){createQuickTask();}"/>'+(isAdminRole()?'<select id="task-new-assignee" class="fc" style="background:#111;border-color:#222">'+assigneeOpts+'</select>':'')+'</div><div id="task-list-zone">'+renderTaskRows(list,activeTab)+'</div></div>';
@@ -3179,13 +3329,18 @@ function renderTaskRows(list,tab){
   if(!list.length)return '<div style="padding:16px 8px;color:var(--w4)">Keine Einträge</div>';
   return list.map(function(t){
     var expanded=expandedTaskId===t.id;
-    var badge=t.status==="open"?"Offen":t.status==="review"?"Vorübergehend erledigt":"Final erledigt";
+    var badge=t.status==="open"?"Offen":t.status==="review"?"Vorübergehend erledigt":"Erledigt";
     var badgeColor=t.status==="open"?"#8b949e":t.status==="review"?"#f2cc60":"#00ff88";
     var priColor=t.priority==="high"?"#f85149":t.priority==="low"?"#8b949e":"#f2cc60";
     var canReview=isAdminRole()&&t.status==="review";
     var canDone=String(t.assignee||"").toLowerCase()===String(emp||"").toLowerCase()&&t.status==="open";
     var canReopen=isAdminRole()&&t.status!=="open";
-    var subt=(t.subtasks||[]).map(function(s,i){return '<label style="display:flex;gap:6px;font-size:11px;color:var(--w3);margin:4px 0"><input type="checkbox" '+(s.done?'checked':'')+' onchange="toggleSubtask(\''+esc(t.id)+'\','+i+')"/> '+esc(s.text)+'</label>';}).join("");
+    var subt=(t.subtasks||[]).map(function(s,i){
+      var txt=s.title||s.text||"Subtask";
+      var done=(String(s.status||"")==="done")||!!s.done;
+      var btn=s.productId?'<button class="btn btn-outline-secondary btn-sm" type="button" onclick="event.stopPropagation();navigate(\'/lager/'+encodeURIComponent(String(s.productId||""))+'\')">Produktansicht öffnen</button>':'';
+      return '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin:6px 0"><label style="display:flex;gap:6px;font-size:11px;color:var(--w3);margin:0"><input type="checkbox" '+(done?'checked':'')+' onchange="toggleSubtask(\''+esc(t.id)+'\','+i+')"/> '+esc(txt)+'</label>'+btn+'</div>';
+    }).join("");
     var expandHtml=expanded?('<div style="padding:8px 0 8px 34px"><input class="fc" style="margin-bottom:8px" value="'+esc(t.description||"")+'" placeholder="Beschreibung" onblur="updateTaskField(\''+esc(t.id)+'\',\'description\',this.value)"/><div style="display:grid;grid-template-columns:190px 140px 1fr;gap:8px;margin-bottom:8px"><input class="fc" type="date" value="'+esc((t.dueDate||"").slice(0,10))+'" onblur="updateTaskField(\''+esc(t.id)+'\',\'dueDate\',this.value)"/><select class="fc" onchange="updateTaskField(\''+esc(t.id)+'\',\'priority\',this.value)"><option value="low" '+(t.priority==="low"?"selected":"")+'>Low</option><option value="medium" '+(t.priority==="medium"?"selected":"")+'>Medium</option><option value="high" '+(t.priority==="high"?"selected":"")+'>High</option></select><input class="fc" value="'+esc(t.assignee||"")+'" '+(isAdminRole()?'':'disabled')+' onblur="if('+isAdminRole()+'){updateTaskField(\''+esc(t.id)+'\',\'assignee\',this.value)}"/></div>'+(subt?'<details><summary style="font-size:11px;color:var(--w4);cursor:pointer">Subtasks</summary><div>'+subt+'</div></details>':'')+'<div style="display:flex;gap:8px;margin-top:8px">'+(canDone?'<button class="btn btn-success btn-sm" onclick="taskMarkDone(\''+esc(t.id)+'\')">Erledigt</button>':'')+(canReview?'<button class="btn btn-success btn-sm" onclick="taskApprove(\''+esc(t.id)+'\')">Freigeben</button><button class="btn btn-outline-danger btn-sm" onclick="taskReject(\''+esc(t.id)+'\')">Zurückweisen</button>':'')+(canReopen?'<button class="btn btn-outline-secondary btn-sm" onclick="taskReopen(\''+esc(t.id)+'\')">Zurück zu Offen</button>':'')+'<button class="btn btn-outline-danger btn-sm" onclick="deleteTask(\''+esc(t.id)+'\')">Löschen</button></div>'+(t.reviewComment?'<div style="margin-top:6px;font-size:11px;color:#f2cc60">Ablehnung: '+esc(t.reviewComment)+'</div>':'')+'</div>'):'';
     return '<div class="task-card" draggable="'+(tab==="open")+'" data-task-id="'+esc(t.id)+'"><div style="display:grid;grid-template-columns:26px 1fr auto;gap:8px;align-items:center;cursor:pointer" onclick="toggleTaskExpand(\''+esc(t.id)+'\')"><div><i class="bi bi-check2-square" style="color:'+badgeColor+'"></i></div><div contenteditable="true" onblur="updateTaskField(\''+esc(t.id)+'\',\'title\',this.textContent)" onclick="event.stopPropagation()" style="font-size:14px;color:var(--w1);outline:none">'+esc(t.title||"Aufgabe")+'</div><div style="font-size:10px;color:var(--w4);text-align:right"><span style="color:'+priColor+'">'+esc((t.priority||"medium").toUpperCase())+'</span> • '+esc(t.dueDate||"")+'</div></div><div style="padding-left:34px;font-size:11px;color:'+badgeColor+'">'+badge+' • '+esc(t.assignee||"-")+'</div>'+expandHtml+'</div>';
   }).join("");
@@ -3228,7 +3383,19 @@ function taskReopen(id){
   loadTasks();var t=tasksCache.find(function(x){return x.id===id;});if(!t)return;
   t.status="open";t.updatedAt=Date.now();saveTasks();renderTasksMaster();
 }
-function toggleSubtask(taskId,idx){loadTasks();var t=tasksCache.find(function(x){return x.id===taskId;});if(!t||!t.subtasks||!t.subtasks[idx])return;t.subtasks[idx].done=!t.subtasks[idx].done;t.updatedAt=Date.now();saveTasks();}
+function toggleSubtask(taskId,idx){
+  loadTasks();
+  var t=tasksCache.find(function(x){return x.id===taskId;});
+  if(!t||!t.subtasks||!t.subtasks[idx])return;
+  var s=t.subtasks[idx];
+  var next=!(String(s.status||"")==="done"||!!s.done);
+  s.done=next;
+  s.status=next?"done":"open";
+  t.updatedAt=Date.now();
+  saveTasks();
+  checkTaskCompletion(taskId);
+  renderTasksMaster();
+}
 function deleteTask(taskId){if(!confirm("Task löschen?"))return;loadTasks();tasksCache=tasksCache.filter(function(x){return x.id!==taskId;});saveTasks();renderTasksMaster();}
 function initTaskDnd(){
   var zone=document.getElementById("task-list-zone");if(!zone)return;
