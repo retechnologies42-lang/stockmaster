@@ -650,12 +650,19 @@ function toggleControllerDetails(){
   box.style.display=open?"none":"block";
   btn.textContent=open?"▼ Weitere Details anzeigen":"▲ Weitere Details ausblenden";
 }
+function stepperLocalBack(){stepBack();}
+function stepperLocalNext(){stepNext();}
 function updateStepperCTA(){
   var bn=document.getElementById("btn-next");if(!bn)return;
   var needs=(stepCur===3&&curType==="controller");
   var ok=!needs||(!!gv("f-sys")&&!!gv("f-zustand"));
   bn.disabled=!ok;
   bn.textContent=ok?"Weiter":"Bitte Plattform und Zustand wählen";
+  var ln=document.getElementById("s3-local-next");
+  if(ln){
+    ln.disabled=!ok;
+    ln.textContent=ok?"Weiter":"Bitte Plattform und Zustand wählen";
+  }
 }
 function setDefaultWarentyp(){
   var wt=document.getElementById("f-warentyp");if(!wt||wt.value)return;
@@ -707,8 +714,8 @@ function configS3(t){
   else if(t==="spiel"){document.getElementById("s3-title").textContent="Spiel-Details";h='<div class="mb-3"><label class="fl">System / Plattform</label>'+selHTML("f-sys",["PlayStation 5","PlayStation 4","PlayStation 3","Xbox Series X/S","Xbox One","Xbox 360","Nintendo Switch","Nintendo 3DS","Nintendo Wii","Nintendo Wii U","Game Boy Advance","Nintendo DS","PC","Sonstiges"])+'</div><div class="row g-2 mb-3"><div class="col-4"><label class="fl">USK</label>'+selHTML("f-usk",["","USK 0","USK 6","USK 12","USK 16","USK 18"])+'</div><div class="col-4"><label class="fl">Sprache</label>'+selHTML("f-sprache",["Deutsch","Englisch","Multilingual","Sonstiges"])+'</div><div class="col-4"><label class="fl" style="display:flex;align-items:center;gap:4px">Zustand <button type="button" onclick="showZustandInfo()" style="width:17px;height:17px;background:var(--blue);border:none;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#fff;cursor:pointer;flex-shrink:0;padding:0">i</button></label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div></div><div class="mb-3"><label class="fl">Hinweise</label><textarea id="f-hinweise" class="fc" placeholder="z.B. Cover fehlt…"></textarea></div>';}
   else if(t==="controller"){
     document.getElementById("s3-title").textContent="Details";
-    h='<div class="sm-flow-head"><div class="sm-flow-title">Details erfassen</div><div class="sm-flow-step">Schritt 3 von 6</div></div>'+
-      '<div class="sm-flow-sec"><div class="sm-sec-kicker">Wichtig</div><label class="fl">Plattform *</label><input type="hidden" id="f-sys" value=""/><div id="chip-sys" class="sm-chip-row">'+
+    h='<div class="card sm-card"><div class="card-body"><div class="sm-flow-head"><div class="sm-flow-title">Details erfassen</div><div class="sm-flow-step">Schritt 3 von 6</div></div><div class="progress"><div id="s3-prog" class="progress-bar" style="width:50%"></div></div></div></div>'+
+      '<div class="card sm-card"><div class="card-body"><div class="sm-sec-kicker">Wichtige Angaben</div><label class="fl">Plattform *</label><input type="hidden" id="f-sys" value=""/><div id="chip-sys" class="sm-chip-row">'+
       '<button type="button" class="sm-chip" data-v="PlayStation" onclick="setChipValue(\'f-sys\',\'PlayStation\',\'chip-sys\')">🎮 PlayStation</button>'+
       '<button type="button" class="sm-chip" data-v="Xbox" onclick="setChipValue(\'f-sys\',\'Xbox\',\'chip-sys\')">Xbox</button>'+
       '<button type="button" class="sm-chip" data-v="Nintendo" onclick="setChipValue(\'f-sys\',\'Nintendo\',\'chip-sys\')">Nintendo</button>'+
@@ -720,12 +727,10 @@ function configS3(t){
       '<button type="button" class="sm-chip" data-v="Gut" onclick="setChipValue(\'f-zustand\',\'Gut\',\'chip-zst\')">Gut</button>'+
       '<button type="button" class="sm-chip" data-v="Akzeptabel" onclick="setChipValue(\'f-zustand\',\'Akzeptabel\',\'chip-zst\')">Akzeptabel</button>'+
       '<button type="button" class="sm-chip" data-v="Defekt" onclick="setChipValue(\'f-zustand\',\'Defekt\',\'chip-zst\')">Defekt</button>'+
-      '</div></div>'+
-      '<div class="sm-flow-divider"></div>'+
-      '<div class="sm-flow-sec"><div class="sm-sec-kicker">Für besseren Verkauf</div><label class="fl">Produkt (hilft beim Verkauf)</label><input type="text" id="f-product-c" class="fc" placeholder="z. B. Sony DualSense V2"/></div>'+
-      '<div class="sm-flow-divider"></div>'+
-      '<div class="sm-flow-sec sm-opt"><button type="button" class="sm-acc-btn" id="s3-toggle-more" onclick="toggleControllerDetails()">▼ Weitere Details anzeigen</button>'+
-      '<div id="s3-optional-wrap" style="display:none"><div class="sm-sec-kicker">Weitere Details (optional)</div>'+
+      '</div></div></div>'+
+      '<div class="card sm-card"><div class="card-body"><div class="sm-sec-kicker">Produkt (für Verkauf)</div><label class="fl">Produkt (hilft beim Verkauf)</label><input type="text" id="f-product-c" class="fc sm-soft" placeholder="z. B. Sony DualSense V2"/></div></div>'+
+      '<div class="card sm-card"><div class="card-body sm-opt"><button type="button" class="sm-acc-btn" id="s3-toggle-more" onclick="toggleControllerDetails()">▼ Weitere Details anzeigen</button>'+
+      '<div id="s3-optional-wrap" style="display:none"><div class="sm-sec-kicker">Weitere Details</div>'+
       '<label class="fl">Verbindung</label><input type="hidden" id="f-conn" value=""/><div id="chip-conn" class="sm-chip-row mb-2">'+
       '<button type="button" class="sm-chip" data-v="Wireless" onclick="setChipValue(\'f-conn\',\'Wireless\',\'chip-conn\')">Wireless</button>'+
       '<button type="button" class="sm-chip" data-v="Bluetooth" onclick="setChipValue(\'f-conn\',\'Bluetooth\',\'chip-conn\')">Bluetooth</button>'+
@@ -740,9 +745,10 @@ function configS3(t){
       '<button type="button" class="sm-chip" data-v="Kein" onclick="setChipValue(\'f-drift\',\'Kein\',\'chip-drift\')">Kein</button>'+
       '<button type="button" class="sm-chip" data-v="Leicht" onclick="setChipValue(\'f-drift\',\'Leicht\',\'chip-drift\')">Leicht</button>'+
       '<button type="button" class="sm-chip" data-v="Stark" onclick="setChipValue(\'f-drift\',\'Stark\',\'chip-drift\')">Stark</button>'+
-      '</div><div class="mb-2"><label class="fl">Zubehör (wichtig für Vollständigkeit)</label><input type="text" id="f-acc-c" class="fc" placeholder="z. B. Ladekabel, Dock"/></div>'+
-      '<div class="mb-1"><label class="fl">Hinweise (z. B. kleine Mängel)</label><textarea id="f-hinweise" class="fc" placeholder="z. B. Trigger klemmt leicht"></textarea></div>'+
-      '<div class="sm-opt-note">Hilft, Rückfragen zu vermeiden</div></div></div>';
+      '</div><div class="mb-2"><label class="fl">Zubehör (wichtig für Vollständigkeit)</label><input type="text" id="f-acc-c" class="fc sm-soft" placeholder="z. B. Ladekabel, Dock"/></div>'+
+      '<div class="mb-1"><label class="fl">Hinweise (z. B. kleine Mängel)</label><textarea id="f-hinweise" class="fc sm-soft" placeholder="z. B. Trigger klemmt leicht"></textarea></div>'+
+      '<div class="sm-opt-note">Hilft, Rückfragen zu vermeiden</div></div></div></div>'+
+      '<div class="card sm-card"><div class="card-body"><div class="row g-2"><div class="col-5"><button type="button" class="btn btn-outline-secondary w-100" onclick="stepperLocalBack()">Zurück</button></div><div class="col-7"><button type="button" id="s3-local-next" class="btn btn-primary w-100" onclick="stepperLocalNext()">Weiter</button></div></div></div></div>';
   }
   else if(t==="handy"){document.getElementById("s3-title").textContent="Technische Daten";h='<div class="row g-2 mb-3"><div class="col-6"><label class="fl">Speicher (GB)</label><input type="number" id="f-gb" class="fc" placeholder="z.B. 256"/></div><div class="col-6"><label class="fl">RAM (GB)</label><input type="number" id="f-ram" class="fc" placeholder="z.B. 8"/></div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Farbe</label><input type="text" id="f-farbe" class="fc" placeholder="z.B. Midnight Black"/></div><div class="col-6"><label class="fl">Netzwerk</label>'+selHTML("f-netz",["","4G/LTE","5G","Dual-SIM 5G","Sonstiges"])+'</div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div><div class="col-6"><label class="fl">IMEI (optional)</label><input type="text" id="f-imei" class="fc" placeholder="15-stellig"/></div></div>';}
   else if(t==="pc"){document.getElementById("s3-title").textContent="Hardware-Spezifikationen";h='<div class="mb-3"><label class="fl">Typ – Bitte zuerst wählen</label><div class="cg2"><button class="cbtn" id="pc-l" onclick="selPCTyp(\'Laptop\')"><span class="ci">💻</span>Laptop</button><button class="cbtn" id="pc-d" onclick="selPCTyp(\'Desktop\')"><span class="ci">🖥️</span>Desktop</button></div><input type="hidden" id="f-pc-typ" value=""/></div><div id="pc-fields-wrap" style="display:none"></div>';}
@@ -778,6 +784,11 @@ function updateProgress(){
   document.getElementById("btn-next").style.display=last?"none":"inline-flex";
   var sb=document.getElementById("btn-save-step");sb.style.display=last?"inline-flex":"none";
   sb.innerHTML=isEditMode?'<i class="bi bi-pencil-fill me-1"></i>Aktualisieren':'<i class="bi bi-cloud-upload-fill me-1"></i>Speichern';
+  var inlineAction=(stepCur===3&&curType==="controller");
+  var gb=document.getElementById("btn-back");
+  var gn=document.getElementById("btn-next");
+  if(gb)gb.style.display=inlineAction?"none":"inline-flex";
+  if(gn&&!last)gn.style.display=inlineAction?"none":"inline-flex";
   updateStepperCTA();
 }
 function showStep(n){for(var i=1;i<=stepTotal;i++){var el=document.getElementById("st-s"+i);if(el){el.classList.remove("on");if(i===n)el.classList.add("on");}}}
