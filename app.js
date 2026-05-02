@@ -3354,6 +3354,43 @@ function syncVKEKDisplays(){
 function vkPreisStep1Key(ev){
   if(ev&&ev.key==="Enter"){ev.preventDefault();try{vkStepNav(1);}catch(e){}}
 }
+function tuneVKPricePanel(){
+  var panel=document.querySelector("#vks-1 .vk-price-panel");
+  if(!panel)return;
+  var vkIn=document.getElementById("vk-preis");
+  var vsIn=document.getElementById("vk-versand");
+  var pv=document.getElementById("vk-marge-preview");
+  var labels=panel.querySelectorAll("label.fl");
+  if(labels[0])labels[0].textContent="Verkaufspreis (€)";
+  if(labels[1])labels[1].textContent="Versand (optional)";
+  if(labels[1])labels[1].classList.add("vk-ship-label");
+  if(vkIn&&!vkIn.classList.contains("vk-preis-main"))vkIn.classList.add("vk-preis-main");
+  if(vsIn&&!vsIn.classList.contains("vk-versand-input"))vsIn.classList.add("vk-versand-input");
+  if(!panel.querySelector(".vk-price-grid")&&labels.length>=2&&vkIn&&vsIn){
+    var grid=document.createElement("div");
+    grid.className="vk-price-grid";
+    var g1=document.createElement("div");
+    g1.className="vk-field vk-field-main";
+    var g2=document.createElement("div");
+    g2.className="vk-field vk-field-ship";
+    grid.appendChild(g1);grid.appendChild(g2);
+    g1.appendChild(labels[0]);
+    g1.appendChild(vkIn);
+    g2.appendChild(labels[1]);
+    g2.appendChild(vsIn);
+    if(pv)panel.insertBefore(grid,pv);else panel.appendChild(grid);
+  }
+  if(vkIn&&vkIn.parentNode&&!vkIn.parentNode.classList.contains("vk-input-eur-wrap")){
+    var wrap=document.createElement("div");
+    wrap.className="vk-input-eur-wrap";
+    vkIn.parentNode.insertBefore(wrap,vkIn);
+    wrap.appendChild(vkIn);
+    var eur=document.createElement("span");
+    eur.className="vk-input-eur";
+    eur.textContent="€";
+    wrap.appendChild(eur);
+  }
+}
 function calcAndShowMarge() {
   var vp = parseFloat(gv("vk-preis")||0);
   var ep = parseFloat(gv("vk-ep")||0);
@@ -3375,7 +3412,7 @@ function calcAndShowMarge() {
   if (pv && pvVal) {
     if (vp > 0) {
       pv.style.display = "block";
-      pvVal.textContent = (marge >= 0 ? "+" : "") + marge.toFixed(2) + " €" + (ep <= 0 ? " · EK?" : "");
+      pvVal.textContent = "Gewinn: " + (marge >= 0 ? "+" : "") + marge.toFixed(2) + " €" + (ep <= 0 ? " · EK?" : "");
       pvVal.style.color = marge >= 0 ? "#00ff88" : "#f85149";
     } else {
       pv.style.display = "none";
@@ -4460,6 +4497,7 @@ function openVerkaufForm(item, prefillScanId) {
     if(sEl)sEl.style.display=(i===1?"block":"none");
   }
   _renderVKStep();
+  tuneVKPricePanel();
   injectVKMitarbeiterControl();
   setTimeout(function(){try{syncVKEKDisplays();calcAndShowMarge();var pe=document.getElementById("vk-preis");if(pe)pe.focus();}catch(e){}},0);
   document.getElementById("vk-modal").classList.add("open");
