@@ -637,13 +637,22 @@ function jumpToStepperStep(n){
   if(stepCur===5){try{updatePriceSuggest();}catch(e){}}
 }
 function stepNext(){
-  if(stepCur===1){if(curType!=="controller"&&!document.getElementById("f-scanid").value.trim()){showD("s1-diag","Barcode eingeben oder scannen.","derr");return;}hideD("s1-diag");
+  if(stepCur===1){if(curType!=="controller"&&!document.getElementById("f-scanid").value.trim()){showD("s1-diag","Barcode eingeben oder scannen.","derr");createDraftIncompleteTask(["Scan-ID"]);return;}hideD("s1-diag");
     // Pre-fill name from EK check context
     if(window._ekCheckPreFillName){setTimeout(function(){var nEl=document.getElementById("f-name");if(nEl&&!nEl.value)nEl.value=window._ekCheckPreFillName;window._ekCheckPreFillName=null;},50);}
   }
-  if(stepCur===2&&!document.getElementById("f-name").value.trim()){toast("Name eingeben.","err");return;}
-  if(stepCur===4){if(!probChoice){toast("Mängel auswählen.","err");return;}if(probChoice==="ja"&&!probType){toast("Mangeltyp auswählen.","err");return;}if(probType==="physisch"&&photos.length===0){toast("Mindestens 1 Foto erforderlich.","err");return;}}
+  if(stepCur===2&&!document.getElementById("f-name").value.trim()){toast("Name eingeben.","err");createDraftIncompleteTask(["Name"]);return;}
+  if(stepCur===4){
+    if(!probChoice){toast("Mängel auswählen.","err");createDraftIncompleteTask(["Mängelstatus"]);return;}
+    if(probChoice==="ja"&&!probType){toast("Mangeltyp auswählen.","err");createDraftIncompleteTask(["Mangeltyp"]);return;}
+    if(photos.length===0){toast("Mindestens 1 Foto erforderlich.","err");createDraftIncompleteTask(["Foto"]);return;}
+  }
   if(stepCur<stepTotal){stepCur++;updateProgress();showStep(stepCur);window.scrollTo({top:0,behavior:"smooth"});
+    if(stepCur===4){
+      var pr=document.getElementById("photo-row");if(pr)pr.style.display="block";
+      showPhotoGuide(curType);
+      renderAllPhotos();
+    }
     if(stepCur===5){updatePriceSuggest();}
   }
 }
@@ -665,8 +674,8 @@ function stepBack(){
 }
 
 // ── MÄNGEL ───────────────────────────────────────────────────────
-function selProb(v){probChoice=v;document.getElementById("pb-nein").className="cbtn"+(v==="nein"?" sel-g":"");document.getElementById("pb-ja").className="cbtn"+(v==="ja"?" sel-r":"");document.getElementById("prob-type-row").style.display=v==="ja"?"block":"none";if(v==="nein"){document.getElementById("prob-descr-row").style.display="none";document.getElementById("photo-row").style.display="none";probType=null;photos=[];renderAllPhotos();}}
-function selProbType(v){probType=v;document.getElementById("pb-phys").className="cbtn"+(v==="physisch"?" sel-r":"");document.getElementById("pb-soft").className="cbtn"+(v==="software"?" sel":"");document.getElementById("prob-descr-row").style.display="block";document.getElementById("photo-row").style.display=v==="physisch"?"block":"none";if(v==="physisch"){showPhotoGuide(curType);}}
+function selProb(v){probChoice=v;document.getElementById("pb-nein").className="cbtn"+(v==="nein"?" sel-g":"");document.getElementById("pb-ja").className="cbtn"+(v==="ja"?" sel-r":"");document.getElementById("prob-type-row").style.display=v==="ja"?"block":"none";if(v==="nein"){document.getElementById("prob-descr-row").style.display="none";probType=null;}var pr=document.getElementById("photo-row");if(pr)pr.style.display="block";showPhotoGuide(curType);}
+function selProbType(v){probType=v;document.getElementById("pb-phys").className="cbtn"+(v==="physisch"?" sel-r":"");document.getElementById("pb-soft").className="cbtn"+(v==="software"?" sel":"");document.getElementById("prob-descr-row").style.display="block";var pr=document.getElementById("photo-row");if(pr)pr.style.display="block";showPhotoGuide(curType);}
 
 // ================================================================
 // KAMERA FIX: Kamera 0 immer direkt verwenden
@@ -782,7 +791,7 @@ function stopCam(){camStop();}
 
 // ── FOTOS ─────────────────────────────────────────────────────────
 function triggerPhotoInput(mode){var id=mode==="cam"?"f-photo-cam":"f-photo-gallery";var el=document.getElementById(id);if(!el){toast("Foto-Input nicht gefunden.","err");return;}el.onchange=function(){if(this.files&&this.files[0])processPhotoFile(this.files[0]);this.value="";};el.click();}
-function processPhotoFile(file){if(!file)return;if(file.size>15*1024*1024){toast("Max. 15 MB pro Foto.","err");return;}if(photos.length>=10){toast("Maximal 10 Bilder pro Produkt.","err");return;}var name=(file.name||"foto.jpg").replace(/[^a-zA-Z0-9._-]/g,"_");var img=new Image(),url=URL.createObjectURL(file);img.onload=function(){URL.revokeObjectURL(url);var MAX=1200,w=img.width,h=img.height;if(w>MAX||h>MAX){if(w>h){h=Math.round(h*(MAX/w));w=MAX;}else{w=Math.round(w*(MAX/h));h=MAX;}}var canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;var ctx=canvas.getContext("2d");ctx.fillStyle="#ffffff";ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);var b64=canvas.toDataURL("image/jpeg",0.78);if(!b64||b64.indexOf("base64,")===-1){toast("Bild konnte nicht verarbeitet werden.","err");return;}photos.push({b64:b64,name:name});renderAllPhotos();toast("Foto hinzugefügt ✅","ok",2000);};img.onerror=function(){toast("Bild konnte nicht geladen werden.","err");};img.src=url;}
+function processPhotoFile(file){if(!file)return;if(file.size>15*1024*1024){toast("Max. 15 MB pro Foto.","err");return;}if(photos.length>=12){toast("Maximal 12 Bilder pro Produkt.","err");return;}var name=(file.name||"foto.jpg").replace(/[^a-zA-Z0-9._-]/g,"_");var img=new Image(),url=URL.createObjectURL(file);img.onload=function(){URL.revokeObjectURL(url);var MAX=1200,w=img.width,h=img.height;if(w>MAX||h>MAX){if(w>h){h=Math.round(h*(MAX/w));w=MAX;}else{w=Math.round(w*(MAX/h));h=MAX;}}var canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;var ctx=canvas.getContext("2d");ctx.fillStyle="#ffffff";ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);var b64=canvas.toDataURL("image/jpeg",0.78);if(!b64||b64.indexOf("base64,")===-1){toast("Bild konnte nicht verarbeitet werden.","err");return;}photos.push({b64:b64,name:name});renderAllPhotos();toast("Foto hinzugefügt ✅","ok",2000);};img.onerror=function(){toast("Bild konnte nicht geladen werden.","err");};img.src=url;}
 function renderAllPhotos(){var mw=document.getElementById("photo-main-wrap"),thumbs=document.getElementById("photo-thumbs");if(!mw||!thumbs)return;mw.innerHTML="";thumbs.innerHTML="";if(photos.length===0){renderAddThumbBtn();return;}mw.innerHTML='<div class="photo-main-preview" style="max-height:120px"><img src="'+photos[0].b64+'" style="max-height:120px;object-fit:cover"/><div style="display:flex;gap:6px;position:absolute;right:6px;bottom:6px"><button class="rm-main-photo" onclick="movePhoto(0,1)" style="position:static">↓</button><button class="rm-main-photo" onclick="removePhoto(0)" style="position:static">✕</button></div></div>';for(var i=1;i<photos.length;i++){var div=document.createElement("div");div.className="photo-thumb";div.style.width="48px";div.style.height="48px";div.style.position="relative";div.innerHTML='<img src="'+photos[i].b64+'" style="object-fit:cover"/><button class="rm-thumb" onclick="removePhoto('+i+')">✕</button><button class="rm-thumb" style="right:22px" onclick="movePhoto('+i+','+(i-1)+')">↑</button>';thumbs.appendChild(div);}renderAddThumbBtn();}
 function renderAddThumbBtn(){var t=document.getElementById("photo-thumbs");if(!t)return;var btn=document.createElement("div");btn.className="add-thumb";btn.innerHTML='<i class="bi bi-plus"></i>';btn.onclick=function(){triggerPhotoInput("gallery");};t.appendChild(btn);}
 function removePhoto(idx){photos.splice(idx,1);renderAllPhotos();}
@@ -797,7 +806,14 @@ function doSave(){
   var probTyp=probChoice==="nein"?"":probType||"";
   var probD=probChoice==="nein"?"":(gv("f-prob-beschr"));
   var fotoB64arr=photos.map(function(p){return p.b64;});
-  if(fotoB64arr.length>10){setBL(btn,false,orig);toast("Maximal 10 Bilder erlaubt.","err");return;}
+  if(fotoB64arr.length>12){setBL(btn,false,orig);toast("Maximal 12 Bilder erlaubt.","err");return;}
+  var zustF=(gv("f-zustand")||"").trim();
+  var miss=[];
+  if(!name)miss.push("Name");
+  if(!(parseFloat(gv("f-einkaufspreis")||0)>0))miss.push("Preis");
+  if(!zustF)miss.push("Zustand");
+  if(fotoB64arr.length<1)miss.push("Foto");
+  if(miss.length){setBL(btn,false,orig);createDraftIncompleteTask(miss);toast("Pflichtfelder fehlen: "+miss.join(", "),"err");return;}
   if(curType==="controller"&&!scanId){scanId="CTRL-"+Date.now();}
   var d={scanId:scanId,mitarbeiter:ma,problemTyp:probTyp,problemBeschr:probD,fotos:fotoB64arr,
          einkaufspreis:gv("f-einkaufspreis"),warentyp:gv("f-warentyp")||"Gebrauchtware"};
@@ -821,7 +837,7 @@ function doSave(){
 
 function resetStepperState(){probChoice=null;probType=null;photos=[];["f-scanid","f-name","f-ma","f-prob-beschr","f-einkaufspreis"].forEach(function(id){var e=document.getElementById(id);if(e)e.value="";});var mw=document.getElementById("photo-main-wrap");if(mw)mw.innerHTML="";var pt=document.getElementById("photo-thumbs");if(pt)pt.innerHTML="";var ptr=document.getElementById("prob-type-row");if(ptr)ptr.style.display="none";var pdr=document.getElementById("prob-descr-row");if(pdr)pdr.style.display="none";var phr=document.getElementById("photo-row");if(phr)phr.style.display="none";var pn=document.getElementById("pb-nein");if(pn)pn.className="cbtn";var pj=document.getElementById("pb-ja");if(pj)pj.className="cbtn";// Fix 1: Barcode-Banner zurücksetzen
 var so=document.getElementById("scan-ok");if(so)so.style.display="none";var sv2=document.getElementById("scan-ok-val");if(sv2)sv2.textContent="";// Fix 2: Mängel-Buttons zurücksetzen
-var pp=document.getElementById("pb-phys");if(pp)pp.className="cbtn";var ps=document.getElementById("pb-soft");if(ps)ps.className="cbtn";stopCam();}
+var pp=document.getElementById("pb-phys");if(pp)pp.className="cbtn";var ps=document.getElementById("pb-soft");if(ps)ps.className="cbtn";var pg=document.getElementById("photo-guide-box");if(pg)pg.innerHTML="";stopCam();}
 
 // ── LAGER ─────────────────────────────────────────────────────────
 var _loadAllBusy=false,_loadAllTs=0,_loadAllCache=[];
@@ -3969,9 +3985,52 @@ var FOTO_GUIDES={
 
 function showPhotoGuide(type){
   var box=document.getElementById("photo-guide-box");if(!box)return;
-  var guide=FOTO_GUIDES[type]||FOTO_GUIDES.defekt;
-  box.innerHTML='<div class="photo-guide-title"><i class="bi bi-camera-fill" style="font-size:14px"></i>Foto-Anleitung für '+type.charAt(0).toUpperCase()+type.slice(1)+'</div>'+
-    guide.map(function(g,i){return'<div class="photo-guide-item"><div class="photo-guide-num">'+(i+1)+'</div><span>'+esc(g)+'</span></div>';}).join("");
+  var tips=buildAIFotoTips(type);
+  box.innerHTML='<div class="photo-guide-title"><i class="bi bi-stars" style="font-size:14px"></i>KI Foto-Tipps</div>'+
+    tips.map(function(g,i){return'<div class="photo-guide-item"><div class="photo-guide-num">'+(i+1)+'</div><span>'+esc(g)+'</span></div>';}).join("");
+}
+function buildAIFotoTips(type){
+  var nm=String(gv("f-name")||"").trim()||String(type||"Produkt");
+  var base=[
+    "1. Hauptbild: "+nm+" mittig auf hellem, ruhigem Hintergrund. Kein Blitz, leicht schräger Winkel (ca. 30°).",
+    "2. Detailbild: Zustand zeigen (Kratzer, Tasten, Kanten, Ports) mit sauberem Fokus.",
+    "3. Umfang: Zubehör/Teile ordentlich auslegen und vollständig sichtbar machen.",
+    "4. Vertrauen: Seriennummer oder relevante Rückseite klar und scharf fotografieren.",
+    "5. Vermeiden: dunkle Bilder, unruhiger Hintergrund, abgeschnittene Objekte."
+  ];
+  var extra={
+    konsole:["Bonus: Konsole, Controller und Spiele in einem cleanen Bundle-Bild arrangieren."],
+    spiel:["Bonus: Cover gerade ausrichten, optional Rückseite für Zustand zeigen."],
+    controller:["Bonus: Sticks/Tasten als Nahaufnahme für Funktionsvertrauen zeigen."],
+    handy:["Bonus: Display AN, Rückseite, Kanten und Kamera-Modul jeweils separat zeigen."],
+    pc:["Bonus: Anschlüsse, Gehäusekanten und Innen-/Port-Ansicht sauber ablichten."]
+  };
+  var out=base.slice();
+  if(extra[type]&&extra[type][0])out.splice(4,0,extra[type][0]);
+  return out.slice(0,6);
+}
+function createDraftIncompleteTask(missingFields){
+  try{
+    var title=(gv("f-name")||"").trim()||((curType||"produkt").toUpperCase()+" ohne Name");
+    var draft={
+      type:String(curType||"item"),
+      rowIndex:String(gv("f-scanid")||"draft"),
+      scanId:String(gv("f-scanid")||"").trim(),
+      name:title,
+      spiel:title,
+      modell:title,
+      einkaufspreis:gv("f-einkaufspreis")||"0",
+      zustand:gv("f-zustand")||"",
+      fotos:photos.slice()
+    };
+    var t=getOrCreateTask(String(emp||"").trim()||"Team");
+    addSubtask(t.id,draft);
+    if(missingFields&&missingFields.length){
+      t.description="Fehlende Pflichtfelder: "+missingFields.join(", ");
+      t.updatedAt=Date.now();
+      saveTasks();
+    }
+  }catch(e){}
 }
 
 // ── FEATURE: PREISVORSCHLAG (Fix 8a) ──────────────────────────────
