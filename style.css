@@ -97,7 +97,7 @@
 .ek-done-banner{margin-top:14px;padding:14px;background:rgba(0,255,136,.07);border:1px solid rgba(0,255,136,.22);border-radius:var(--r-lg);text-align:center}
 .ek-done-title{font-family:var(--fh);font-size:18px;letter-spacing:1px;color:var(--acc)}
 .ek-done-sub{font-size:11px;color:var(--w3);margin-top:4px}
-.analyse-dash-wrap{max-width:560px;margin:0 auto;padding-bottom:24px}
+.analyse-dash-wrap{max-width:560px;margin:0 auto;padding-bottom:24px;position:relative;z-index:2;touch-action:manipulation}
 .an-dash-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:20px}
 .an-dash-kicker{font-size:9px;font-family:var(--fm);letter-spacing:2px;text-transform:uppercase;color:var(--acc);opacity:.85}
 .an-dash-title{font-family:var(--fh);font-size:32px;letter-spacing:2px;color:var(--w1);line-height:1;margin:4px 0 0}
@@ -163,7 +163,7 @@
 .an-ct{padding:7px 12px;border-radius:var(--r);border:1px solid var(--e2);background:var(--b1);color:var(--w4);font-size:10px;font-weight:700;font-family:var(--fm);cursor:pointer;transition:all .12s}
 .an-ct.an-ct-on{border-color:var(--acc);color:var(--acc);background:rgba(0,255,136,.07)}
 .an-chart-frame{background:var(--b0);border:1px solid var(--e1);border-radius:var(--r-lg);padding:8px 4px 4px;overflow:hidden}
-.an-svg-chart{width:100%;height:168px;display:block}
+.an-svg-chart{width:100%;height:168px;display:block;pointer-events:none}
 .an-chart-line{stroke-dasharray:600;stroke-dashoffset:600;animation:anDrawLine .9s ease forwards}
 @keyframes anDrawLine{to{stroke-dashoffset:0}}
 .an-chart-fill{opacity:0;animation:anFadeIn .6s ease .15s forwards}
@@ -191,3 +191,5 @@
 .an-loss-k{color:var(--w4)}.an-loss-v{font-family:var(--fm);font-weight:700}
 .an-loss-row{display:flex;justify-content:space-between;font-size:11px;padding:5px 0;border-bottom:1px solid var(--e1)}
 .an-plus{color:var(--acc)!important}.an-minus{color:var(--col-r)!important}
+.notif-overlay:not(.open){pointer-events:none}
+#handel-panel:not(.on) .handel-fab-menu{display:none!important}
