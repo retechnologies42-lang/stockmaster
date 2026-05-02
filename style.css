@@ -226,3 +226,22 @@
 .an-plat-h{font-size:10px;font-family:var(--fm);letter-spacing:1px;color:var(--acc);text-transform:uppercase;margin-bottom:8px}
 .an-plat-k{font-size:11px;color:var(--w3);font-family:var(--fm);margin:3px 0}
 .an-plat-g{color:var(--acc);font-weight:700}
+
+/* Artikelwahl (VK Multi) — Cards */
+#vkm-list{display:grid;grid-template-columns:1fr;gap:8px;padding:8px 6px}
+@media(min-width:400px){#vkm-list{grid-template-columns:1fr 1fr}}
+.vkm-card{display:flex;gap:10px;align-items:flex-start;padding:11px 12px;background:var(--b2);border:1px solid var(--e1);border-radius:var(--r-lg);cursor:pointer;transition:border-color .12s,background .12s,transform .1s}
+.vkm-card:hover{border-color:var(--e3);background:var(--b3)}
+.vkm-card:active{transform:scale(.995)}
+.vkm-card-sel{border-color:rgba(0,255,136,.35);background:rgba(0,255,136,.06)}
+.vkm-card-check{width:22px;height:22px;border-radius:var(--r-sm);border:1px solid var(--e2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-family:var(--fm);color:var(--w4)}
+.vkm-card-sel .vkm-card-check{background:var(--acc);border-color:var(--acc);color:#000}
+.vkm-card-body{flex:1;min-width:0}
+.vkm-card-title{font-size:13px;font-weight:700;color:var(--w1);line-height:1.25;margin-bottom:4px}
+.vkm-card-meta{display:flex;flex-wrap:wrap;gap:6px 10px;font-size:10px;color:var(--w4);font-family:var(--fm)}
+.vkm-card-id{color:var(--acc)}
+
+/* Home — Dashboard-KPIs: drei Klickzonen */
+.kpi-dash-hit{cursor:pointer;flex:1;min-width:0;padding:4px 6px;margin:-4px -6px;border-radius:var(--r);transition:background .12s}
+.kpi-dash-hit:hover{background:rgba(0,255,136,.06)}
+.kpi-dash-hit:active{background:rgba(0,255,136,.1)}
