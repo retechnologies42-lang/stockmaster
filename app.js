@@ -1,7 +1,7 @@
 
 
 
-var GAS_URL = "https://script.google.com/macros/s/AKfycbwRjKlU6kteeJDdo_kGBSQEagav-Uy8UWKLR3EkSNzTwSSCnHVQy2nFTM2Tz72qFg/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbxnjxCq2_qHtsn7lRn0w26hIcCsrJspphzgePVIKV1GRQR3wovJUi6qOy47AI3-hg/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -850,9 +850,19 @@ function loadAll(force){
       });
     });
   }
+  function applySetMeta(items){
+    (items||[]).forEach(function(it){
+      if(!it||it.type==="setbundle")return;
+      var sid=String(it.scanId||"").trim();
+      var ref=sid&&(setMembershipByScanId[sid]||[])[0];
+      it.setId=ref?String(ref.setId||""):"";
+      it.setName=ref?String(ref.name||""):"";
+    });
+  }
   function renderPartial(){
     allItems=kd.concat(sd,hd,pd,dd,sb);
     rebuildSetMembership(sb);
+    applySetMeta(allItems);
     if(allItems.length>0){renderList();updateMyStats();}
   }
   function tryR(){
@@ -861,6 +871,7 @@ function loadAll(force){
     if(done<total)return;
     allItems=kd.concat(sd,hd,pd,dd,sb);
     rebuildSetMembership(sb);
+    applySetMeta(allItems);
     _loadAllCache=allItems.slice();
     _loadAllTs=Date.now();
     _loadAllBusy=false;
@@ -2932,7 +2943,7 @@ function openProfilFor(name) {
   if(dash){
     try{loadTasks();}catch(e){}
     var tasksDone=(tasksCache||[]).filter(function(t){return t.status==="final"&&String(t.assignee||t.owner||"").toLowerCase()===String(name||"").toLowerCase();}).length;
-    dash.innerHTML='<div style="display:flex;flex-direction:column;gap:12px;margin-top:10px"><div style="background:#0f1115;border:1px solid #1f2937;border-radius:14px;padding:14px"><div style="font-size:17px;font-weight:800;color:#fff">Profil</div><div id="profil-sub-info" style="font-size:11px;color:#8b949e;margin-top:6px">Lade Account Infos…</div></div><div style="background:#0f1115;border:1px solid #1f2937;border-radius:14px;padding:14px"><div style="font-size:14px;font-weight:800;color:#fff;margin-bottom:8px">Deine Kennzahlen</div><div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px"><div style="border:1px solid #222;border-radius:10px;padding:10px"><div style="font-size:20px;color:#fff;font-weight:800">'+(stat.verkauft||0)+'</div><div style="font-size:11px;color:#8b949e">Eigene Verkäufe</div></div><div style="border:1px solid #222;border-radius:10px;padding:10px"><div style="font-size:20px;color:#fff;font-weight:800">'+tasksDone+'</div><div style="font-size:11px;color:#8b949e">Tasks erledigt</div></div><div style="border:1px solid #222;border-radius:10px;padding:10px"><div style="font-size:20px;color:#fff;font-weight:800">'+(stat.eingelagert||0)+'</div><div style="font-size:11px;color:#8b949e">Performance</div></div></div></div><div style="background:#0f1115;border:1px solid #1f2937;border-radius:14px;padding:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-size:14px;font-weight:800;color:#fff">Aktivitätslog</div><button class="btn btn-outline-secondary btn-sm" onclick="openTasksMaster()">Tasks öffnen</button></div><div id="profil-activity-dash" style="max-height:220px;overflow:auto"></div></div><div style="display:flex;justify-content:flex-end"><button class="btn btn-outline-danger btn-sm" onclick="changeEmp();document.getElementById(\'profil-overlay\').classList.remove(\'open\')"><i class="bi bi-box-arrow-right me-1"></i>Logout</button></div></div>';
+    dash.innerHTML='<div style="display:flex;flex-direction:column;gap:12px;margin-top:10px"><div style="background:#0f1115;border:1px solid #1f2937;border-radius:14px;padding:14px"><div style="font-size:17px;font-weight:800;color:#fff">Profil</div><div id="profil-sub-info" style="font-size:11px;color:#8b949e;margin-top:6px">Lade Account Infos…</div></div><div style="background:#0f1115;border:1px solid #1f2937;border-radius:14px;padding:14px"><div style="font-size:14px;font-weight:800;color:#fff;margin-bottom:8px">Deine Kennzahlen</div><div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px"><div style="border:1px solid #222;border-radius:10px;padding:10px"><div style="font-size:20px;color:#fff;font-weight:800">'+(stat.verkauft||0)+'</div><div style="font-size:11px;color:#8b949e">Eigene Verkäufe</div></div><div style="border:1px solid #222;border-radius:10px;padding:10px"><div style="font-size:20px;color:#fff;font-weight:800">'+tasksDone+'</div><div style="font-size:11px;color:#8b949e">Tasks erledigt</div></div><div style="border:1px solid #222;border-radius:10px;padding:10px"><div style="font-size:20px;color:#fff;font-weight:800">'+(stat.eingelagert||0)+'</div><div style="font-size:11px;color:#8b949e">Performance</div></div></div></div><div style="background:#0f1115;border:1px solid #1f2937;border-radius:14px;padding:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-size:14px;font-weight:800;color:#fff">Aktivitätslog</div><button class="btn btn-outline-secondary btn-sm" onclick="openTasksMaster()">Tasks öffnen</button></div><div id="profil-activity-dash" style="max-height:220px;overflow:auto"></div></div><div style="display:flex;justify-content:flex-end;gap:8px">'+(canManageEmployees()?'<button class="btn btn-outline-primary btn-sm" onclick="openAccModal()">Accounts verwalten</button>':'')+'<button class="btn btn-outline-danger btn-sm" onclick="changeEmp();document.getElementById(\'profil-overlay\').classList.remove(\'open\')"><i class="bi bi-box-arrow-right me-1"></i>Logout</button></div></div>';
   }
   var logEl = document.getElementById("profil-activity-dash");
   if (logEl) logEl.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center;padding:8px"><span class="spin-b"></span> Lade…</div>';
@@ -3152,12 +3163,29 @@ function _productTaskId(item){
 function _productTaskTitle(item){
   return String(item&&((item.name||item.spiel||item.modell||item.geraet||item.scanId))||"Produkt");
 }
+function _itemPhotoCount(item){
+  if(!item)return 0;
+  var f=item.fotos;
+  if(Array.isArray(f))return f.filter(Boolean).length;
+  if(typeof f==="string"){
+    var s=f.trim();
+    if(!s)return 0;
+    try{
+      var arr=JSON.parse(s);
+      if(Array.isArray(arr))return arr.filter(Boolean).length;
+    }catch(e){}
+    if(s.indexOf("data:image/")===0)return 1;
+    return s.split(",").map(function(x){return String(x||"").trim();}).filter(Boolean).length;
+  }
+  return 0;
+}
 function _isProductIncomplete(item){
   if(!item||item.type==="setbundle")return false;
   var nm=String(_productTaskTitle(item)||"").trim();
-  var sid=String(item.scanId||"").trim();
-  var ek=parseFloat(item.einkaufspreis||0)||0;
-  return !nm||!sid||ek<=0;
+  var preis=parseFloat(item.einkaufspreis||item.kaPreis||0)||0;
+  var zustand=String(item.zustand||"").trim();
+  var fotos=_itemPhotoCount(item);
+  return !nm||preis<=0||!zustand||fotos<1;
 }
 function _taskById(id){return tasksCache.find(function(t){return t.id===id;});}
 function getOrCreateTask(userId){
@@ -3636,6 +3664,20 @@ function openAccModal(){
   var inviteTab = document.getElementById("acctab-invite");
   if(inviteTab) inviteTab.style.display = canManageEmployees() ? "block" : "none";
 }
+function canDeleteAccountRole(targetRole){
+  var me=normalizeRole(empRolle);
+  var tr=normalizeRole(targetRole);
+  if(me==="inhaber")return true;
+  if(me==="co-chef"&&tr!=="inhaber")return true;
+  return false;
+}
+function canChangeAccountRole(targetRole){
+  var me=normalizeRole(empRolle);
+  var tr=normalizeRole(targetRole);
+  if(me==="inhaber")return true;
+  if(me==="co-chef"&&tr!=="inhaber")return true;
+  return false;
+}
 function ensureInviteRoleOptions(){
   var sel=document.getElementById("acc-rolle-in");if(!sel)return;
   var wanted=[{v:"mitarbeiter",t:"Mitarbeiter"},{v:"senior",t:"Senior"},{v:"co-chef",t:"Co-Chef"},{v:"inhaber",t:"Inhaber"}];
@@ -3677,6 +3719,7 @@ function sendInvite(){
   if(!name){diag.className="diag derr";diag.textContent="Name erforderlich.";diag.style.display="block";return;}
   if(!pw||pw.length<6){diag.className="diag derr";diag.textContent="Passwort mindestens 6 Zeichen.";diag.style.display="block";return;}
   if(!canManageEmployees()){diag.className="diag derr";diag.textContent="Keine Berechtigung zum Verwalten von Mitarbeitern.";diag.style.display="block";return;}
+  if(normalizeRole(empRolle)==="co-chef"&&normalizeRole(rolle)==="inhaber"){diag.className="diag derr";diag.textContent="Co-Chef darf keinen Inhaber anlegen.";diag.style.display="block";return;}
   var btn=document.querySelector("#acc-modal .btn-primary");setBL(btn,true);
   gasGet("createAccount",{name:name,email:email,password:pw,rolle:rolle,actorRole:normalizeRole(empRolle),actorName:emp},function(r){
     setBL(btn,false);
@@ -3701,6 +3744,13 @@ function deleteServerAccount(email){
     if(r&&r.ok){toast(r.msg,"ok");loadServerAccounts();}
     else{toast("Fehler: "+(r?r.fehler:"?"),"err");}
   },function(e){toast("Fehler: "+e,"err");});
+}
+function updateServerAccountRole(email,newRole){
+  if(!email||!newRole)return;
+  gasGet("updateAccountRole",{email:email,newRole:newRole,actorRole:normalizeRole(empRolle),actorName:emp},function(r){
+    if(r&&r.ok){toast("Rolle aktualisiert.","ok");loadServerAccounts();}
+    else{toast("Fehler: "+(r?r.fehler:"?"),"err");loadServerAccounts();}
+  },function(e){toast("Fehler: "+e,"err");loadServerAccounts();});
 }
 
 function triggerPDFExport(){
@@ -4739,6 +4789,19 @@ function renderServerAccounts(accs) {
       btnWrap.appendChild(resendBtn);
     }
     if(canManageEmployees()){
+      if(canChangeAccountRole(a.rolle)){
+        var roleSel=document.createElement("select");
+        roleSel.className="fc";
+        roleSel.style.cssText="font-size:10px;padding:4px 6px;min-width:112px";
+        var opts=["mitarbeiter","senior","co-chef","inhaber"];
+        if(normalizeRole(empRolle)!=="inhaber")opts=["mitarbeiter","senior","co-chef"];
+        roleSel.innerHTML=opts.map(function(r){return'<option value="'+r+'">'+r+'</option>';}).join("");
+        roleSel.value=normalizeRole(a.rolle||"mitarbeiter");
+        roleSel.onchange=(function(email){return function(){updateServerAccountRole(email,this.value);};})(a.email);
+        btnWrap.appendChild(roleSel);
+      }
+    }
+    if(canManageEmployees()&&canDeleteAccountRole(a.rolle)){
       var delBtn = document.createElement("button");
       delBtn.className="btn btn-outline-danger btn-sm";
       delBtn.title="Löschen";
@@ -5692,9 +5755,18 @@ function confirmSetBundle(){
   if(!setBuilderDraft||!setBuilderDraft.items||!setBuilderDraft.items.length){toast("Kein Set erstellt.","err");return;}
   var setName=gv("sb-set-name").trim()||setBuilderDraft.name;
   gasPost("saveSetBundle",{name:setName,mitarbeiter:emp,plattform:setBuilderDraft.plattform,budget:setBuilderDraft.budget,zustand:setBuilderDraft.zustand,items:setBuilderDraft.items,notizen:"Bestätigt via KIsetMasterPro"},function(r){
-    if(r&&r.ok){toast("Set gespeichert ✅","ok");setBuilderDraft=null;loadAll();setBuilderStep=99;renderSetBuilderFlow();}
+    if(r&&r.ok){toast("Set gespeichert ✅","ok");showCenterSuccess("Set "+setName+" erfolgreich erstellt");setBuilderDraft=null;loadAll();setBuilderStep=99;renderSetBuilderFlow();}
     else{toast("Fehler: "+(r?r.fehler:"?"),"err");}
   },function(e){toast("Fehler: "+e,"err");});
+}
+function showCenterSuccess(msg){
+  var old=document.getElementById("center-success-toast");if(old)old.remove();
+  var el=document.createElement("div");
+  el.id="center-success-toast";
+  el.style.cssText="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10150;background:rgba(0,0,0,.92);border:1px solid rgba(0,255,136,.35);color:#00ff88;padding:12px 16px;border-radius:10px;font-size:14px;font-weight:700;box-shadow:0 10px 30px rgba(0,0,0,.35)";
+  el.textContent=msg||"Erfolgreich";
+  document.body.appendChild(el);
+  setTimeout(function(){if(el&&el.parentNode)el.parentNode.removeChild(el);},1800);
 }
 function autoSaveSetBuilderDraft(){
   if(!setBuilderDraft||setBuilderDraft._autoSaved)return;
