@@ -2612,7 +2612,7 @@ function openDetail(rIdx){
     });
     var showFotos=mode==="anzeige"?kaFotos:defFotos;
     if(showFotos.length>0){
-      heroEl.style.aspectRatio="4 / 3";heroEl.style.maxHeight="68vh";
+      heroEl.style.aspectRatio="16 / 10";heroEl.style.maxHeight="34vh";
       heroEl.innerHTML='<img src="'+esc(showFotos[0])+'" style="width:100%;height:100%;object-fit:cover"/>';
       heroEl.className="detail-hero";
       if(showFotos.length>1){
@@ -2626,7 +2626,7 @@ function openDetail(rIdx){
     }
   };
   window.detailSetHeroImg=function(el,src){
-    heroEl.style.aspectRatio="4 / 3";heroEl.style.maxHeight="68vh";
+    heroEl.style.aspectRatio="16 / 10";heroEl.style.maxHeight="34vh";
     heroEl.innerHTML='<img src="'+esc(src)+'" style="width:100%;height:100%;object-fit:cover"/>';
     thumbsEl.querySelectorAll(".detail-photo-thumb").forEach(function(t){t.classList.remove("active");});
     el.classList.add("active");
