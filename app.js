@@ -1,7 +1,7 @@
 
 
 
-var GAS_URL = "https://script.google.com/macros/s/AKfycbxvKEGpajyplCR_wxiI6RLURXiOGay3ox_bDoGQO7LOkfmF9QGQ_rFDKrOtNW6Miw/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbwbN_sEnxWe79ZQ7aviYEyN79e9lu9LoKQNZJMS_daH1DbZy4v2rvdo6039z3H9BA/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -290,7 +290,40 @@ function fillMA(){var e=document.getElementById("f-ma");if(e)e.value=emp;}
 // ── GREETING ─────────────────────────────────────────────────────
 function setGreeting(){var h=new Date().getHours(),g,emoji;if(h>=5&&h<10){g="GUTEN MORGEN";emoji="☀️";}else if(h>=10&&h<12){g="GUTEN VORMITTAG";emoji="🌤️";}else if(h>=12&&h<14){g="GUTEN MITTAG";emoji="🌞";}else if(h>=14&&h<18){g="GUTEN NACHMITTAG";emoji="⛅";}else if(h>=18&&h<22){g="GUTEN ABEND";emoji="🌆";}else{g="GUTE NACHT";emoji="🌙";}var gt=document.getElementById("g-time"),gn=document.getElementById("g-name");if(gt)gt.textContent=g+" "+emoji;if(gn)gn.textContent=emp;updateMyStats();}
 function updateMyStats(){if(!emp)return;var items=Array.isArray(allItems)?allItems:[];var notifArr=Array.isArray(notifications)?notifications:[];var today=new Date().toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"});var total=0,todayCount=0,defekte=0;items.forEach(function(item){if((item.mitarbeiter||"").toLowerCase()===emp.toLowerCase()){total++;if(item.datum&&item.datum.startsWith(today.split(".")[0]+"."+today.split(".")[1]))todayCount++;}if(item.type==="defekt"&&(item.mitarbeiter||"").toLowerCase()===emp.toLowerCase())defekte++;});var t=document.getElementById("my-total");if(t)t.textContent=total;var td=document.getElementById("my-today");if(td)td.textContent=todayCount;var df=document.getElementById("my-defekte");if(df)df.textContent=defekte;var nf=document.getElementById("my-notifs");if(nf)nf.textContent=notifArr.length;}
+function ensureMasterModuleUnifiedStyles(){
+  if(document.getElementById("master-module-unified-style"))return;
+  var st=document.createElement("style");
+  st.id="master-module-unified-style";
+  st.textContent=
+    ".mm-shell{background:#0a0a0a}.mm-card{background:#0f1115;border:1px solid #1f2937;border-radius:14px;padding:14px;box-shadow:0 8px 28px rgba(0,0,0,.35);transition:border-color .14s,box-shadow .14s}"
+    +".mm-card:hover{border-color:#2b3240;box-shadow:0 10px 32px rgba(0,0,0,.45)}.mm-title{font-family:Bebas Neue,sans-serif;letter-spacing:2px;font-size:22px;color:#00ff88;text-shadow:0 0 14px rgba(0,255,136,.2)}"
+    +"#bestandsmaster-overlay.mm-shell,#setbuilder-overlay.mm-shell{background:#0a0a0a!important}"
+    +".vk-flow-sheet{background:#0a0a0a!important;border:1px solid #1f2937!important;border-radius:14px!important;box-shadow:0 12px 40px rgba(0,0,0,.55),0 0 0 1px rgba(0,255,136,.06)}"
+    +".vk-flow-sheet .mhead{background:#0f1115!important;border-color:#1f2937!important}.vk-flow-sheet .mbody{background:#0a0a0a}"
+    +".vk-add-btn{box-shadow:0 0 20px rgba(0,255,136,.25)}.vk-add-btn:active{transform:scale(.97)}"
+    +".vk-product-hero{display:block;text-align:center;padding:14px 12px;margin:10px 0;border-radius:14px;background:#0f1115;border:1px solid #222;box-shadow:0 0 0 1px rgba(0,255,136,.05)}"
+    +".vk-ph-name{font-size:16px;font-weight:800;color:#fff;line-height:1.25;word-break:break-word}.vk-ph-preis{margin-top:8px;font-size:22px;font-weight:900;font-family:Space Mono,monospace;color:#00ff88}"
+    +".vk-opt-lbl{font-size:10px;color:#6b7280;font-weight:600;margin-left:4px}.vk-adv-lbl{font-size:10px;color:#6b7280!important}"
+    +".vk-pf-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.vk-pf-card{min-height:96px;border-radius:12px!important;padding:14px 10px!important;border:1px solid #222!important;background:#0b0d12!important;transition:all .14s}"
+    +".vk-pf-card .vk-pf-ic{font-size:28px;line-height:1}.vk-pf-card .vk-pf-lbl{font-size:11px;font-weight:800;letter-spacing:.5px;margin-top:6px}"
+    +".vk-pf-card:hover{border-color:#00ff8866!important;background:#101820!important}.vk-pf-card.vk-sel{border-color:#00ff88!important;box-shadow:0 0 22px rgba(0,255,136,.28);background:rgba(0,255,136,.08)!important;color:#e6edf3!important}"
+    +".vk-bezahl-stack{display:flex;flex-direction:column;gap:8px}.vk-bezahl-btn{text-align:left!important;flex-direction:row!important;justify-content:flex-start!important;gap:10px!important;padding:12px 14px!important;border-radius:10px!important}"
+    +".vk-bezahl-btn.vk-sel{border-color:#00ff88!important;box-shadow:0 0 16px rgba(0,255,136,.2)}"
+    +".vk-geld-wrap{margin-top:10px;padding-top:10px;border-top:1px dashed #222}"
+    +".vk-marge-hero{text-align:center;padding:20px 14px;margin-bottom:14px;border-radius:14px;background:#0f1115;border:1px solid #222;box-shadow:0 0 0 1px rgba(0,255,136,.06)}"
+    +".vk-marge-hero-lbl{font-size:10px;color:#8b949e;letter-spacing:2px;font-family:Space Mono,monospace}.vk-marge-hero-val{font-size:42px;font-weight:900;font-family:Space Mono,monospace;line-height:1.1;margin:10px 0 4px;letter-spacing:-1px}"
+    +".vk-marge-hero-val.vk-win{color:#00ff88;text-shadow:0 0 24px rgba(0,255,136,.35)}.vk-marge-hero-val.vk-loss{color:#f85149;text-shadow:0 0 24px rgba(248,81,73,.25)}"
+    +".vk-marge-hero-sub{font-size:11px;color:#8b949e;font-family:Space Mono,monospace}"
+    +".vk-status-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.vk-stat{padding:10px 6px!important;font-size:10px!important}.vk-stat .ci{font-size:16px!important}"
+    +".vk-vm-link{display:block;width:100%;margin-top:8px;background:none;border:none;color:#6b7280;font-size:11px;cursor:pointer;text-align:center;padding:6px;font-family:Space Mono,monospace}"
+    +".vk-vm-link:hover{color:#00ff88}.vk-vm-link.active{color:#00ff88;font-weight:700}"
+    +".vk-marge-inline{display:flex;flex-direction:column;gap:4px;padding:10px;border-radius:10px;border:1px solid #222;background:#0b0d12}.vk-marge-inline.marge-pos{border-color:rgba(0,255,136,.3)}.vk-marge-inline.marge-neg{border-color:rgba(248,81,73,.35)}"
+    +".vk-marge-inline .marge-val{font-size:16px;font-weight:800;font-family:Space Mono,monospace}.vk-marge-inline.marge-pos .marge-val{color:#00ff88}.vk-marge-inline.marge-neg .marge-val{color:#f85149}.vk-marge-inline-sub{font-size:10px;color:#8b949e;font-family:Space Mono,monospace}"
+    +".vk-kunde-input{font-size:13px!important}";
+  document.head.appendChild(st);
+}
 function ensureHomeHubStyles(){
+  ensureMasterModuleUnifiedStyles();
   if(document.getElementById("home-hub-style"))return;
   var st=document.createElement("style");
   st.id="home-hub-style";
@@ -889,7 +922,7 @@ function ensureLagerRedesignStyles(){
   if(document.getElementById("lager-redesign-style"))return;
   var st=document.createElement("style");
   st.id="lager-redesign-style";
-  st.textContent="#list-panel{background:#0a0a0a}.lager-topbar{position:sticky;top:0;z-index:8;background:#0a0a0a;padding:8px 0 12px}.lager-topbar-row{display:flex;gap:8px;flex-wrap:wrap}.lager-search{flex:1;min-width:220px}.lager-sel{min-width:140px;max-width:180px}.lager-active-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.lager-chip-filter{background:#111;border:1px solid #222;color:#9ca3af;border-radius:999px;padding:4px 10px;font-size:11px}.lager-chip-filter span{color:#e5e7eb}.lager-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px}.lager-card{background:#111;border:1px solid #222;border-radius:14px;padding:12px;transition:all .18s ease}.lager-card:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,0,0,.35);background:#151515}.lager-card-row{display:grid;grid-template-columns:80px 1fr;gap:12px}.lager-thumb{width:80px;height:80px;border-radius:12px;overflow:hidden;background:#0d1117;border:1px solid #222}.lager-thumb img{width:100%;height:100%;object-fit:cover}.lager-title{font-size:15px;font-weight:700;color:#fff;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.lager-price{font-size:20px;color:#3fb950;font-weight:800;margin-top:2px}.lager-sub{font-size:11px;color:#9ca3af;margin-top:3px}.lager-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.lager-tag{font-size:10px;color:#9ca3af;border:1px solid #2b2b2b;padding:2px 6px;border-radius:999px}.lager-meta{font-size:10px;color:#6b7280;margin-top:8px;display:flex;gap:10px;flex-wrap:wrap}.lager-sethint{font-size:11px;color:#58a6ff;margin-top:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;background:rgba(88,166,255,.12);border:1px solid rgba(88,166,255,.35);padding:3px 8px;border-radius:999px}.lager-actions{display:flex;gap:6px;align-items:flex-start}.lager-head{display:flex;justify-content:space-between;gap:8px}.addset-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:10100;display:none;align-items:center;justify-content:center;padding:16px}.addset-modal{width:min(500px,96vw);max-height:80vh;overflow:auto;background:#0f1318;border:1px solid rgba(63,185,80,.35);border-radius:14px;padding:16px;animation:addsetIn .18s ease}.addset-list{margin-top:10px;display:flex;flex-direction:column;gap:8px;max-height:44vh;overflow:auto}.addset-row{padding:10px 12px;background:#11161d;border:1px solid #1f2937;border-radius:10px;cursor:pointer;transition:all .15s ease}.addset-row:hover{border-color:rgba(63,185,80,.6);background:#141a22}.addset-row.selected{border-color:#3fb950;background:rgba(63,185,80,.1)}.addset-row.disabled{opacity:.55;cursor:not-allowed}.setinfo-overlay{position:fixed;inset:0;background:rgba(0,0,0,.64);z-index:10101;display:none;align-items:center;justify-content:center;padding:12px}.setinfo-card{width:min(460px,96vw);background:#11161d;border:1px solid rgba(88,166,255,.35);border-radius:12px;padding:12px;max-height:70vh;overflow:auto}@keyframes addsetIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}";
+  st.textContent="#list-panel{background:#0a0a0a}.lager-topbar{position:sticky;top:0;z-index:8;background:#0a0a0a;padding:8px 0 12px}.lager-topbar-row{display:flex;gap:8px;flex-wrap:wrap}.lager-search{flex:1;min-width:220px}.lager-sel{min-width:140px;max-width:180px}.lager-active-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.lager-chip-filter{background:#111;border:1px solid #222;color:#9ca3af;border-radius:999px;padding:4px 10px;font-size:11px}.lager-chip-filter span{color:#e5e7eb}.lager-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px}.lager-card{background:#111;border:1px solid #222;border-radius:14px;padding:12px;transition:all .18s ease}.lager-card:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,0,0,.35);background:#151515}.lager-card-row{display:grid;grid-template-columns:80px 1fr;gap:12px}.lager-thumb{width:80px;height:80px;border-radius:12px;overflow:hidden;background:#0d1117;border:1px solid #222}.lager-thumb img{width:100%;height:100%;object-fit:cover}.lager-title{font-size:15px;font-weight:700;color:#fff;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.lager-price{font-size:20px;color:#00ff88;font-weight:800;margin-top:2px}.lager-sub{font-size:11px;color:#9ca3af;margin-top:3px}.lager-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.lager-tag{font-size:10px;color:#9ca3af;border:1px solid #2b2b2b;padding:2px 6px;border-radius:999px}.lager-meta{font-size:10px;color:#6b7280;margin-top:8px;display:flex;gap:10px;flex-wrap:wrap}.lager-sethint{font-size:11px;color:#00ff88;margin-top:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.35);padding:3px 8px;border-radius:999px}.lager-actions{display:flex;gap:6px;align-items:flex-start}.lager-head{display:flex;justify-content:space-between;gap:8px}.addset-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:10100;display:none;align-items:center;justify-content:center;padding:16px}.addset-modal{width:min(500px,96vw);max-height:80vh;overflow:auto;background:#0f1115;border:1px solid rgba(0,255,136,.25);border-radius:14px;padding:16px;animation:addsetIn .18s ease}.addset-list{margin-top:10px;display:flex;flex-direction:column;gap:8px;max-height:44vh;overflow:auto}.addset-row{padding:10px 12px;background:#0b0d12;border:1px solid #1f2937;border-radius:10px;cursor:pointer;transition:all .15s ease}.addset-row:hover{border-color:rgba(0,255,136,.45);background:#101820}.addset-row.selected{border-color:#00ff88;background:rgba(0,255,136,.1)}.addset-row.disabled{opacity:.55;cursor:not-allowed}.setinfo-overlay{position:fixed;inset:0;background:rgba(0,0,0,.64);z-index:10101;display:none;align-items:center;justify-content:center;padding:12px}.setinfo-card{width:min(460px,96vw);background:#0f1115;border:1px solid rgba(0,255,136,.25);border-radius:12px;padding:12px;max-height:70vh;overflow:auto}@keyframes addsetIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}";
   document.head.appendChild(st);
 }
 function updateLagerDropdowns(skipReset){
@@ -1827,35 +1860,46 @@ function selVKPlattform(p){
   try{calcAndShowMarge();}catch(e){}
 }
 function _highlightVKPlattform(p){
-  ["ka","eb","ab","so"].forEach(function(id){var el=document.getElementById("vkp-"+id);if(el)el.className="cbtn";});
+  ["ka","eb","ab","so"].forEach(function(id){var el=document.getElementById("vkp-"+id);if(el)el.className="cbtn vk-pf-card";});
   var map={Kleinanzeigen:"ka",eBay:"eb",Abholung:"ab",Sonstiges:"so"};
-  var el=document.getElementById("vkp-"+(map[p]||"so"));if(el)el.className="cbtn vk-sel";
+  var el=document.getElementById("vkp-"+(map[p]||"so"));if(el)el.className="cbtn vk-pf-card vk-sel";
 }
 
+function onVKShipChange(){
+  _updateVKBezahlOpts();
+  try{calcAndShowMarge();}catch(e){}
+}
 function _updateVKBezahlOpts(){
   var p=gv("vk-plattform");
-  var opts={
-    Kleinanzeigen:["PayPal","Kleinanzeigen Sicher Bezahlen","Kleinanzeigen SB","Überweisung","eBay","Bar (Abholung)"],
-    eBay:["eBay-Zahlung","eBay","PayPal","Kleinanzeigen Sicher Bezahlen","Kleinanzeigen SB"],
-    Abholung:["Bar"],
-    Sonstiges:["PayPal","Überweisung","Bar","Sonstiges","eBay","Kleinanzeigen Sicher Bezahlen","Kleinanzeigen SB"]
-  };
-  var list=opts[p]||opts.Sonstiges;
+  var ship=gv("vk-abholung");
+  var list=[];
+  if(p==="Abholung"){
+    list=["Bar"];
+  }else if(p==="eBay"){
+    list=["eBay-Zahlung","PayPal"];
+  }else if(p==="Kleinanzeigen"){
+    list=ship==="Abholung"?["PayPal","Bar","Überweisung","Kleinanzeigen Sicher Bezahlen"]:["PayPal","Überweisung","Kleinanzeigen Sicher Bezahlen"];
+  }else{
+    list=ship==="Abholung"?["PayPal","Bar","Überweisung"]:["PayPal","Überweisung","Bar"];
+  }
   var wrap=document.getElementById("vk-bezahl-opts");if(!wrap)return;
   var cur=gv("vk-bezahlt");
-  // Use data-val to avoid onclick string escaping issues
+  if(list.indexOf(cur)<0)cur=list[0];
+  sv2("vk-bezahlt",cur);
   wrap.innerHTML=list.map(function(o){
     var isSel=(cur===o);
-    return'<button class="cbtn'+(isSel?" vk-sel":"")+'" data-bezahl="'+esc(o)+'">'+esc(o)+'</button>';
+    return'<button type="button" class="cbtn vk-bezahl-btn'+(isSel?" vk-sel":"")+'" data-bezahl="'+esc(o)+'">'+esc(o)+'</button>';
   }).join("");
-  // Event delegation
   wrap.onclick=function(e){
     var btn=e.target.closest("[data-bezahl]");
     if(!btn)return;
     selVKBezahl(btn.getAttribute("data-bezahl"));
   };
   var sub=document.getElementById("vks-3-sub");
-  if(sub){var hints={Kleinanzeigen:"PayPal oder Überweisung bereithalten.",eBay:"Zahlung über eBay-System.",Abholung:"Barzahlung bei Übergabe."};sub.textContent=hints[p]||"Zahlungsart wählen.";}
+  if(sub){
+    var hints={Kleinanzeigen:ship==="Versand"?"PayPal / Überweisung üblich.":"Bar oder PayPal bei Abholung.",eBay:"Über eBay abwickeln.",Abholung:"Bar bei Übergabe.",Sonstiges:"Passende Methode wählen."};
+    sub.textContent=hints[p]||"Zahlungsart wählen.";
+  }
 }
 
 function selVKBezahl(v){
@@ -1865,9 +1909,11 @@ function selVKBezahl(v){
 
 function selVKStatus(v){
   sv2("vk-status",v);
-  ["vm","vk","vs","ab"].forEach(function(id){var el=document.getElementById("vkst-"+id);if(el)el.className="cbtn";});
+  ["vkst-vk","vkst-vs","vkst-ab"].forEach(function(id){var el=document.getElementById(id);if(el)el.className="cbtn vk-stat";});
+  var vm=document.getElementById("vkst-vm");if(vm){vm.classList.remove("active");}
   var map={Vorgemerkt:"vm",Verkauft:"vk",Versendet:"vs",Abgeschlossen:"ab"};
-  var el=document.getElementById("vkst-"+(map[v]||"vm"));if(el)el.className="cbtn vk-sel";
+  if(v==="Vorgemerkt"){if(vm)vm.classList.add("active");}
+  else{var el=document.getElementById("vkst-"+(map[v]||"vk"));if(el)el.className="cbtn vk-stat vk-sel";}
   onVKLieferstatusChange();
 }
 
@@ -2371,19 +2417,19 @@ function ensureBestandsmasterBtn(){
   row.style.cssText="display:none";
   var btn=document.createElement("button");
   btn.id="btn-bestandsmasterpro";
-  btn.className="btn btn-outline-primary";
+  btn.className="btn btn-outline-secondary";
   btn.style.flex="1";
-  btn.innerHTML='Zum BestandsmasterPro';
+  btn.innerHTML='Bestandsmaster';
   btn.onclick=function(){openBestandsmasterPro();};
   var btn2=document.createElement("button");
   btn2.id="btn-kisetmasterpro";
-  btn2.className="btn btn-outline-primary";
+  btn2.className="btn btn-outline-secondary";
   btn2.style.flex="1";
-  btn2.innerHTML='KIsetMasterPro';
+  btn2.innerHTML='KIsetMaster';
   btn2.onclick=function(){openSetBuilderFlow();};
   var btn3=document.createElement("button");
   btn3.id="btn-tasksmasterpro";
-  btn3.className="btn btn-outline-primary";
+  btn3.className="btn btn-success";
   btn3.style.flex="1";
   btn3.innerHTML='TasksMasterPro';
   btn3.onclick=function(){openTasksMaster();};
@@ -2392,11 +2438,13 @@ function ensureBestandsmasterBtn(){
 }
 
 function ensureBestandsmasterOverlay(){
+  ensureMasterModuleUnifiedStyles();
   if(document.getElementById("bestandsmaster-overlay"))return;
   var ov=document.createElement("div");
   ov.id="bestandsmaster-overlay";
-  ov.style.cssText="display:none;position:fixed;inset:0;background:radial-gradient(circle at 20% 0,#101a2a 0,#070b11 52%,#05070b 100%);z-index:10020;overflow:auto;padding:14px";
-  ov.innerHTML='<div style="max-width:980px;margin:0 auto"><div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><button class="btn btn-outline-secondary btn-sm" onclick="closeBestandsmasterPro()">← Zurück zum STKMPro</button><div style="margin-left:auto;font-family:Bebas Neue,sans-serif;letter-spacing:2px;font-size:22px;color:var(--acc)">BESTANDSMASTER PRO</div></div><div style="background:linear-gradient(180deg,#0f1724,#0b111b);border:1px solid rgba(88,166,255,.22);border-radius:12px;padding:12px;margin-bottom:10px"><div style="font-size:12px;color:var(--w3)">Angemeldet als</div><div id="bm-user" style="font-size:18px;font-weight:800;color:var(--acc)"></div></div><div id="bm-body"></div></div>';
+  ov.className="mm-shell";
+  ov.style.cssText="display:none;position:fixed;inset:0;background:#0a0a0a;z-index:10020;overflow:auto;padding:14px";
+  ov.innerHTML='<div style="max-width:920px;margin:0 auto"><div style="display:flex;gap:10px;align-items:center;margin-bottom:12px"><button type="button" class="btn btn-outline-secondary btn-sm" onclick="closeBestandsmasterPro()">← Zurück</button><div class="mm-title" style="margin-left:auto">BESTANDSMASTER</div></div><div class="mm-card" style="margin-bottom:12px"><div style="font-size:11px;color:#8b949e">Angemeldet als</div><div id="bm-user" style="font-size:18px;font-weight:800;color:#fff"></div></div><div id="bm-body"></div></div>';
   document.body.appendChild(ov);
 }
 function bmStorageKey(){ return "bmp_checks_"+String(emp||"Unbekannt").toLowerCase(); }
@@ -2409,7 +2457,7 @@ function renderBestandsmasterPro(){
   var list=bmLoad();
   var done=list.filter(function(c){return c.status==="abgeschlossen";}).length;
   var open=list.length-done;
-  body.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><button class="btn btn-primary btn-sm" onclick="bmNewCheck()">Neue Bestandsprüfung</button><button class="btn btn-outline-secondary btn-sm" onclick="renderBestandsmasterPro()">Aktualisieren</button></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><div class="chip"><b>Checks:</b> '+list.length+'</div><div class="chip"><b>Offen:</b> '+open+'</div><div class="chip"><b>Abgeschlossen:</b> '+done+'</div></div>'+(list.length?list.map(function(it,idx){var total=(it.items||[]).length;var checked=(it.items||[]).filter(function(x){return x.checked;}).length;var pct=total?Math.round((checked/total)*100):0;return '<div style="background:linear-gradient(180deg,#0f1724,#0b111b);border:1px solid var(--e1);border-radius:10px;padding:10px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>'+esc(it.name||"Prüfung")+'</b><span class="chip">'+esc(it.status||"offen")+'</span></div><div style="font-size:11px;color:var(--w4);margin-top:2px">'+esc(it.time||"")+'</div><div style="margin-top:6px;height:8px;background:#1a2432;border-radius:999px;overflow:hidden"><div style="height:8px;width:'+pct+'%;background:#2381ff"></div></div><div style="font-size:11px;color:var(--w3);margin-top:4px">'+checked+' / '+total+' Produkte geprüft</div><div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-outline-primary btn-sm" onclick="bmOpenCheck('+idx+')">Öffnen</button><button class="btn btn-outline-danger btn-sm" onclick="bmDelete('+idx+')">Löschen</button></div></div>';}).join(""):'<div class="empty"><i class="bi bi-clipboard2-check"></i><p>Keine Prüfungen vorhanden</p></div>');
+  body.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><button type="button" class="btn btn-success btn-sm" onclick="bmNewCheck()">Neue Bestandsprüfung</button><button type="button" class="btn btn-outline-secondary btn-sm" onclick="renderBestandsmasterPro()">Aktualisieren</button></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><div class="chip"><b>Checks:</b> '+list.length+'</div><div class="chip"><b>Offen:</b> '+open+'</div><div class="chip"><b>Abgeschlossen:</b> '+done+'</div></div>'+(list.length?list.map(function(it,idx){var total=(it.items||[]).length;var checked=(it.items||[]).filter(function(x){return x.checked;}).length;var pct=total?Math.round((checked/total)*100):0;return '<div class="mm-card" style="margin-bottom:10px;padding:12px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b style="color:#fff">'+esc(it.name||"Prüfung")+'</b><span class="chip">'+esc(it.status||"offen")+'</span></div><div style="font-size:11px;color:#8b949e;margin-top:2px">'+esc(it.time||"")+'</div><div style="margin-top:8px;height:6px;background:#1b222b;border-radius:999px;overflow:hidden"><div style="height:6px;width:'+pct+'%;background:#00ff88;border-radius:999px;transition:width .2s"></div></div><div style="font-size:11px;color:#8b949e;margin-top:6px">'+checked+' / '+total+' geprüft</div><div style="display:flex;gap:6px;margin-top:10px"><button type="button" class="btn btn-outline-secondary btn-sm" onclick="bmOpenCheck('+idx+')">Öffnen</button><button type="button" class="btn btn-outline-danger btn-sm" onclick="bmDelete('+idx+')">Löschen</button></div></div>';}).join(""):'<div class="empty"><i class="bi bi-clipboard2-check"></i><p>Keine Prüfungen vorhanden</p></div>');
 }
 function bmNewCheck(){
   var list=bmLoad();
@@ -2425,8 +2473,8 @@ function bmOpenCheck(idx){
   var body=document.getElementById("bm-body");if(!body)return;
   var cats=["spiele","konsolen","controller","handys","pcs"];
   var current=check.currentCat||cats[0];
-  var rows=(check.items||[]).map(function(it,i){return {it:it,i:i};}).filter(function(x){return x.it.cat===current;}).map(function(x){var it=x.it,i=x.i;return '<div style="display:flex;gap:8px;align-items:center;padding:8px;border:1px solid var(--e1);border-radius:8px;margin-bottom:6px"><div style="flex:1"><div style="font-size:12px;color:var(--w1);font-weight:700">'+esc(it.name)+'</div><div style="font-size:10px;color:var(--w4)">'+esc(it.scanId||"Kein Barcode")+' · '+esc(it.type||"")+(it.newZustand?' · Neu: '+esc(it.newZustand):'')+'</div></div><button class="btn btn-outline-secondary btn-sm" onclick="bmAddPhoto('+idx+','+i+')">'+(it.photo?"Foto ersetzen":"Foto")+'</button><button class="btn btn-sm '+(it.checked?'btn-success':'btn-outline-primary')+'" onclick="bmToggleItem('+idx+','+i+')">'+(it.checked?'Erledigt':'Abhaken')+'</button></div>';}).join("");
-  body.innerHTML='<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><button class="btn btn-outline-secondary btn-sm" onclick="renderBestandsmasterPro()">← Zur Übersicht</button><div class="chip">'+esc(check.name)+'</div><div class="chip">Status: '+esc(check.status||"offen")+'</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'+cats.map(function(c){return '<button class="btn btn-sm '+(c===current?'btn-primary':'btn-outline-primary')+'" onclick="bmSetCategory('+idx+',\''+c+'\')">'+c.toUpperCase()+'</button>';}).join("")+'</div><div style="margin-bottom:8px"><button class="btn btn-primary btn-sm" onclick="bmFinalizeCheck('+idx+')">Check abschließen</button></div><div>'+(rows||'<div class="empty"><i class="bi bi-inbox"></i><p>Keine Produkte in Kategorie.</p></div>')+'</div>';
+  var rows=(check.items||[]).map(function(it,i){return {it:it,i:i};}).filter(function(x){return x.it.cat===current;}).map(function(x){var it=x.it,i=x.i;return '<div class="mm-card" style="display:flex;gap:8px;align-items:center;padding:10px;margin-bottom:8px"><div style="flex:1"><div style="font-size:12px;color:#fff;font-weight:700">'+esc(it.name)+'</div><div style="font-size:10px;color:#8b949e">'+esc(it.scanId||"Kein Barcode")+' · '+esc(it.type||"")+(it.newZustand?' · Neu: '+esc(it.newZustand):'')+'</div></div><button type="button" class="btn btn-outline-secondary btn-sm" onclick="bmAddPhoto('+idx+','+i+')">'+(it.photo?"Foto ersetzen":"Foto")+'</button><button type="button" class="btn btn-sm '+(it.checked?'btn-success':'btn-outline-secondary')+'" onclick="bmToggleItem('+idx+','+i+')">'+(it.checked?'Erledigt':'Abhaken')+'</button></div>';}).join("");
+  body.innerHTML='<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><button type="button" class="btn btn-outline-secondary btn-sm" onclick="renderBestandsmasterPro()">← Übersicht</button><div class="chip">'+esc(check.name)+'</div><div class="chip">'+esc(check.status||"offen")+'</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'+cats.map(function(c){return '<button type="button" class="btn btn-sm '+(c===current?'btn-success':'btn-outline-secondary')+'" onclick="bmSetCategory('+idx+',\''+c+'\')">'+c.toUpperCase()+'</button>';}).join("")+'</div><div style="margin-bottom:8px"><button type="button" class="btn btn-success btn-sm" onclick="bmFinalizeCheck('+idx+')">Check abschließen</button></div><div>'+(rows||'<div class="empty"><i class="bi bi-inbox"></i><p>Keine Produkte in Kategorie.</p></div>')+'</div>';
 }
 function bmSetCategory(cIdx,cat){var list=bmLoad();if(!list[cIdx])return;list[cIdx].currentCat=cat;bmSave(list);bmOpenCheck(cIdx);}
 function bmAddPhoto(cIdx,iIdx){
@@ -2501,6 +2549,7 @@ function createTaskFromBestandIssue(item,title){
   addNotification("🛠️ Task erstellt","Problem bei Bestandsprüfung: "+(item.name||item.scanId||"Unbekannt"),"alert","task-open");
 }
 function ensureTasksOverlay(){
+  ensureMasterModuleUnifiedStyles();
   if(document.getElementById("tasksmaster-overlay"))return;
   var ov=document.createElement("div");
   ov.id="tasksmaster-overlay";
@@ -2696,6 +2745,19 @@ function onGlobalCamChange() {
 // ================================================================
 // VERKAUF MARGE ANZEIGE im VK Stepper Step 4
 // ================================================================
+function syncVKProductHero(){
+  var n=String(gv("vk-produkte")||"").trim();
+  var p=String(gv("vk-preis")||"").trim();
+  var hero=document.getElementById("vk-product-hero");
+  var nm=document.getElementById("vk-product-hero-name");
+  var pr=document.getElementById("vk-product-hero-preis");
+  if(!hero||!nm||!pr)return;
+  if(!n&&!p){hero.style.display="none";return;}
+  hero.style.display="block";
+  nm.textContent=n||"Artikel";
+  if(p&&parseFloat(p)>0)pr.textContent="VK "+parseFloat(p).toFixed(2)+" €";
+  else pr.textContent="VK-Preis (Schritt 1)";
+}
 function calcAndShowMarge() {
   var vp = parseFloat(gv("vk-preis")||0);
   var ep = parseFloat(gv("vk-ep")||0);
@@ -2709,23 +2771,44 @@ function calcAndShowMarge() {
   var sub = document.getElementById("vk-marge-sub");
   var pv = document.getElementById("vk-marge-preview");
   var pvVal = document.getElementById("vk-marge-preview-val");
+  var hero = document.getElementById("vk-marge-hero");
+  var hv = document.getElementById("vk-marge-hero-val");
+  var hs = document.getElementById("vk-marge-hero-sub");
   if (pv && pvVal) {
     if (vp > 0) {
       pv.style.display = "block";
       pvVal.textContent = (marge >= 0 ? "+" : "") + marge.toFixed(2) + " €" + (ep <= 0 ? " · EK?" : "");
-      pvVal.style.color = marge >= 0 ? "var(--acc)" : "#f85149";
+      pvVal.style.color = marge >= 0 ? "#00ff88" : "#f85149";
     } else {
       pv.style.display = "none";
     }
   }
+  if (hero && hv) {
+    if (vp > 0) {
+      hero.style.display = "block";
+      hv.textContent = (marge >= 0 ? "+" : "") + marge.toFixed(2) + " €";
+      hv.className = "vk-marge-hero-val " + (marge >= 0 ? "vk-win" : "vk-loss");
+      if (hs) {
+        var bits = [];
+        if (ep > 0) bits.push("EK " + ep.toFixed(2) + " €");
+        if (fee > 0) bits.push("Gebühr " + fee.toFixed(2) + " €");
+        if (vs > 0) bits.push("Versand " + vs.toFixed(2) + " €");
+        hs.textContent = bits.join(" · ") || (ep <= 0 ? "EK eintragen für belastbare Marge" : "");
+      }
+    } else {
+      hero.style.display = "none";
+    }
+  }
   if (!box) return;
   if (vp > 0 && ep > 0) {
-    box.style.display = "block";
-    box.className = "marge-badge " + (marge >= 0 ? "marge-pos" : "marge-neg");
-    val.textContent = (marge >= 0 ? "+" : "") + marge.toFixed(2) + " €";
-    var msg = marge > 0 ? "🎉 Glückwunsch! Gewinn erzielt." : marge === 0 ? "⚠️ Nullsumme – kein Gewinn." : "❌ Verlust! Preis prüfen.";
-    if (fee > 0) msg += " (Gebühr: " + fee.toFixed(2) + "€)";
-    sub.textContent = msg;
+    box.style.display = "flex";
+    box.className = "vk-marge-inline " + (marge >= 0 ? "marge-pos" : "marge-neg");
+    if(val) val.textContent = (marge >= 0 ? "+" : "") + marge.toFixed(2) + " €";
+    if(sub){
+      var msg = marge > 0 ? "Gewinn" : marge === 0 ? "Break-even" : "Verlust";
+      if (fee > 0) msg += " · Gebühr " + fee.toFixed(2) + " €";
+      sub.textContent = msg;
+    }
   } else {
     box.style.display = "none";
   }
@@ -3737,6 +3820,7 @@ function _updateVKTotals() {
   var vs = parseFloat(gv("vk-versand")||0);
   var totalDisplay = document.getElementById("vk-total-display");
   if(totalDisplay) totalDisplay.textContent = "∑ "+totalVK.toFixed(2)+"€";
+  syncVKProductHero();
   calcAndShowMarge();
 }
 
@@ -3783,7 +3867,7 @@ function openVerkaufForm(item, prefillScanId) {
     if(sEl)sEl.style.display=(i===1?"block":"none");
   }
   _renderVKStep();
-  setTimeout(function(){try{calcAndShowMarge();}catch(e){}},0);
+  setTimeout(function(){try{syncVKProductHero();calcAndShowMarge();}catch(e){}},0);
   document.getElementById("vk-modal").classList.add("open");
 }
 
@@ -4465,11 +4549,13 @@ function setHomeSubtab(tab){
   if(tb)tb.style.display="none";
 }
 function ensureSetBuilderOverlay(){
+  ensureMasterModuleUnifiedStyles();
   if(document.getElementById("setbuilder-overlay"))return;
   var ov=document.createElement("div");
   ov.id="setbuilder-overlay";
-  ov.style.cssText="display:none;position:fixed;inset:0;z-index:10050;background:radial-gradient(circle at 20% 0,#101a2a 0,#070b11 52%,#05070b 100%);padding:16px;overflow:auto";
-  ov.innerHTML='<div style="max-width:920px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-family:Bebas Neue,sans-serif;letter-spacing:2px;font-size:28px;color:var(--acc)">KISETMASTERPRO</div><button class="btn btn-outline-secondary btn-sm" onclick="closeSetBuilderFlow()">Schließen</button></div><div id="sb-flow-body" style="background:linear-gradient(180deg,#0f1724,#0b111b);border:1px solid rgba(88,166,255,.22);border-radius:14px;padding:14px"></div></div>';
+  ov.className="mm-shell";
+  ov.style.cssText="display:none;position:fixed;inset:0;z-index:10050;background:#0a0a0a;padding:16px;overflow:auto";
+  ov.innerHTML='<div style="max-width:920px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div class="mm-title">KISETMASTER</div><button type="button" class="btn btn-success btn-sm" style="border-color:#00ff8866" onclick="closeSetBuilderFlow()">Schließen</button></div><div id="sb-flow-body" class="mm-card"></div></div>';
   document.body.appendChild(ov);
 }
 function openSetBuilderFlow(){
@@ -4487,7 +4573,7 @@ function renderSetBuilderFlow(){
   var body=document.getElementById("sb-flow-body");if(!body)return;
   loadSetChats();
   if(setBuilderStep===0){
-    body.innerHTML='<div style="font-size:20px;font-weight:800;color:#3fb950;margin-bottom:6px">So funktioniert KIsetMasterPro</div><div style="font-size:12px;color:var(--w3);line-height:1.7">Reiner Chat-Modus für Set-Anfragen + Set/Chat-Verwaltung.</div><div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-primary" onclick="setBuilderStep=1;renderSetBuilderFlow()">Chat starten</button><button class="btn btn-outline-primary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets verwalten</button></div>';
+    body.innerHTML='<div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:6px">KIsetMaster</div><div style="font-size:12px;color:#8b949e;line-height:1.7">Chat-Anfragen für Sets · gespeicherte Chats & Set-Verwaltung.</div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button type="button" class="btn btn-success" onclick="setBuilderStep=1;renderSetBuilderFlow()">Chat starten</button><button type="button" class="btn btn-outline-secondary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets verwalten</button></div>';
     return;
   }
   if(setBuilderStep===99){renderSetManager(body);return;}
@@ -4495,8 +4581,8 @@ function renderSetBuilderFlow(){
     body.innerHTML='<div style="display:flex;gap:10px;align-items:center"><span class="spin-b"></span><div><div style="font-size:16px;color:var(--w1);font-weight:700">Set wird erstellt</div><div style="font-size:12px;color:var(--w3)">Passende Produkte werden kombiniert…</div></div></div>';
     return;
   }
-  var chatHtml=setChats.slice(0,20).map(function(c,ix){return '<div style="background:#0f1724;border:1px solid var(--e1);border-radius:8px;padding:8px;margin-bottom:6px"><div style="font-size:11px;color:var(--w2)">'+esc(c.q||"")+'</div><div style="font-size:10px;color:var(--w4);margin-top:2px">'+esc(c.time||"")+'</div><div style="display:flex;gap:6px;margin-top:6px"><button class="btn btn-outline-primary btn-sm" onclick="reloadSetChat('+ix+')">Laden</button><button class="btn btn-outline-secondary btn-sm" onclick="editSetChat('+ix+')">Bearbeiten</button><button class="btn btn-outline-danger btn-sm" onclick="deleteSetChat('+ix+')">Löschen</button></div></div>';}).join("");
-  body.innerHTML='<div style="font-size:14px;color:#3fb950;font-weight:700;margin-bottom:8px">Set-Chat</div><div style="display:flex;gap:8px"><input id="sb-chat-in" class="fc" placeholder="z.B. PS4 + 3 Spiele + Controller"/><button class="btn btn-outline-primary" onclick="sbHandleChat()">Senden</button><button class="btn btn-outline-secondary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets</button></div><div id="sb-chat-out" style="font-size:11px;color:var(--w3);margin-top:8px"></div><hr style="border-color:var(--e1);margin:10px 0"/><div style="font-size:12px;color:var(--w4);margin-bottom:6px">Vorherige Chats</div><div style="max-height:320px;overflow:auto">'+(chatHtml||'<div class="empty"><p>Keine Chats</p></div>')+'</div>';
+  var chatHtml=setChats.slice(0,20).map(function(c,ix){return '<div class="mm-card" style="padding:10px;margin-bottom:8px"><div style="font-size:11px;color:#e6edf3">'+esc(c.q||"")+'</div><div style="font-size:10px;color:#8b949e;margin-top:2px">'+esc(c.time||"")+'</div><div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn btn-outline-secondary btn-sm" onclick="reloadSetChat('+ix+')">Laden</button><button type="button" class="btn btn-outline-secondary btn-sm" onclick="editSetChat('+ix+')">Bearbeiten</button><button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteSetChat('+ix+')">Löschen</button></div></div>';}).join("");
+  body.innerHTML='<div style="font-size:13px;color:#00ff88;font-weight:700;margin-bottom:8px">Set-Chat</div><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="sb-chat-in" class="fc" placeholder="z.B. PS4 + 3 Spiele + Controller" style="flex:1;min-width:200px"/><button type="button" class="btn btn-success" onclick="sbHandleChat()">Senden</button><button type="button" class="btn btn-outline-secondary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets</button></div><div id="sb-chat-out" style="font-size:11px;color:#8b949e;margin-top:8px"></div><hr style="border-color:#1f2937;margin:10px 0"/><div style="font-size:11px;color:#8b949e;margin-bottom:6px">Vorherige Chats</div><div style="max-height:320px;overflow:auto">'+(chatHtml||'<div class="empty"><p>Keine Chats</p></div>')+'</div>';
 }
 function sbParseRequest(text){
   var q=String(text||"").toLowerCase().trim();
@@ -4577,19 +4663,19 @@ function buildSetWithAI(onDone){
   push(cons,1);push(games,gamesNeed);push(ctrl,1);
   var total=picks.reduce(function(s,i){return s+(parseFloat(i.einkaufspreis||0)||0);},0);
   if(budget>0&&total>budget){picks=picks.filter(function(i){return i.type!=="spiel";});push(games.slice(gamesNeed),1);total=picks.reduce(function(s,i){return s+(parseFloat(i.einkaufspreis||0)||0);},0);}
-  if(!picks.length){setBuilderDraft=null;var bd=document.getElementById("sb-flow-body");if(bd)bd.innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Keine passenden Produkte für '+esc(p)+'</p></div><button class="btn btn-outline-secondary" onclick="setBuilderStep=1;renderSetBuilderFlow()">Zurück</button>';if(typeof onDone==="function")onDone(null);return;}
+  if(!picks.length){setBuilderDraft=null;var bd=document.getElementById("sb-flow-body");if(bd)bd.innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Keine passenden Produkte für '+esc(p)+'</p></div><button type="button" class="btn btn-outline-secondary" onclick="setBuilderStep=1;renderSetBuilderFlow()">Zurück</button>';if(typeof onDone==="function")onDone(null);return;}
   var priceFast=Math.round((total*1.18)*100)/100,priceMax=Math.round((total*1.28)*100)/100;
   setBuilderDraft={name:p+" "+(ziel==="Maximaler Gewinn"?"Profit":"Smart")+" Set",plattform:p,budget:budget,zustand:cond,items:picks.map(function(i){return {typ:i.type,name:i.name||i.spiel||i.modell||i.scanId,scanId:i.scanId||"",ek:parseFloat(i.einkaufspreis||0)||0};}),total:Math.round(total*100)/100,priceFast:priceFast.toFixed(2)+"€ VB (schneller Verkauf)",priceMax:priceMax.toFixed(2)+"€ VB (max Gewinn)"};
   var body=document.getElementById("sb-flow-body");if(!body)return;
   setDraftImages=[];
-  body.innerHTML='<div style="font-size:18px;font-weight:800;color:var(--w1);margin-bottom:8px">Set Vorschlag</div><div class="chips" style="margin-bottom:8px"><span class="chip">Plattform: '+esc(p)+'</span><span class="chip">Ziel: '+esc(ziel)+'</span><span class="chip">EK gesamt: '+setBuilderDraft.total+'€</span></div><div style="font-size:12px;color:var(--w3);line-height:1.7;margin-bottom:10px">'+setBuilderDraft.items.map(function(i){return"• "+esc(i.name)+" ("+i.ek+"€)";}).join("<br>")+'</div><div class="chips" style="margin-bottom:10px"><span class="chip">'+esc(setBuilderDraft.priceMax)+'</span><span class="chip">'+esc(setBuilderDraft.priceFast)+'</span></div><div style="display:flex;gap:8px;margin-bottom:8px"><input id="sb-set-name" class="fc" placeholder="Set-Name" value="'+esc(setBuilderDraft.name)+'"/><button class="btn btn-outline-primary" onclick="sbAnalyzeSet()">KI-Einschätzung</button></div><div id="sb-set-images" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div><div id="sb-set-analysis" style="font-size:11px;color:var(--w3);margin-bottom:10px"></div><div style="display:flex;gap:8px"><button class="btn btn-outline-secondary" onclick="setBuilderStep=1;renderSetBuilderFlow()">Neu berechnen</button><button class="btn btn-success" onclick="confirmSetBundle()">Set speichern</button><button class="btn btn-outline-primary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets verwalten</button></div>';
+  body.innerHTML='<div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px">Set Vorschlag</div><div class="chips" style="margin-bottom:8px"><span class="chip">Plattform: '+esc(p)+'</span><span class="chip">Ziel: '+esc(ziel)+'</span><span class="chip">EK gesamt: '+setBuilderDraft.total+'€</span></div><div style="font-size:12px;color:#8b949e;line-height:1.7;margin-bottom:10px">'+setBuilderDraft.items.map(function(i){return"• "+esc(i.name)+" ("+i.ek+"€)";}).join("<br>")+'</div><div class="chips" style="margin-bottom:10px"><span class="chip">'+esc(setBuilderDraft.priceMax)+'</span><span class="chip">'+esc(setBuilderDraft.priceFast)+'</span></div><div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap"><input id="sb-set-name" class="fc" placeholder="Set-Name" value="'+esc(setBuilderDraft.name)+'" style="flex:1;min-width:180px"/><button type="button" class="btn btn-outline-secondary" onclick="sbAnalyzeSet()">KI-Einschätzung</button></div><div id="sb-set-images" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div><div id="sb-set-analysis" style="font-size:11px;color:#8b949e;margin-bottom:10px"></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-outline-secondary" onclick="setBuilderStep=1;renderSetBuilderFlow()">Neu berechnen</button><button type="button" class="btn btn-success" onclick="confirmSetBundle()">Set speichern</button><button type="button" class="btn btn-outline-secondary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets verwalten</button></div>';
   sbRenderSetImages();
   if(typeof onDone==="function")onDone(setBuilderDraft);
 }
 function renderSetManager(body){
   gasGet("getSetBundles",{},function(r){
     setsCache=(r&&r.ok)?(r.data||[]):[];
-    body.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:18px;font-weight:800;color:var(--w1)">Gespeicherte Sets</div><button class="btn btn-outline-secondary btn-sm" onclick="setBuilderStep=1;renderSetBuilderFlow()">Neues Set</button></div>'+(setsCache.length?setsCache.map(function(s,ix){var items=s.items||[];var txt=items.map(function(i){return (i.name||"")+" ["+(i.scanId||"-")+"]";}).join(", ");return '<div style="background:var(--b2);border:1px solid var(--e1);border-radius:10px;padding:10px;margin-bottom:8px"><div style="display:flex;justify-content:space-between"><b>'+esc(s.name||s.setId)+'</b><span class="chip">'+esc(s.plattform||"-")+'</span></div><div style="font-size:11px;color:var(--w3);margin:6px 0">'+esc(txt.substring(0,220))+(txt.length>220?"…":"")+'</div><div style="display:flex;gap:6px"><button class="btn btn-outline-primary btn-sm" onclick="exportSetForKA('+ix+')">Für Kleinanzeigen</button><button class="btn btn-outline-secondary btn-sm" onclick="editSetFromManager('+ix+')">Bearbeiten</button><button class="btn btn-outline-danger btn-sm" onclick="deleteSetFromManager('+ix+')">Löschen</button></div></div>';}).join(""):'<div class="empty"><i class="bi bi-inbox"></i><p>Keine Sets vorhanden.</p></div>');
+    body.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px"><div style="font-size:18px;font-weight:800;color:#fff">Gespeicherte Sets</div><button type="button" class="btn btn-outline-secondary btn-sm" onclick="setBuilderStep=1;renderSetBuilderFlow()">Neues Set</button></div>'+(setsCache.length?setsCache.map(function(s,ix){var items=s.items||[];var txt=items.map(function(i){return (i.name||"")+" ["+(i.scanId||"-")+"]";}).join(", ");return '<div class="mm-card" style="padding:12px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;gap:8px"><b style="color:#fff">'+esc(s.name||s.setId)+'</b><span class="chip">'+esc(s.plattform||"-")+'</span></div><div style="font-size:11px;color:#8b949e;margin:8px 0">'+esc(txt.substring(0,220))+(txt.length>220?"…":"")+'</div><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn btn-outline-secondary btn-sm" onclick="exportSetForKA('+ix+')">Kleinanzeigen-Text</button><button type="button" class="btn btn-outline-secondary btn-sm" onclick="editSetFromManager('+ix+')">Bearbeiten</button><button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteSetFromManager('+ix+')">Löschen</button></div></div>';}).join(""):'<div class="empty"><i class="bi bi-inbox"></i><p>Keine Sets vorhanden.</p></div>');
   },function(){body.innerHTML='<div class="empty"><i class="bi bi-wifi-off"></i><p>Sets konnten nicht geladen werden.</p></div>';});
 }
 function editSetFromManager(ix){
