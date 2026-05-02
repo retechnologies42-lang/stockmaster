@@ -1,7 +1,7 @@
 
 
 
-var GAS_URL = "https://script.google.com/macros/s/AKfycbzaZ1jLA9LmEzFpUkGso3QaJMcEIIFPeS-gkSCjPTBD5bn-irlSWZQbt0uSEepr8w/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbz1TkCkdhfEZ_6H-gyAF9m4G-wf0aPgJ75ebAJWDMIYBmST5TC9v5RLSHpCLS5EbA/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -605,6 +605,11 @@ function updateProgress(){
   sb.innerHTML=isEditMode?'<i class="bi bi-pencil-fill me-1"></i>Aktualisieren':'<i class="bi bi-cloud-upload-fill me-1"></i>Speichern';
 }
 function showStep(n){for(var i=1;i<=stepTotal;i++){var el=document.getElementById("st-s"+i);if(el){el.classList.remove("on");if(i===n)el.classList.add("on");}}}
+function jumpToStepperStep(n){
+  n=parseInt(n,10);if(isNaN(n)||n<1||n>stepTotal)return;
+  stepCur=n;updateProgress();showStep(stepCur);window.scrollTo({top:0,behavior:"smooth"});
+  if(stepCur===5){try{updatePriceSuggest();}catch(e){}}
+}
 function stepNext(){
   if(stepCur===1){if(curType!=="controller"&&!document.getElementById("f-scanid").value.trim()){showD("s1-diag","Barcode eingeben oder scannen.","derr");return;}hideD("s1-diag");
     // Pre-fill name from EK check context
@@ -618,7 +623,19 @@ function stepNext(){
 }
 function stepBack(){
   if(stepCur>1){stepCur--;updateProgress();showStep(stepCur);window.scrollTo({top:0,behavior:"smooth"});}
-  else{stopCam();document.getElementById("main-stepper").style.display="none";if(isEditMode){isEditMode=false;editingItem=null;goTabFn("list-panel");}else if(curCat==="spielwaren"){document.getElementById("sw-sub").style.display="block";}else{document.getElementById("cat-chooser").style.display="block";}resetStepperState();}
+  else{
+    if(window._ekStoreActive){
+      window._ekStoreActive=false;
+      stopCam();document.getElementById("main-stepper").style.display="none";resetStepperState();
+      document.getElementById("cat-chooser").style.display="none";
+      document.getElementById("sw-sub").style.display="none";
+      document.getElementById("mode-chooser").style.display="none";
+      var ep=document.getElementById("ek-check-panel");if(ep)ep.style.display="block";
+      ekFlowPhase="store";_renderEKFlow();
+      return;
+    }
+    stopCam();document.getElementById("main-stepper").style.display="none";if(isEditMode){isEditMode=false;editingItem=null;goTabFn("list-panel");}else if(curCat==="spielwaren"){document.getElementById("sw-sub").style.display="block";}else{document.getElementById("cat-chooser").style.display="block";}resetStepperState();
+  }
 }
 
 // ── MÄNGEL ───────────────────────────────────────────────────────
@@ -771,7 +788,7 @@ function doSave(){
 
   // POST für alle save/update (Fotos können dabei sein oder auch nicht)
   gasPost(fn,d,
-    function(r){setBL(btn,false,orig);if(r&&r.ok){if(window._afterSaveCallback){var _cbSave=window._afterSaveCallback;window._afterSaveCallback=null;_cbSave(r.scanId||gv("f-scanid"));}toast(r.msg,"ok");addNotification(isEditMode?"✏️ Aktualisiert":"✅ Eingelagert",r.msg,"info");allItems=[];loadStats();isEditMode=false;editingItem=null;setTimeout(function(){loadAll();resetFlow();goTabFn("list-panel");},700);}else{toast("Fehler: "+(r?r.fehler:"?"),"err");}},
+    function(r){setBL(btn,false,orig);if(r&&r.ok){if(window._afterSaveCallback){var _cbSave=window._afterSaveCallback;window._afterSaveCallback=null;_cbSave(r.scanId||gv("f-scanid"));}toast(r.msg,"ok");addNotification(isEditMode?"✏️ Aktualisiert":"✅ Eingelagert",r.msg,"info");allItems=[];loadStats();isEditMode=false;editingItem=null;var _ekRet=!!window._ekAfterSaveReturnToCheck;window._ekAfterSaveReturnToCheck=false;if(_ekRet)window._ekStoreActive=false;setTimeout(function(){loadAll();if(_ekRet){stopCam();resetStepperState();document.getElementById("main-stepper").style.display="none";document.getElementById("cat-chooser").style.display="none";document.getElementById("sw-sub").style.display="none";document.getElementById("mode-chooser").style.display="none";var ep=document.getElementById("ek-check-panel");if(ep)ep.style.display="block";goTabFn("scan-panel");ekCheckStep=2;ekFlowPhase="list";_renderEKCheckStep();_renderEKFlow();_ekFocusNextOpenArticle();}else{resetFlow();goTabFn("list-panel");}},700);}else{toast("Fehler: "+(r?r.fehler:"?"),"err");}},
     function(e){setBL(btn,false,orig);toast("Fehler: "+e,"err");}
   );
 }
@@ -1136,6 +1153,7 @@ function runRefreshAction(btn, actionName){
       else if(actionName==="loadHandel") loadHandel();
       else if(actionName==="loadMitarbeiterStats") loadMitarbeiterStats();
       else if(actionName==="renderAnalysePanel") renderAnalysePanel();
+      else if(actionName==="refreshAnalyseData") refreshAnalyseData();
     }finally{
       setTimeout(function(){
         if(icon) icon.style.animation="";
@@ -1150,7 +1168,7 @@ function setupRefreshButtons(){
     {sel:"#handel-panel #handel-vk .btn.btn-outline-secondary",act:"loadHandel"},
     {sel:"#handel-panel #handel-ek .btn.btn-outline-secondary",act:"loadHandel"},
     {sel:"#home-panel button[onclick*='loadMitarbeiterStats']",act:"loadMitarbeiterStats"},
-    {sel:"#analyse-panel button[onclick*='renderAnalysePanel']",act:"renderAnalysePanel"}
+    {sel:"#analyse-panel .an-dash-sync",act:"refreshAnalyseData"}
   ];
   map.forEach(function(m){
     document.querySelectorAll(m.sel).forEach(function(btn){
@@ -4430,6 +4448,7 @@ function enrichProfilWithAccountInfo(name) {
 // EINKAUF CHECK FLOW
 // ================================================================
 var ekCheckStep=1,ekCheckItem=null,ekCheckList=[],ekCheckCurrentIdx=-1;
+var ekFlowPhase="list";
 var _ekCheckPendingCache=[];
 
 function ensureEKCheckRoomSearchUI(){
@@ -4496,8 +4515,8 @@ function renderEKCheckPendingList(){
 
 function openEKCheck(){
   ensureScanFlowNodes();
-  ekCheckStep=1;ekCheckItem=null;ekCheckList=[];ekCheckCurrentIdx=-1;
-  window._afterSaveCallback=null;
+  ekCheckStep=1;ekCheckItem=null;ekCheckList=[];ekCheckCurrentIdx=-1;ekFlowPhase="list";
+  window._afterSaveCallback=null;window._ekStoreActive=false;window._ekAfterSaveReturnToCheck=false;
   var mc=document.getElementById("mode-chooser");
   var ep=document.getElementById("ek-check-panel");
   if(mc)mc.style.display="none";
@@ -4512,8 +4531,8 @@ function closeEKCheck(){
   var ep=document.getElementById("ek-check-panel");
   if(mc)mc.style.display="block";
   if(ep)ep.style.display="none";
-  ekCheckStep=1;ekCheckItem=null;
-  window._afterSaveCallback=null;
+  ekCheckStep=1;ekCheckItem=null;ekFlowPhase="list";
+  window._afterSaveCallback=null;window._ekStoreActive=false;window._ekAfterSaveReturnToCheck=false;
 }
 
 function _renderEKCheckStep(){
@@ -4522,7 +4541,14 @@ function _renderEKCheckStep(){
   var hdr=document.getElementById("ek-check-header-title");
   if(s1)s1.style.display=ekCheckStep===1?"block":"none";
   if(s2)s2.style.display=ekCheckStep===2?"block":"none";
-  if(hdr)hdr.textContent=ekCheckStep===1?"EINKAUF WÄHLEN":"ARTIKEL EINLAGERN";
+  if(hdr){
+    if(ekCheckStep===1)hdr.textContent="EINKAUF WÄHLEN";
+    else if(ekFlowPhase==="list")hdr.textContent="ARTIKEL · WORKFLOW";
+    else if(ekFlowPhase==="check")hdr.textContent="PRÜFUNG";
+    else if(ekFlowPhase==="images")hdr.textContent="BILDER & VERKAUF";
+    else if(ekFlowPhase==="store")hdr.textContent="EINLAGERN";
+    else hdr.textContent="CHECK-IN";
+  }
 }
 
 function _einkaufNeedsInboundCheck(e){
@@ -4544,21 +4570,84 @@ function _loadEKCheckList(){
   },function(){listEl.innerHTML='<div class="empty"><i class="bi bi-wifi-off"></i><p>VERBINDUNGSFEHLER</p></div>';});
 }
 
+function _ekStorageKey(){return ekCheckItem?"sm_ekflow_"+ekCheckItem.rowIndex:"";}
+function _normalizeEKLine(it){
+  if(!it.status)it.status=it.eingelagert?"STORED":"CREATED";
+  it.eingelagert=it.status==="STORED";
+  if(!it.photoObjs)it.photoObjs=[];
+  if(it.saleTitle===undefined)it.saleTitle=it.name||"";
+  if(it.checkZustand===undefined)it.checkZustand="Gut";
+  if(it.checkBeschreibung===undefined)it.checkBeschreibung="";
+  if(it.storeType===undefined)it.storeType="";
+  if(it.unitEkPrice===undefined)it.unitEkPrice=0;
+  if(it.checkProblem===undefined)it.checkProblem=false;
+  return it;
+}
+function _persistEKCheckList(){
+  try{
+    var k=_ekStorageKey();if(!k)return;
+    localStorage.setItem(k,JSON.stringify(ekCheckList.map(function(x){
+      return{name:x.name,status:x.status,scanId:x.scanId,checkZustand:x.checkZustand,checkBeschreibung:x.checkBeschreibung,saleTitle:x.saleTitle,saleDescr:x.saleDescr||"",photoObjs:x.photoObjs||[],storeType:x.storeType,unitEkPrice:x.unitEkPrice,checkProblem:x.checkProblem,problemNote:x.problemNote||""};
+    })));
+  }catch(e){}
+}
+function _mergePersistedEKItems(products, unitEk){
+  var k=_ekStorageKey();var saved=null;
+  try{if(k)saved=JSON.parse(localStorage.getItem(k)||"null");}catch(e){saved=null;}
+  if(!saved||!saved.length)return products.map(function(name){
+    return _normalizeEKLine({name:name,eingelagert:false,scanId:"",expectedQty:1,receivedQty:0,_eid:ekCheckItem.rowIndex,unitEkPrice:unitEk});
+  });
+  return products.map(function(name,ix){
+    var p=saved[ix];var base={name:name,eingelagert:false,scanId:"",expectedQty:1,receivedQty:0,_eid:ekCheckItem.rowIndex,unitEkPrice:unitEk};
+    if(p&&p.name===name){
+      base.status=p.status;base.scanId=p.scanId||"";base.checkZustand=p.checkZustand;base.checkBeschreibung=p.checkBeschreibung;
+      base.saleTitle=p.saleTitle||name;base.saleDescr=p.saleDescr||"";base.photoObjs=p.photoObjs||[];base.storeType=p.storeType||"";base.unitEkPrice=p.unitEkPrice!=null?p.unitEkPrice:unitEk;
+      base.checkProblem=!!p.checkProblem;base.problemNote=p.problemNote||"";
+    }
+    return _normalizeEKLine(base);
+  });
+}
+function _ekStatusMeta(st){
+  if(st==="STORED")return{label:"Eingelagert",short:"📦",cls:"ek-st-stored"};
+  if(st==="IMAGES_ADDED")return{label:"Bilder OK · bereit",short:"📸",cls:"ek-st-img"};
+  if(st==="CHECKED")return{label:"Geprüft",short:"✅",cls:"ek-st-checked"};
+  return{label:"Offen",short:"⏳",cls:"ek-st-open"};
+}
 function _selectEKCheckItem(ek){
   ekCheckItem=ek;
   ekCheckStep=2;
+  ekFlowPhase="list";
   var products=(ek.produkte||"").split(",").map(function(p){return p.trim();}).filter(Boolean);
+  var totalP=parseFloat(String(ek.preis||"").replace(",","."))||0;
+  var unitEk=products.length>0?Math.round((totalP/products.length)*100)/100:totalP;
   if(!ekCheckList.length||!ekCheckList[0]||ekCheckList[0]._eid!==ek.rowIndex){
-    ekCheckList=products.map(function(name){return{name:name,eingelagert:false,scanId:"",expectedQty:1,receivedQty:0,_eid:ek.rowIndex};});
+    ekCheckList=_mergePersistedEKItems(products,unitEk);
+  }else{
+    ekCheckList.forEach(function(it,ix){it.unitEkPrice=unitEk;if(!it.name&&products[ix])it.name=products[ix];_normalizeEKLine(it);});
   }
   _renderEKCheckStep();
   _renderEKCheckInfoBar();
-  _renderEKCheckItems();
+  _renderEKFlow();
 }
-
+function _goEKFlowPhase(ph,idx){
+  ekFlowPhase=ph;
+  if(typeof idx==="number")ekCheckCurrentIdx=idx;
+  _renderEKCheckStep();
+  _renderEKFlow();
+}
+function _renderEKMiniProgress(){
+  var w=document.getElementById("ek-flow-mini-prog");if(!w)return;
+  var cur=null;
+  if(ekFlowPhase==="check")cur="check";
+  else if(ekFlowPhase==="images")cur="img";
+  else if(ekFlowPhase==="store")cur="store";
+  w.innerHTML='<div class="ek-mp-row"><span class="ek-mp-lbl'+(cur==="check"?" on":"")+'"><i class="bi bi-search"></i> Check</span>'
+    +'<span class="ek-mp-dot"></span><span class="ek-mp-lbl'+(cur==="img"?" on":"")+'"><i class="bi bi-camera"></i> Bilder</span>'
+    +'<span class="ek-mp-dot"></span><span class="ek-mp-lbl'+(cur==="store"?" on":"")+'"><i class="bi bi-box-seam"></i> Einlagern</span></div>';
+}
 function _renderEKCheckInfoBar(){
   var el=document.getElementById("ek-check-info");if(!el||!ekCheckItem)return;
-  var done=ekCheckList.filter(function(i){return i.eingelagert;}).length;
+  var done=ekCheckList.filter(function(i){return i.status==="STORED";}).length;
   var total=ekCheckList.length;
   var pct=total>0?Math.round(done/total*100):0;
   el.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
@@ -4570,79 +4659,263 @@ function _renderEKCheckInfoBar(){
     +'<div style="background:var(--e1);border-radius:99px;height:3px;overflow:hidden">'
     +'<div style="height:100%;background:var(--acc);border-radius:99px;width:'+pct+'%;transition:width .4s"></div></div>';
 }
-
-function _renderEKCheckItems(){
-  var el=document.getElementById("ek-check-items");
-  var cb=document.getElementById("ek-check-complete");
+function _renderEKFlow(){
+  _renderEKMiniProgress();
+  var host=document.getElementById("ek-check-flow-host");if(!host)return;
+  if(ekFlowPhase==="list"){_renderEKListPhase(host);return;}
+  if(ekFlowPhase==="check"){_renderEKCheckPhase(host);return;}
+  if(ekFlowPhase==="images"){_renderEKImagesPhase(host);return;}
+  if(ekFlowPhase==="store"){_renderEKStorePhase(host);return;}
+  host.innerHTML="";
+}
+function _renderEKListPhase(host){
+  var done=ekCheckList.filter(function(i){return i.status==="STORED";}).length;
+  var total=ekCheckList.length;
+  var completeWrap=document.getElementById("ek-check-complete");
   var completeBtn=document.getElementById("ek-check-complete-btn");
-  if(!el)return;
-  el.innerHTML="";
-  var done=ekCheckList.filter(function(i){return i.eingelagert;}).length;
+  if(completeWrap)completeWrap.style.display=(total>0&&done===total)?"block":"none";
+  if(completeBtn)completeBtn.disabled=!(done===total&&total>0);
+  var html='<div class="slabel" style="margin-top:4px">ARTIKEL · STATUS</div>'
+    +'<p style="font-size:11px;color:var(--w3);margin-bottom:10px">Zeile antippen → nächster Schritt (Prüfen · Bilder · Einlagern). Einlagern nur im letzten Schritt.</p>'
+    +'<div id="ek-article-rows"></div>';
+  if(done===total&&total>0){
+    html+='<div class="ek-done-banner"><div class="ek-done-title">Alle Artikel eingelagert</div><div class="ek-done-sub">Einkauf abschließen oder zurück zur Auswahl.</div></div>';
+  }
+  host.innerHTML=html;
+  var body=document.getElementById("ek-article-rows");
   ekCheckList.forEach(function(item,idx){
-    var row=document.createElement("div");
-    row.style.cssText="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--e1)";
-    if(item.eingelagert){
-      row.innerHTML='<div style="width:26px;height:26px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;flex-shrink:0">'
-        +'<i class="bi bi-check" style="color:#000;font-size:15px"></i></div>'
-        +'<div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--acc)">'+esc(item.name)+'</div>'
-        +(item.scanId?'<div style="font-size:10px;color:var(--w4);font-family:monospace">'+esc(item.scanId)+' · EINGELAGERT</div>':'')
-        +'</div><i class="bi bi-check-circle-fill" style="color:var(--acc);font-size:18px"></i>';
-    } else {
-      row.style.cursor="pointer";
-      row.innerHTML='<div style="width:26px;height:26px;border-radius:50%;border:2px solid var(--e3);flex-shrink:0"></div>'
-        +'<div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--w1)">'+esc(item.name)+'</div>'
-        +'<div style="font-size:10px;color:var(--col-b);font-family:monospace">ANTIPPEN → EINLAGERN</div></div>'
-        +'<i class="bi bi-chevron-right" style="color:var(--w4);font-size:13px"></i>';
-      row.onclick=(function(i){return function(){_startEKItemEinlagern(i);};})(idx);
-      row.onmouseover=function(){this.style.background="var(--b3)";};
-      row.onmouseout=function(){this.style.background="";};
-    }
-    el.appendChild(row);
+    var meta=_ekStatusMeta(item.status);
+    var row=document.createElement("button");
+    row.type="button";
+    row.className="ek-article-card"+(item.status==="STORED"?" ek-ac-done":"");
+    row.innerHTML='<span class="ek-ac-ic">'+meta.short+'</span><div class="ek-ac-mid"><div class="ek-ac-name">'+esc(item.name)+'</div>'
+      +'<div class="ek-ac-st '+meta.cls+'">'+meta.label+(item.checkProblem?' · ⚠ Problem':'')+'</div></div>'
+      +'<i class="bi bi-chevron-right ek-ac-ar"></i>';
+    row.onclick=function(){_ekOpenArticleFromList(idx);};
+    body.appendChild(row);
   });
-  if(cb)cb.style.display=(ekCheckList.length>0)?"block":"none";
-  if(completeBtn)completeBtn.disabled=!(done===ekCheckList.length&&ekCheckList.length>0);
   _renderEKCheckInfoBar();
 }
-
-function _startEKItemEinlagern(itemIdx){
-  ekCheckCurrentIdx=itemIdx;
-  var item=ekCheckList[itemIdx];
-  if(!item||item.eingelagert)return;
-  // Register callback for after doSave
-  window._afterSaveCallback=function(savedScanId){
-    ekCheckList[ekCheckCurrentIdx].eingelagert=true;
-    ekCheckList[ekCheckCurrentIdx].scanId=savedScanId||"";
-    ekCheckList[ekCheckCurrentIdx].receivedQty=1;
-    window._afterSaveCallback=null;
-    toast(esc(item.name)+" eingelagert ✅","ok",2500);
-    // Return to EK check list
-    goTabFn("scan-panel");
-    setTimeout(function(){
-      var mc=document.getElementById("mode-chooser");
-      var ep=document.getElementById("ek-check-panel");
-      if(mc)mc.style.display="none";
-      if(ep)ep.style.display="block";
-      ekCheckStep=2;
-      _renderEKCheckStep();
-      _renderEKCheckInfoBar();
-      _renderEKCheckItems();
-    },200);
+function _ekOpenArticleFromList(idx){
+  var item=ekCheckList[idx];if(!item)return;
+  ekCheckCurrentIdx=idx;
+  if(item.status==="STORED"){toast("Bereits eingelagert.","inf");return;}
+  if(item.status==="CREATED"||!item.status)_goEKFlowPhase("check",idx);
+  else if(item.status==="CHECKED")_goEKFlowPhase("images",idx);
+  else if(item.status==="IMAGES_ADDED")_goEKFlowPhase("store",idx);
+}
+function _renderEKCheckPhase(host){
+  var item=ekCheckList[ekCheckCurrentIdx];if(!item){_goEKFlowPhase("list");return;}
+  host.innerHTML='<div class="ek-phase-card">'
+    +'<button type="button" class="btn btn-outline-secondary btn-sm mb-2" onclick="_goEKFlowPhase(\'list\')"><i class="bi bi-arrow-left me-1"></i>Zur Liste</button>'
+    +'<div class="ek-ph-title">'+esc(item.name)+'</div>'
+    +'<label class="fl">Zustand</label><select id="ek-ch-zustand" class="fc mb-2">'
+    +["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"].map(function(z){return'<option'+(item.checkZustand===z?' selected':'')+'>'+z+'</option>';}).join("")
+    +'</select>'
+    +'<label class="fl">Beschreibung / Hinweise</label><textarea id="ek-ch-beschr" class="fc mb-2" rows="2" placeholder="optional">'+esc(item.checkBeschreibung||"")+'</textarea>'
+    +'<label class="fl">Einkauf (Einheit)</label><div class="ek-price-pill">'+((item.unitEkPrice!=null?item.unitEkPrice:0).toFixed(2))+' €</div>'
+    +'<div class="cg2 mt-3"><button type="button" class="btn btn-success fw-bold flex-fill" onclick="_ekConfirmCheckOk('+ekCheckCurrentIdx+')"><i class="bi bi-check-lg me-1"></i>Artikel OK</button>'
+    +'<button type="button" class="btn btn-outline-danger flex-fill" onclick="_ekReportProblem('+ekCheckCurrentIdx+')"><i class="bi bi-exclamation-triangle me-1"></i>Problem</button></div>'
+    +'<p class="ek-hint">Nur Prüfung — noch keine Einlagerung.</p></div>';
+  document.getElementById("ek-ch-zustand").value=item.checkZustand||"Gut";
+}
+function _ekConfirmCheckOk(idx){
+  var item=ekCheckList[idx];if(!item)return;
+  item.checkZustand=gv("ek-ch-zustand");
+  item.checkBeschreibung=gv("ek-ch-beschr");
+  if(item.status==="CREATED"||!item.status)item.status="CHECKED";
+  _normalizeEKLine(item);
+  _persistEKCheckList();
+  toast("Prüfung gespeichert → Bilder","ok");
+  _goEKFlowPhase("images",idx);
+}
+function _ekReportProblem(idx){
+  var item=ekCheckList[idx];if(!item)return;
+  item.checkZustand=gv("ek-ch-zustand");
+  item.checkBeschreibung=gv("ek-ch-beschr");
+  item.checkProblem=true;
+  item.problemNote=(item.checkBeschreibung||"").trim()||"Gemeldet";
+  if(item.status==="CREATED"||!item.status)item.status="CHECKED";
+  _normalizeEKLine(item);
+  _persistEKCheckList();
+  toast("Problem notiert — weiter zu Bildern","inf",3000);
+  _goEKFlowPhase("images",idx);
+}
+function _renderEKPhotoGrid(item){
+  var g=document.getElementById("ek-ph-grid");if(!g)return;
+  if(!item.photoObjs||!item.photoObjs.length){g.innerHTML='<div class="ek-ph-empty">Mind. 1 Bild für Verkauf</div>';return;}
+  g.innerHTML=item.photoObjs.map(function(p,ix){
+    return'<div class="ek-ph-cell"><img src="'+p.b64+'" alt=""/><button type="button" class="ek-ph-rm" onclick="_ekRemovePhoto('+ix+')">×</button></div>';
+  }).join("");
+}
+function _renderEKImagesPhase(host){
+  var item=ekCheckList[ekCheckCurrentIdx];if(!item){_goEKFlowPhase("list");return;}
+  if(!item.saleTitle)item.saleTitle=item.name;
+  host.innerHTML='<div class="ek-phase-card">'
+    +'<button type="button" class="btn btn-outline-secondary btn-sm mb-2" onclick="_goEKFlowPhase(\'check\','+ekCheckCurrentIdx+')"><i class="bi bi-arrow-left me-1"></i>Zur Prüfung</button>'
+    +'<button type="button" class="btn btn-link btn-sm float-end p-0" onclick="_goEKFlowPhase(\'list\')">Liste</button>'
+    +'<div class="ek-ph-title">Bilder · '+esc(item.name)+'</div>'
+    +'<label class="fl">Titel (Verkauf)</label><input type="text" id="ek-sale-title" class="fc mb-2" value="'+esc(item.saleTitle)+'"/>'
+    +'<label class="fl">Beschreibung (optional)</label><textarea id="ek-sale-descr" class="fc mb-2" rows="2" placeholder="optional">'+(item.saleDescr?esc(item.saleDescr):"")+'</textarea>'
+    +'<label class="fl">Produktfotos <span style="color:var(--col-r);font-size:9px">PFLICHT</span></label>'
+    +'<div class="photo-zone ek-drop-zone" id="ek-drop-zone"><div class="pz-top" onclick="_ekTriggerPhoto()"><i class="bi bi-camera-plus"></i><div class="pz-l">Tippen oder Dateien hierher ziehen</div></div>'
+    +'<div class="pz-btns"><button type="button" class="pz-btn" onclick="_ekTriggerPhotoCam()"><i class="bi bi-camera me-1"></i>Kamera</button><button type="button" class="pz-btn" onclick="_ekTriggerPhoto()"><i class="bi bi-images me-1"></i>Galerie</button></div></div>'
+    +'<input type="file" id="ek-foto-inp" accept="image/*" multiple style="position:absolute;opacity:0;width:1px;height:1px;left:-99px"/>'
+    +'<div id="ek-ph-grid" class="ek-ph-grid"></div>'
+    +'<button type="button" class="btn btn-primary w-100 fw-bold mt-3" onclick="_ekFinishImagesPhase()" id="ek-btn-img-next">Weiter zu Einlagern <i class="bi bi-arrow-right ms-1"></i></button>'
+    +'</div>';
+  var dz=document.getElementById("ek-drop-zone");
+  if(dz){
+    dz.addEventListener("dragover",function(e){e.preventDefault();dz.classList.add("ek-dz-over");});
+    dz.addEventListener("dragleave",function(){dz.classList.remove("ek-dz-over");});
+    dz.addEventListener("drop",function(e){
+      e.preventDefault();dz.classList.remove("ek-dz-over");
+      var files=e.dataTransfer&&e.dataTransfer.files;if(!files||!files.length)return;
+      for(var i=0;i<files.length;i++)_processEKPhotoFile(files[i]);
+    });
+  }
+  document.getElementById("ek-foto-inp").onchange=function(){
+    var f=this.files;if(f)for(var i=0;i<f.length;i++)_processEKPhotoFile(f[i]);
+    this.value="";
   };
-  // Store name to pre-fill
-  window._ekCheckPreFillName=item.name;
-  // Navigate to scan panel einlagern
+  _renderEKPhotoGrid(item);
+}
+window._ekTriggerPhoto=function(){
+  var inp=document.getElementById("ek-foto-inp");if(inp)inp.click();
+};
+window._ekTriggerPhotoCam=function(){
+  var inp=document.getElementById("ek-foto-cam-ek");if(!inp){
+    inp=document.createElement("input");
+    inp.type="file";inp.id="ek-foto-cam-ek";inp.accept="image/*";inp.capture="environment";
+    inp.style.cssText="position:absolute;opacity:0;width:1px;height:1px;left:-99px";
+    document.body.appendChild(inp);
+    inp.onchange=function(){if(this.files&&this.files[0])_processEKPhotoFile(this.files[0]);this.value="";};
+  }
+  inp.click();
+};
+function _processEKPhotoFile(file){
+  if(!file)return;
+  var item=ekCheckList[ekCheckCurrentIdx];if(!item)return;
+  if(file.size>15*1024*1024){toast("Max. 15 MB pro Foto.","err");return;}
+  if((item.photoObjs||[]).length>=10){toast("Max. 10 Bilder.","err");return;}
+  var name=(file.name||"foto.jpg").replace(/[^a-zA-Z0-9._-]/g,"_");
+  var img=new Image(),url=URL.createObjectURL(file);
+  img.onload=function(){
+    URL.revokeObjectURL(url);
+    var MAX=1200,w=img.width,h=img.height;
+    if(w>MAX||h>MAX){if(w>h){h=Math.round(h*(MAX/w));w=MAX;}else{w=Math.round(w*(MAX/h));h=MAX;}}
+    var canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;
+    var ctx=canvas.getContext("2d");ctx.fillStyle="#ffffff";ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);
+    var b64=canvas.toDataURL("image/jpeg",0.78);
+    if(!b64||b64.indexOf("base64,")===-1){toast("Bild konnte nicht verarbeitet werden.","err");return;}
+    if(!item.photoObjs)item.photoObjs=[];
+    item.photoObjs.push({b64:b64,name:name});
+    _persistEKCheckList();
+    _renderEKPhotoGrid(item);
+    toast("Foto hinzugefügt","ok",1500);
+  };
+  img.onerror=function(){toast("Bild konnte nicht geladen werden.","err");};
+  img.src=url;
+}
+window._ekRemovePhoto=function(ix){
+  var item=ekCheckList[ekCheckCurrentIdx];if(!item||!item.photoObjs)return;
+  item.photoObjs.splice(ix,1);_persistEKCheckList();_renderEKPhotoGrid(item);
+};
+function _ekFinishImagesPhase(){
+  var item=ekCheckList[ekCheckCurrentIdx];if(!item)return;
+  item.saleTitle=(document.getElementById("ek-sale-title")&&gv("ek-sale-title").trim())||item.name;
+  item.saleDescr=document.getElementById("ek-sale-descr")?gv("ek-sale-descr"):"";
+  if(!item.photoObjs||!item.photoObjs.length){toast("Mindestens ein Produktbild erforderlich.","err");return;}
+  item.status="IMAGES_ADDED";
+  _normalizeEKLine(item);
+  _persistEKCheckList();
+  _goEKFlowPhase("store",ekCheckCurrentIdx);
+}
+function _renderEKStorePhase(host){
+  var item=ekCheckList[ekCheckCurrentIdx];if(!item){_goEKFlowPhase("list");return;}
+  if(item.status!=="IMAGES_ADDED"&&item.status!=="STORED"){toast("Zuerst Bilder hinzufügen.","err");_goEKFlowPhase("images",ekCheckCurrentIdx);return;}
+  var z=ekCheckItem&&ekCheckItem.zimmer?esc(ekCheckItem.zimmer):"–";
+  host.innerHTML='<div class="ek-phase-card ek-store-card">'
+    +'<button type="button" class="btn btn-outline-secondary btn-sm mb-2" onclick="_goEKFlowPhase(\'images\','+ekCheckCurrentIdx+')"><i class="bi bi-arrow-left me-1"></i>Zurück zu Bildern</button>'
+    +'<div class="ek-st-banner"><div class="ek-st-lbl">Lagerort (Einkauf)</div><div class="ek-st-val">📍 '+z+'</div></div>'
+    +'<label class="fl">Kategorie im Bestand</label><div class="ek-store-cats">'
+    +'<button type="button" class="ek-sc '+(item.storeType==="spiel"?"on":"")+'" data-t="spiel" onclick="_ekPickStoreType(\'spiel\')"><span>💿</span>Spiel</button>'
+    +'<button type="button" class="ek-sc '+(item.storeType==="konsole"?"on":"")+'" data-t="konsole" onclick="_ekPickStoreType(\'konsole\')"><span>🕹️</span>Konsole</button>'
+    +'<button type="button" class="ek-sc '+(item.storeType==="controller"?"on":"")+'" data-t="controller" onclick="_ekPickStoreType(\'controller\')"><span>🎮</span>Controller</button>'
+    +'<button type="button" class="ek-sc '+(item.storeType==="handy"?"on":"")+'" data-t="handy" onclick="_ekPickStoreType(\'handy\')"><span>📱</span>Handy</button>'
+    +'<button type="button" class="ek-sc '+(item.storeType==="pc"?"on":"")+'" data-t="pc" onclick="_ekPickStoreType(\'pc\')"><span>💻</span>PC</button>'
+    +'</div>'
+    +'<p class="ek-warn">Einlagern erzeugt den Lagerbestand — nur mit bewusstem Klick.</p>'
+    +'<button type="button" class="btn btn-success w-100 fw-bold py-3 ek-store-go" onclick="_beginEKStoreEinlagern()" style="font-size:14px;letter-spacing:.5px"><i class="bi bi-box-seam me-2"></i>Jetzt einlagern</button></div>';
+  _renderEKCheckInfoBar();
+}
+window._ekPickStoreType=function(t){
+  var item=ekCheckList[ekCheckCurrentIdx];if(!item)return;
+  item.storeType=t;_persistEKCheckList();
+  document.querySelectorAll(".ek-store-cats .ek-sc").forEach(function(b){
+    b.className="ek-sc"+(b.getAttribute("data-t")===t?" on":"");
+  });
+};
+function _beginEKStoreEinlagern(){
+  var item=ekCheckList[ekCheckCurrentIdx];if(!item)return;
+  if(item.status!=="IMAGES_ADDED"){toast("Ungültiger Schritt.","err");return;}
+  if(!item.storeType){toast("Kategorie wählen.","err");return;}
+  if(!item.photoObjs||!item.photoObjs.length){toast("Bilder fehlen.","err");return;}
+  window._ekAfterSaveReturnToCheck=true;
+  window._ekStoreActive=true;
+  window._afterSaveCallback=function(savedScanId){
+    item.status="STORED";
+    item.eingelagert=true;
+    item.scanId=savedScanId||item.scanId||"";
+    _normalizeEKLine(item);
+    _persistEKCheckList();
+    window._afterSaveCallback=null;
+    toast(esc(item.saleTitle||item.name)+" eingelagert","ok",2800);
+  };
   goTabFn("scan-panel");
+  var mc=document.getElementById("mode-chooser");if(mc)mc.style.display="none";
+  var ep=document.getElementById("ek-check-panel");if(ep)ep.style.display="none";
+  resetStepperState();
+  forcedSpielSystem=item.storeType==="controller"?"Controller":"";
+  curCat=item.storeType==="handy"?"handy":item.storeType==="pc"?"pc":"spielwaren";
+  var st=item.storeType;
+  startStepper(st);
   setTimeout(function(){
-    resetToMode();
-    setMode("einlagern");
-    toast('📦 Einlagern: "'+esc(item.name)+'" dann Kategorie wählen',"inf",7000);
-  },200);
+    window._ekCheckPreFillName=item.saleTitle||item.name;
+    var si=document.getElementById("f-scanid");if(si)si.value="EK-"+Date.now();
+    var nm=document.getElementById("f-name");if(nm)nm.value=item.saleTitle||item.name||"";
+    var ep2=document.getElementById("f-einkaufspreis");if(ep2&&item.unitEkPrice!=null)ep2.value=String(item.unitEkPrice);
+    selProb("nein");
+    photos=(item.photoObjs||[]).map(function(p){return{b64:p.b64,name:p.name||"foto.jpg"};});
+    renderAllPhotos();
+    if(st==="pc"){
+      var ptyp=document.getElementById("f-pc-typ");
+      if(ptyp&&!ptyp.value){try{selPCTyp("Desktop");}catch(e){}}
+    }
+    if(st==="spiel"){
+      var zs=document.getElementById("f-zustand");if(zs&&!zs.value)zs.value=item.checkZustand||"Gut";
+      var hin=document.getElementById("f-hinweise");if(hin&&item.saleDescr)hin.value=item.saleDescr;
+      if(item.checkBeschreibung&&hin&&!hin.value)hin.value=item.checkBeschreibung;
+    }else if(st==="konsole"){
+      var fc=document.getElementById("f-farbe");if(fc&&!fc.value)fc.value="–";
+    }else if(st==="handy"){
+      var zh=document.getElementById("f-zustand");if(zh&&!zh.value)zh.value=item.checkZustand||"Gut";
+    }
+    jumpToStepperStep(5);
+    fillMA();
+  },180);
+}
+function _ekFocusNextOpenArticle(){
+  for(var i=0;i<ekCheckList.length;i++){
+    if(ekCheckList[i].status!=="STORED"){ekCheckCurrentIdx=i;ekFlowPhase="list";_renderEKCheckStep();_renderEKFlow();return;}
+  }
+  ekFlowPhase="list";_renderEKCheckStep();_renderEKFlow();
 }
 
 function completeEKCheck(){
   if(!ekCheckItem)return;
-  var allDone=ekCheckList.every(function(i){return i.eingelagert;});
-  if(!allDone){toast("Check-In gesperrt: Bitte alle Artikel scannen (Soll = Ist).","err",3500);return;}
+  var allDone=ekCheckList.every(function(i){return i.status==="STORED";});
+  if(!allDone){toast("Noch nicht alle Artikel eingelagert.","err",3500);return;}
   var btn=document.getElementById("ek-check-complete-btn");
   if(btn)setBL(btn,true);
   gasPost("updateEinkauf",{
@@ -4653,7 +4926,7 @@ function completeEKCheck(){
     },
     function(r){
       if(btn)setBL(btn,false);
-      if(r&&r.ok){toast("🎉 Check-In abgeschlossen. Ware in Bestand übernommen!","ok",4200);closeEKCheck();loadHandel();}
+      if(r&&r.ok){try{localStorage.removeItem(_ekStorageKey());}catch(e){}toast("🎉 Check-In abgeschlossen. Ware in Bestand übernommen!","ok",4200);closeEKCheck();loadHandel();}
       else{toast("Fehler: "+(r?r.fehler:"?"),"err");}
     },function(){if(btn)setBL(btn,false);toast("Verbindungsfehler","err");});
 }
@@ -5125,6 +5398,85 @@ window.addEventListener("load",function(){
 // ANALYSE + CHINA + MULTISELECT
 // ================================================================
 var analyseTab="guv",chinaEntries=[],editChinaIdx=-1;
+window._anDash={range:"30d",plattform:"",status:"",chartMode:"gewinn"};
+var _analyseUiBound=false;
+
+function parseVkDatum(ds){
+  if(!ds)return null;
+  var m=String(ds).trim().match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+  if(!m)return null;
+  var d=parseInt(m[1],10),mo=parseInt(m[2],10)-1,y=parseInt(m[3],10);
+  var dt=new Date(y,mo,d);return isNaN(dt.getTime())?null:dt;
+}
+function fmtAnEuro(v){
+  var n=parseFloat(v);if(isNaN(n))return"–";
+  return n.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
+}
+function fmtAnPct(v){
+  var n=parseFloat(v);if(isNaN(n))return"–";
+  return n.toLocaleString("de-DE",{minimumFractionDigits:1,maximumFractionDigits:1})+" %";
+}
+function filterVkAnalyse(raw){
+  var r=window._anDash||{};
+  var range=r.range||"30d";
+  var plat=(r.plattform||"").trim();
+  var st=(r.status||"").trim();
+  var now=new Date();
+  var start=null,end=new Date(now.getFullYear(),now.getMonth(),now.getDate(),23,59,59,999);
+  if(range==="all")start=null;
+  else if(range==="7d"){start=new Date(now);start.setDate(start.getDate()-6);start.setHours(0,0,0,0);}
+  else if(range==="30d"){start=new Date(now);start.setDate(start.getDate()-29);start.setHours(0,0,0,0);}
+  else if(range==="month"){start=new Date(now.getFullYear(),now.getMonth(),1);start.setHours(0,0,0,0);}
+  return(raw||[]).filter(function(v){
+    if(plat&&String(v.plattform||"").trim()!==plat)return false;
+    if(st&&String(v.status||"").trim()!==st)return false;
+    if(!start)return true;
+    var dt=parseVkDatum(v.datum);
+    if(!dt)return false;
+    dt.setHours(12,0,0,0);
+    return dt>=start&&dt<=end;
+  });
+}
+function refreshAnalyseData(){
+  gasGet("getAllVerkauf",{},function(res){
+    if(res&&res.ok){allVerkauf=res.data||[];}
+    if(analyseTab==="guv")buildGUV();
+    else renderAnalysePanel();
+    toast("Analyse aktualisiert","ok",1600);
+  },function(){toast("Verbindungsfehler","err");});
+}
+function initAnalyseDashUI(){
+  if(_analyseUiBound)return;
+  _analyseUiBound=true;
+  var root=document.getElementById("analyse-panel");
+  if(!root)return;
+  root.addEventListener("click",function(ev){
+    var t=ev.target.closest("[data-an-range]");
+    if(t){
+      window._anDash.range=t.getAttribute("data-an-range")||"30d";
+      root.querySelectorAll("[data-an-range]").forEach(function(b){b.classList.toggle("an-seg-active",b===t);});
+      buildGUV();return;
+    }
+    t=ev.target.closest("[data-an-st]");
+    if(t&&t.classList.contains("an-chip")){
+      window._anDash.status=t.getAttribute("data-an-st")||"";
+      root.querySelectorAll("#an-status-chips .an-chip").forEach(function(b){b.classList.toggle("an-chip-active",b===t);});
+      buildGUV();return;
+    }
+    t=ev.target.closest("#an-chart-modes .an-ct");
+    if(t){
+      window._anDash.chartMode=t.getAttribute("data-m")||"gewinn";
+      document.querySelectorAll("#an-chart-modes .an-ct").forEach(function(b){b.classList.toggle("an-ct-on",b===t);});
+      buildGUV();return;
+    }
+  });
+  var ps=document.getElementById("an-filter-plattform");
+  if(ps)ps.addEventListener("change",function(){window._anDash.plattform=this.value||"";buildGUV();});
+}
+function setAnalyseChartMode(m){
+  window._anDash.chartMode=m||"gewinn";
+  buildGUV();
+}
 
 function setAnalyseTab(tab){
   analyseTab=tab;
@@ -5144,63 +5496,235 @@ function renderAnalysePanel(){
 }
 function fmtEur(v){var n=parseFloat(v||0);return isNaN(n)?"–":n.toFixed(2)+"€";}
 var _guvBuildTries=0;
-function buildGUV(){
-  function _el(id){return document.getElementById(id);}
-  if(!allItems||!allItems.length){
-    if(_guvBuildTries<3){_guvBuildTries++;loadAll(true);setTimeout(function(){buildGUV();},600);}
+function _fillAnPlattformSelect(){
+  var sel=document.getElementById("an-filter-plattform");if(!sel)return;
+  var keep=window._anDash.plattform||"";
+  var set={};
+  (allVerkauf||[]).forEach(function(v){var p=String(v.plattform||"").trim();if(p)set[p]=1;});
+  var opts=['<option value="">Alle Plattformen</option>'].concat(Object.keys(set).sort().map(function(p){return'<option value="'+esc(p)+'">'+esc(p)+"</option>";}));
+  sel.innerHTML=opts.join("");
+  if(keep&&Object.keys(set).indexOf(keep)>=0)sel.value=keep;else sel.value="";
+}
+function _anPad2(n){return n<10?"0"+n:""+n;}
+function _aggregateAnSeries(vkData,mode,rangeKey){
+  var modeFn=function(v){
+    if(mode==="umsatz")return parseFloat(v.verkaufspreis||0)||0;
+    if(mode==="verkaufe")return 1;
+    return parseFloat(v.marge||0)||0;
+  };
+  var keyOf=function(dt){
+    return dt.getFullYear()+"-"+_anPad2(dt.getMonth()+1)+"-"+_anPad2(dt.getDate());
+  };
+  var keyMonth=function(dt){return dt.getFullYear()+"-"+_anPad2(dt.getMonth()+1);};
+  var map={};
+  if(rangeKey==="all"){
+    var now=new Date();
+    for(var i=11;i>=0;i--){
+      var d=new Date(now.getFullYear(),now.getMonth()-i,1);
+      map[keyMonth(d)]={label:["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"][d.getMonth()]+" "+String(d.getFullYear()).slice(-2),v:0,k:keyMonth(d)};
+    }
+    vkData.forEach(function(v){
+      var dt=parseVkDatum(v.datum);if(!dt)return;
+      var k=keyMonth(dt);
+      if(map[k])map[k].v+=modeFn(v);
+    });
+  }else{
+    var now=new Date();
+    var start,end;
+    end=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    if(rangeKey==="7d"){start=new Date(end);start.setDate(start.getDate()-6);}
+    else if(rangeKey==="30d"){start=new Date(end);start.setDate(start.getDate()-29);}
+    else{start=new Date(now.getFullYear(),now.getMonth(),1);}
+    for(var t=start.getTime();t<=end.getTime();t+=864e5){
+      var d=new Date(t);
+      map[keyOf(d)]={label:d.getDate()+"."+(d.getMonth()+1),v:0,k:keyOf(d)};
+    }
+    vkData.forEach(function(v){
+      var dt=parseVkDatum(v.datum);if(!dt)return;
+      dt.setHours(12,0,0,0);
+      var k=keyOf(dt);
+      if(map[k])map[k].v+=modeFn(v);
+    });
+  }
+  var buckets=[];
+  Object.keys(map).sort().forEach(function(k){buckets.push(map[k]);});
+  return buckets;
+}
+function _renderAnLineChart(vkData){
+  var svg=document.getElementById("an-line-chart"),meta=document.getElementById("an-chart-meta"),sub=document.getElementById("an-chart-sub");
+  if(!svg)return;
+  var mode=window._anDash.chartMode||"gewinn";
+  var rk=window._anDash.range||"30d";
+  if(sub){
+    sub.textContent=mode==="umsatz"?"Umsatz über Zeit":mode==="verkaufe"?"Anzahl Verkäufe":"Gewinn über Zeit";
+  }
+  var series=_aggregateAnSeries(vkData,mode,rk);
+  if(!series.length){
+    svg.innerHTML='<text x="180" y="80" text-anchor="middle" fill="#555" font-family="Space Mono,monospace" font-size="11">Keine Daten</text>';
+    if(meta)meta.innerHTML="";
     return;
   }
-  _guvBuildTries=0;
-  var filter=(document.getElementById("an-filter-month")||{value:"all"}).value;
-  var vkData=(allVerkauf||[]).filter(function(v){
-    if(filter==="all")return true;if(!v.datum)return false;
-    var now=new Date(),m=now.getMonth()+1,y=now.getFullYear();
-    var pts=v.datum.split(".");var vm=parseInt(pts[1]||0),vy=parseInt((pts[2]||"").split(" ")[0]);
-    if(filter==="thismonth")return vm===m&&vy===y;
-    if(filter==="lastmonth"){var lm=m===1?12:m-1,ly=m===1?y-1:y;return vm===lm&&vy===ly;}
-    return true;
+  var vals=series.map(function(b){return b.v;});
+  var maxV=Math.max.apply(null,vals.concat([0.0001]));
+  var minV=mode==="gewinn"?Math.min(0,Math.min.apply(null,vals.concat([0]))):0;
+  var span=maxV-minV||1;
+  var W=360,H=152,padL=36,padR=12,padT=14,padB=28,iw=W-padL-padR,ih=H-padT-padB;
+  var n=series.length;
+  var step=n>1?iw/(n-1):0;
+  var pts=series.map(function(b,i){
+    var x=padL+(n===1?iw/2:i*step);
+    var nv=(b.v-minV)/span;
+    var y=padT+ih-nv*ih;
+    return{x:x,y:y,v:b.v,l:b.label};
   });
-  var totalVP=0,totalMarge=0,sumNegMarge=0;
-  vkData.forEach(function(v){totalVP+=parseFloat(v.verkaufspreis||0);var m=parseFloat(v.marge||0);totalMarge+=m;if(m<0)sumNegMarge+=m;});
+  var bestI=0;
+  vals.forEach(function(v,i){if(v>vals[bestI])bestI=i;});
+  var d=pts.map(function(p,i){return(i?"L":"M")+p.x.toFixed(1)+","+p.y.toFixed(1);}).join(" ");
+  var fillD=d+" L"+pts[pts.length-1].x.toFixed(1)+","+(padT+ih)+" L"+pts[0].x.toFixed(1)+","+(padT+ih)+" Z";
+  var stroke=mode==="umsatz"?"#4d9fff":mode==="verkaufe"?"#b57bff":"#00ff88";
+  svg.innerHTML='<defs><linearGradient id="anChartGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="'+stroke+'" stop-opacity="0.35"/><stop offset="100%" stop-color="'+stroke+'" stop-opacity="0"/></linearGradient></defs>'
+    +'<path d="'+fillD+'" fill="url(#anChartGrad)" class="an-chart-fill"/>'
+    +'<path d="'+d+'" fill="none" stroke="'+stroke+'" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="an-chart-line"/>'
+    +pts.map(function(p,i){
+      var isB=i===bestI&&vals[i]>0;
+      return'<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+(isB?5:3.5)+'" fill="'+(isB?stroke:"#1a1a1a")+'" stroke="'+stroke+'" stroke-width="'+(isB?2:1)+'" class="an-chart-dot"/>';
+    }).join("");
+  if(meta){
+    var b=pts[bestI];
+    meta.innerHTML='<span class="an-meta-best"><i class="bi bi-trophy"></i> Bester Tag: <strong>'+esc(b.l)+"</strong> · "+(mode==="verkaufe"?String(Math.round(b.v)):fmtAnEuro(b.v))+"</span>";
+  }
+}
+function _buildAnInsights(vkData,ctx){
+  var out=[];
+  var noEK=vkData.filter(function(v){return!(parseFloat(v.einkaufspreis||0)>0);}).length;
+  if(noEK>0)out.push({icon:"⚠️",text:noEK+" Verkauf"+(noEK>1?"e":"")+" ohne Einkaufspreis — Marge kann ungenau sein.",cls:"an-in-warn"});
+  var totM=ctx.totalMarge,totU=ctx.totalVP;
+  if(vkData.length>2&&totM>0){
+    var sorted=vkData.slice().sort(function(a,b){return parseFloat(b.marge||0)-parseFloat(a.marge||0);});
+    var top=parseFloat(sorted[0].marge||0);
+    if(top/totM>=0.8)out.push({icon:"📈",text:"Über 80 % deines Gewinns kommt von „"+esc((sorted[0].produkte||"Ein Artikel").slice(0,42))+"“.",cls:"an-in-tip"});
+  }
+  if(window._anDash.range==="month"){
+    var now=new Date();
+    var pm=now.getMonth()===0?11:now.getMonth()-1,py=now.getMonth()===0?now.getFullYear()-1:now.getFullYear();
+    var plat=(window._anDash.plattform||"").trim(),st=(window._anDash.status||"").trim();
+    var prevM=0,curM=ctx.totalMarge;
+    (allVerkauf||[]).forEach(function(v){
+      if(plat&&String(v.plattform||"").trim()!==plat)return;
+      if(st&&String(v.status||"").trim()!==st)return;
+      var dt=parseVkDatum(v.datum);if(!dt)return;
+      if(dt.getMonth()===pm&&dt.getFullYear()===py)prevM+=parseFloat(v.marge||0)||0;
+    });
+    if(prevM>0&&curM<prevM*0.85)out.push({icon:"📉",text:"Marge unter dem Vormonat — Prüfe Preise oder EK.",cls:"an-in-warn"});
+  }
+  var neg=vkData.filter(function(v){return parseFloat(v.marge||0)<0;}).length;
+  if(neg>0)out.push({icon:"💡",text:neg+" Verkauf"+(neg>1?"e":"")+" mit negativer Marge im Filter.",cls:"an-in-neg"});
+  if(!out.length)out.push({icon:"✓",text:"Saubere Datenbasis — keine kritischen Signale.",cls:"an-in-ok"});
+  var el=document.getElementById("an-insights-list");
+  if(el){
+    el.innerHTML=out.map(function(i){return'<div class="an-insight '+i.cls+'"><span class="an-ins-ic">'+i.icon+'</span><p>'+i.text+"</p></div>";}).join("");
+  }
+}
+function _buildAnPipeline(totalVP,sumEK,gebuehren,totalMarge){
+  var el=document.getElementById("an-pipeline");
+  if(!el)return;
+  if(!totalVP||totalVP<0.001){
+    el.innerHTML='<p class="an-pipe-zero">Kein Umsatz im gewählten Zeitraum.</p>';
+    return;
+  }
+  var u=totalVP,ek=sumEK,geb=gebuehren;
+  var pEK=Math.min(100,(ek/u)*100),pGeb=Math.min(100,(geb/u)*100),pProf=Math.min(100,(Math.max(0,totalMarge)/u)*100);
+  el.innerHTML='<div class="an-pipe-nums"><div><span>Umsatz</span><strong>'+fmtAnEuro(u)+'</strong></div><div class="an-pipe-arrow">→</div><div><span>Einkauf</span><strong>'+fmtAnEuro(ek)+'</strong></div><div class="an-pipe-arrow">→</div><div><span>Gebühren</span><strong>'+fmtAnEuro(geb)+'</strong></div><div class="an-pipe-arrow">→</div><div><span>Gewinn</span><strong class="'+(totalMarge>=0?"an-plus":"an-minus")+'">'+fmtAnEuro(totalMarge)+'</strong></div></div>'
+    +'<div class="an-pipe-track"><div class="an-pipe-seg an-p-ek" style="width:'+pEK.toFixed(1)+'%"></div><div class="an-pipe-seg an-p-fee" style="width:'+pGeb.toFixed(1)+'%"></div><div class="an-pipe-seg an-p-win" style="width:'+pProf.toFixed(1)+'%"></div></div>'
+    +'<div class="an-pipe-legend"><span class="an-dot an-dot-ek"></span> Anteil Einkauf <span class="an-dot an-dot-fee"></span> Gebühren <span class="an-dot an-dot-win"></span> Gewinn <span class="an-pipe-note">(relativ zum Umsatz)</span></div>';
+}
+function _buildAnTop3(vkData){
+  var el=document.getElementById("an-top3");
+  if(!el)return;
+  if(!vkData.length){el.innerHTML='<div class="an-empty-soft">Keine Verkäufe für diese Filter.</div>';return;}
+  var top=vkData.slice().sort(function(a,b){return parseFloat(b.marge||0)-parseFloat(a.marge||0);}).slice(0,3);
+  var maxM=Math.max.apply(null,top.map(function(x){return Math.abs(parseFloat(x.marge||0));}).concat([0.01]));
+  el.innerHTML=top.map(function(v,ix){
+    var m=parseFloat(v.marge||0),vp=parseFloat(v.verkaufspreis||0)||1;
+    var pct=m/vp*100;
+    var w=Math.max(8,Math.round((Math.abs(m)/maxM)*100));
+    return'<div class="an-top-card"><div class="an-top-rank">'+(ix+1)+'</div><div class="an-top-body"><div class="an-top-name">'+esc((v.produkte||"–").slice(0,56))+'</div><div class="an-top-meta"><span>'+esc(v.plattform||"–")+'</span><span class="an-top-mrg">'+fmtAnPct(pct)+' Marge</span></div><div class="an-top-bar"><span style="width:'+w+'%"></span></div></div><div class="an-top-eur '+(m>=0?"an-plus":"an-minus")+'">'+(m>=0?"+":"")+m.toFixed(0)+' €</div></div>';
+  }).join("");
+}
+function buildGUV(){
+  function _el(id){return document.getElementById(id);}
+  initAnalyseDashUI();
+  _fillAnPlattformSelect();
+  var root=document.getElementById("analyse-panel");
+  if(root){
+    root.querySelectorAll("[data-an-range]").forEach(function(b){b.classList.toggle("an-seg-active",b.getAttribute("data-an-range")===window._anDash.range);});
+    var st=window._anDash.status||"";
+    root.querySelectorAll("#an-status-chips .an-chip").forEach(function(b){b.classList.toggle("an-chip-active",(b.getAttribute("data-an-st")||"")===st);});
+    var cm=window._anDash.chartMode||"gewinn";
+    root.querySelectorAll("#an-chart-modes .an-ct").forEach(function(b){b.classList.toggle("an-ct-on",b.getAttribute("data-m")===cm);});
+  }
+  if(!allItems||!allItems.length){
+    if(_guvBuildTries<3){_guvBuildTries++;loadAll(true);setTimeout(function(){buildGUV();},600);}
+  }else{_guvBuildTries=0;}
+  var vkData=filterVkAnalyse(allVerkauf||[]);
+  var totalVP=0,totalMarge=0,sumEK=0,sumVersand=0,sumFee=0,sumNegMarge=0;
+  vkData.forEach(function(v){
+    totalVP+=parseFloat(v.verkaufspreis||0)||0;
+    sumEK+=parseFloat(v.einkaufspreis||0)||0;
+    sumVersand+=parseFloat(v.versandkosten||0)||0;
+    sumFee+=parseFloat(v.plattformgebuehr||0)||0;
+    var m=parseFloat(v.marge||0)||0;
+    totalMarge+=m;
+    if(m<0)sumNegMarge+=m;
+  });
+  var gebuehren=sumVersand+sumFee;
   var sumStockEK=0;
   (allItems||[]).forEach(function(i){
     if(i.type==="defekt"||i.type==="verkauf")return;
     var ek=parseFloat(i.einkaufspreis||0);if(!isNaN(ek)&&ek>0)sumStockEK+=ek;
   });
-  var verlustDisplay=Math.abs(sumNegMarge)+sumStockEK;
-  if(_el("an-gewinn"))_el("an-gewinn").textContent=fmtEur(totalMarge>0?totalMarge:0);
-  if(_el("an-verlust")){
-    _el("an-verlust").innerHTML='<span style="font-family:Bebas Neue,sans-serif;font-size:26px;letter-spacing:1px;color:var(--col-r)">'+fmtEur(verlustDisplay)+'</span>'+
-      '<div style="font-size:9px;color:var(--w4);margin-top:4px;font-family:Space Mono,monospace">inkl. Bestands-EK '+fmtEur(sumStockEK)+(sumNegMarge<0?' · neg. VK '+fmtEur(Math.abs(sumNegMarge)):"")+'</div>';
+  var kostenGesamt=sumEK+gebuehren;
+  var margePct=totalVP>0?(totalMarge/totalVP)*100:0;
+  var netEl=_el("an-hero-net"),perEl=_el("an-hero-period");
+  if(perEl){
+    var labels={"7d":"7 Tage","30d":"30 Tage","month":"Dieser Monat","all":"Gesamt"};
+    perEl.textContent="Netto-Gewinn · "+(labels[window._anDash.range]||"");
   }
-  if(_el("an-umsatz"))_el("an-umsatz").textContent=fmtEur(totalVP);
-  if(_el("an-marge-avg"))_el("an-marge-avg").textContent=vkData.length>0?(totalMarge/vkData.length).toFixed(2)+"€":"–";
-  buildMonthlyChart();
-  var tbody=_el("an-vk-table");
-  if(tbody){
-    if(!vkData.length){tbody.innerHTML='<div class="empty" style="padding:20px"><i class="bi bi-inbox"></i><p>Keine Verkäufe</p></div>';return;}
-    tbody.innerHTML='<table class="an-table"><thead><tr><th>Produkt</th><th>VK</th><th>EK</th><th>Marge</th><th>Plattform</th></tr></thead><tbody>'
-      +vkData.slice().sort(function(a,b){return parseFloat(b.marge||0)-parseFloat(a.marge||0);}).map(function(v){var m=parseFloat(v.marge||0);return'<tr><td style="max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(v.produkte||"–")+'</td><td>'+fmtEur(v.verkaufspreis)+'</td><td>'+fmtEur(v.einkaufspreis)+'</td><td class="'+(m>=0?"an-pos":"an-neg")+'">'+(m>=0?"+":"")+m.toFixed(2)+'€</td><td>'+esc(v.plattform||"–")+'</td></tr>';}).join("")+'</tbody></table>';
+  if(netEl){
+    netEl.textContent=fmtAnEuro(totalMarge);
+    netEl.className="an-hero-big "+(totalMarge>=0?"an-plus":"an-minus");
   }
+  if(_el("an-hero-umsatz"))_el("an-hero-umsatz").textContent=fmtAnEuro(totalVP);
+  if(_el("an-hero-kosten"))_el("an-hero-kosten").textContent=fmtAnEuro(kostenGesamt);
+  if(_el("an-hero-margepct"))_el("an-hero-margepct").textContent=fmtAnPct(margePct);
+  _buildAnInsights(vkData,{totalMarge:totalMarge,totalVP:totalVP});
+  _buildAnPipeline(totalVP,sumEK,gebuehren,totalMarge);
+  _renderAnLineChart(vkData);
+  _buildAnTop3(vkData);
+  if(_el("an-mini-avg"))_el("an-mini-avg").textContent=vkData.length?fmtAnEuro(totalMarge/vkData.length):"–";
+  var platMap={};
+  vkData.forEach(function(v){
+    var p=String(v.plattform||"Sonstiges").trim()||"Sonstiges";
+    platMap[p]=(platMap[p]||0)+parseFloat(v.marge||0)||0;
+  });
+  var bestPl="–";
+  Object.keys(platMap).forEach(function(p){if(bestPl==="–"||platMap[p]>platMap[bestPl])bestPl=p;});
+  if(_el("an-mini-plat"))_el("an-mini-plat").textContent=bestPl;
+  if(_el("an-mini-n"))_el("an-mini-n").textContent=String(vkData.length);
   var vld=_el("an-verlust-detail");
   if(vld){
     var neg=vkData.filter(function(v){return parseFloat(v.marge||0)<0;});
     var noEK=vkData.filter(function(v){return !parseFloat(v.einkaufspreis||0);});
-    var h='<div style="font-size:11px;color:var(--w4);margin-bottom:8px">Bestands-EK (eingekaufte Ware im Lager): <strong style="color:var(--col-r)">'+fmtEur(sumStockEK)+'</strong></div>';
-    if(neg.length)h+=neg.map(function(v){return'<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--b1);font-size:12px"><span>'+esc(v.produkte||"–")+'</span><span class="an-neg">'+parseFloat(v.marge||0).toFixed(2)+'€</span></div>';}).join("");
-    if(noEK.length)h+='<div style="font-size:12px;color:var(--amber);margin-top:7px">⚠️ '+noEK.length+' Verkäufe ohne EK</div>';
-    vld.innerHTML=h||'<div style="font-size:12px;color:var(--w3)">Keine negativen Verkaufsmargen.</div>';
+    var verlustDisplay=Math.abs(sumNegMarge)+sumStockEK;
+    var hasLossDetail=neg.length>0||noEK.length>0||sumStockEK>0;
+    vld.style.display=hasLossDetail?"block":"none";
+    if(hasLossDetail){
+      vld.innerHTML='<div class="an-loss-h">Details · Risiko</div>'
+        +'<div class="an-loss-grid"><div><span class="an-loss-k">Negative Margen (Summe)</span><span class="an-loss-v an-minus">'+fmtAnEuro(sumNegMarge)+'</span></div>'
+        +'<div><span class="an-loss-k">Bestands-EK (Lager)</span><span class="an-loss-v">'+fmtAnEuro(sumStockEK)+'</span></div></div>'
+        +(neg.length?'<div class="an-loss-list">'+neg.slice(0,8).map(function(v){return'<div class="an-loss-row"><span>'+esc((v.produkte||"–").slice(0,40))+'</span><span class="an-minus">'+parseFloat(v.marge||0).toFixed(2)+' €</span></div>';}).join("")+(neg.length>8?"<div class=\"an-loss-more\">…</div>":"")+"</div>":"");
+    }
   }
-}
-function buildMonthlyChart(){
-  var bE=document.getElementById("an-chart-bars"),lE=document.getElementById("an-chart-labels");
-  if(!bE||!lE)return;
-  var months=[],now=new Date();
-  for(var i=5;i>=0;i--){var d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push({m:d.getMonth()+1,y:d.getFullYear(),label:["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"][d.getMonth()],marge:0});}
-  (allVerkauf||[]).forEach(function(v){if(!v.datum)return;var pts=v.datum.split(".");months.forEach(function(mo){if(mo.m===parseInt(pts[1]||0)&&mo.y===parseInt((pts[2]||"").split(" ")[0]))mo.marge+=parseFloat(v.marge||0);});});
-  var maxA=Math.max.apply(null,months.map(function(m){return Math.abs(m.marge)||0;}).concat([1]));
-  bE.innerHTML=months.map(function(mo){var pct=Math.max(4,Math.round((Math.abs(mo.marge)/maxA)*76));return'<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:80px"><div style="font-size:9px;color:var(--t3);margin-bottom:2px">'+(mo.marge>=0?"+":"")+Math.round(mo.marge)+'</div><div class="an-bar" style="background:'+(mo.marge>=0?"var(--blue)":"var(--red)")+';height:'+pct+'px;width:100%"></div></div>';}).join("");
-  lE.innerHTML=months.map(function(mo){return'<span style="flex:1;font-size:9px;color:var(--t3);text-align:center">'+mo.label+'</span>';}).join("");
 }
 function buildRetourenList(){
   gasGet("getAllRetouren",{},function(r){
