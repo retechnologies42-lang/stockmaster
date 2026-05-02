@@ -648,7 +648,7 @@ function toggleControllerDetails(){
   if(!box||!btn)return;
   var open=box.style.display!=="none";
   box.style.display=open?"none":"block";
-  btn.textContent=open?"Weitere Details anzeigen":"Weitere Details ausblenden";
+  btn.textContent=open?"▼ Weitere Details anzeigen":"▲ Weitere Details ausblenden";
 }
 function updateStepperCTA(){
   var bn=document.getElementById("btn-next");if(!bn)return;
@@ -707,8 +707,9 @@ function configS3(t){
   else if(t==="spiel"){document.getElementById("s3-title").textContent="Spiel-Details";h='<div class="mb-3"><label class="fl">System / Plattform</label>'+selHTML("f-sys",["PlayStation 5","PlayStation 4","PlayStation 3","Xbox Series X/S","Xbox One","Xbox 360","Nintendo Switch","Nintendo 3DS","Nintendo Wii","Nintendo Wii U","Game Boy Advance","Nintendo DS","PC","Sonstiges"])+'</div><div class="row g-2 mb-3"><div class="col-4"><label class="fl">USK</label>'+selHTML("f-usk",["","USK 0","USK 6","USK 12","USK 16","USK 18"])+'</div><div class="col-4"><label class="fl">Sprache</label>'+selHTML("f-sprache",["Deutsch","Englisch","Multilingual","Sonstiges"])+'</div><div class="col-4"><label class="fl" style="display:flex;align-items:center;gap:4px">Zustand <button type="button" onclick="showZustandInfo()" style="width:17px;height:17px;background:var(--blue);border:none;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#fff;cursor:pointer;flex-shrink:0;padding:0">i</button></label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div></div><div class="mb-3"><label class="fl">Hinweise</label><textarea id="f-hinweise" class="fc" placeholder="z.B. Cover fehlt…"></textarea></div>';}
   else if(t==="controller"){
     document.getElementById("s3-title").textContent="Details";
-    h='<div class="sm-sec sm-main"><div class="sm-sec-h">Wichtig</div><label class="fl">Plattform *</label><input type="hidden" id="f-sys" value=""/><div id="chip-sys" class="sm-chip-row">'+
-      '<button type="button" class="sm-chip" data-v="PlayStation" onclick="setChipValue(\'f-sys\',\'PlayStation\',\'chip-sys\')">PlayStation</button>'+
+    h='<div class="sm-flow-head"><div class="sm-flow-title">Details erfassen</div><div class="sm-flow-step">Schritt 3 von 6</div></div>'+
+      '<div class="sm-flow-sec"><div class="sm-sec-kicker">Wichtig</div><label class="fl">Plattform *</label><input type="hidden" id="f-sys" value=""/><div id="chip-sys" class="sm-chip-row">'+
+      '<button type="button" class="sm-chip" data-v="PlayStation" onclick="setChipValue(\'f-sys\',\'PlayStation\',\'chip-sys\')">🎮 PlayStation</button>'+
       '<button type="button" class="sm-chip" data-v="Xbox" onclick="setChipValue(\'f-sys\',\'Xbox\',\'chip-sys\')">Xbox</button>'+
       '<button type="button" class="sm-chip" data-v="Nintendo" onclick="setChipValue(\'f-sys\',\'Nintendo\',\'chip-sys\')">Nintendo</button>'+
       '<button type="button" class="sm-chip" data-v="PC" onclick="setChipValue(\'f-sys\',\'PC\',\'chip-sys\')">PC</button>'+
@@ -720,9 +721,11 @@ function configS3(t){
       '<button type="button" class="sm-chip" data-v="Akzeptabel" onclick="setChipValue(\'f-zustand\',\'Akzeptabel\',\'chip-zst\')">Akzeptabel</button>'+
       '<button type="button" class="sm-chip" data-v="Defekt" onclick="setChipValue(\'f-zustand\',\'Defekt\',\'chip-zst\')">Defekt</button>'+
       '</div></div>'+
-      '<div class="sm-sec sm-sale"><div class="sm-sec-h">Für besseren Verkauf</div><label class="fl">Produkt (hilft beim Verkauf)</label><input type="text" id="f-product-c" class="fc" placeholder="z. B. Sony DualSense V2"/></div>'+
-      '<button type="button" class="btn btn-outline-secondary w-100 mb-2" id="s3-toggle-more" onclick="toggleControllerDetails()">Weitere Details anzeigen</button>'+
-      '<div id="s3-optional-wrap" style="display:none"><div class="sm-sec sm-opt"><div class="sm-sec-h">Weitere Details (optional)</div>'+
+      '<div class="sm-flow-divider"></div>'+
+      '<div class="sm-flow-sec"><div class="sm-sec-kicker">Für besseren Verkauf</div><label class="fl">Produkt (hilft beim Verkauf)</label><input type="text" id="f-product-c" class="fc" placeholder="z. B. Sony DualSense V2"/></div>'+
+      '<div class="sm-flow-divider"></div>'+
+      '<div class="sm-flow-sec sm-opt"><button type="button" class="sm-acc-btn" id="s3-toggle-more" onclick="toggleControllerDetails()">▼ Weitere Details anzeigen</button>'+
+      '<div id="s3-optional-wrap" style="display:none"><div class="sm-sec-kicker">Weitere Details (optional)</div>'+
       '<label class="fl">Verbindung</label><input type="hidden" id="f-conn" value=""/><div id="chip-conn" class="sm-chip-row mb-2">'+
       '<button type="button" class="sm-chip" data-v="Wireless" onclick="setChipValue(\'f-conn\',\'Wireless\',\'chip-conn\')">Wireless</button>'+
       '<button type="button" class="sm-chip" data-v="Bluetooth" onclick="setChipValue(\'f-conn\',\'Bluetooth\',\'chip-conn\')">Bluetooth</button>'+
