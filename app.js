@@ -2612,7 +2612,11 @@ function openDetail(rIdx){
     });
     var showFotos=mode==="anzeige"?kaFotos:defFotos;
     if(showFotos.length>0){
-      heroEl.style.aspectRatio="16 / 10";heroEl.style.maxHeight="34vh";
+      var desktop=window.matchMedia&&window.matchMedia("(min-width: 900px)").matches;
+      heroEl.style.aspectRatio=desktop?"16 / 9":"16 / 10";
+      heroEl.style.maxHeight=desktop?"220px":"34vh";
+      heroEl.style.maxWidth=desktop?"520px":"100%";
+      heroEl.style.margin=desktop?"10px auto":"0";
       heroEl.innerHTML='<img src="'+esc(showFotos[0])+'" style="width:100%;height:100%;object-fit:cover"/>';
       heroEl.className="detail-hero";
       if(showFotos.length>1){
@@ -2626,7 +2630,11 @@ function openDetail(rIdx){
     }
   };
   window.detailSetHeroImg=function(el,src){
-    heroEl.style.aspectRatio="16 / 10";heroEl.style.maxHeight="34vh";
+    var desktop=window.matchMedia&&window.matchMedia("(min-width: 900px)").matches;
+    heroEl.style.aspectRatio=desktop?"16 / 9":"16 / 10";
+    heroEl.style.maxHeight=desktop?"220px":"34vh";
+    heroEl.style.maxWidth=desktop?"520px":"100%";
+    heroEl.style.margin=desktop?"10px auto":"0";
     heroEl.innerHTML='<img src="'+esc(src)+'" style="width:100%;height:100%;object-fit:cover"/>';
     thumbsEl.querySelectorAll(".detail-photo-thumb").forEach(function(t){t.classList.remove("active");});
     el.classList.add("active");
