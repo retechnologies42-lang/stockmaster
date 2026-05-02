@@ -260,5 +260,44 @@
   border:1px solid rgba(77,159,255,.42)!important;
   background:rgba(77,159,255,.07)!important;
   box-shadow:0 0 0 1px rgba(77,159,255,.08) inset;
+  padding:12px 14px!important;
+  border-radius:10px!important;
 }
-.vk-preis-main{font-size:18px!important;padding:12px 14px!important;font-weight:600}
+.vk-price-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end}
+.vk-field{min-width:0}
+.vk-preis-main{
+  height:42px!important;
+  font-size:15px!important;
+  font-weight:500!important;
+  padding:8px 34px 8px 12px!important;
+  line-height:1.2!important;
+}
+.vk-input-eur-wrap{position:relative}
+.vk-input-eur{
+  position:absolute;
+  right:10px;
+  top:50%;
+  transform:translateY(-50%);
+  font-size:13px;
+  color:var(--w4);
+  pointer-events:none;
+}
+.vk-ship-label{font-size:13px!important;opacity:.82}
+.vk-versand-input{
+  height:40px!important;
+  font-size:13px!important;
+  padding:8px 10px!important;
+  opacity:.9;
+}
+#vk-marge-preview{
+  margin-top:8px!important;
+  padding:7px 10px!important;
+}
+#vk-marge-preview-val{
+  margin-top:0!important;
+  font-size:13px!important;
+  font-weight:600!important;
+}
+@media (max-width:520px){
+  .vk-price-grid{grid-template-columns:1fr}
+}
