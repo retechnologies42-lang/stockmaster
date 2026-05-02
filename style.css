@@ -193,3 +193,36 @@
 .an-plus{color:var(--acc)!important}.an-minus{color:var(--col-r)!important}
 .notif-overlay:not(.open){pointer-events:none}
 #handel-panel:not(.on) .handel-fab-menu{display:none!important}
+
+/* ── Refresh actions (idle / loading / success) ─────────────────── */
+.smp-ico-spin{animation:smpRot .7s linear infinite;display:inline-block}
+@keyframes smpRot{to{transform:rotate(360deg)}}
+.an-dash-sync.smp-refresh-loading,.btn.smp-refresh-loading{pointer-events:none;opacity:.88;box-shadow:0 0 16px rgba(0,255,136,.18)}
+.an-dash-sync.smp-refresh-done,.btn.smp-refresh-done{animation:smpRfDone .55s ease}
+@keyframes smpRfDone{0%{box-shadow:0 0 0 rgba(0,255,136,.45)}50%{box-shadow:0 0 20px rgba(0,255,136,.35)}100%{box-shadow:0 0 0 rgba(0,255,136,0)}}
+
+/* Login screen — neon accent, soft glow */
+.login-brand-glow{position:absolute;width:min(440px,92vw);height:min(440px,92vw);left:50%;top:36%;transform:translate(-50%,-50%);background:radial-gradient(circle at 50% 45%,rgba(0,255,136,.16),transparent 58%);pointer-events:none;animation:smpLg 6s ease-in-out infinite;z-index:0}
+#emp-scr .emp-hero,#emp-scr .emp-form{position:relative;z-index:1}
+@keyframes smpLg{0%,100%{opacity:.75;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.05)}}
+#emp-scr .emp-form .fc{transition:border-color .2s,box-shadow .2s,transform .15s}
+#emp-scr .btn-primary{transition:transform .12s ease,box-shadow .2s ease}
+#emp-scr .btn-primary:active{transform:scale(.985)}
+
+/* Home KPI — wide tile nicht wie «aktiv» markiert */
+.kpi-dash{border-color:var(--e1)!important}
+.kpi-dash:hover{border-color:rgba(0,255,136,.35)!important}
+.kpi-tile:hover{border-color:rgba(0,255,136,.22)}
+
+/* EK Check · Entscheidung / Phasen */
+.ek-decision-card{margin-top:12px;padding:14px;border:1px solid var(--e1);border-radius:var(--r-lg);background:var(--b1)}
+.ek-decision-title{font-family:var(--fh);font-size:15px;letter-spacing:.8px;color:var(--w1);margin-bottom:4px}
+.ek-decision-sub{font-size:11px;color:var(--w4);margin:0 0 12px;line-height:1.45}
+.ek-decision-row{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Analyse · Plattform-Vergleich */
+.an-plat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.an-plat-box{border:1px solid var(--e1);border-radius:var(--r-lg);padding:12px;background:var(--b1)}
+.an-plat-h{font-size:10px;font-family:var(--fm);letter-spacing:1px;color:var(--acc);text-transform:uppercase;margin-bottom:8px}
+.an-plat-k{font-size:11px;color:var(--w3);font-family:var(--fm);margin:3px 0}
+.an-plat-g{color:var(--acc);font-weight:700}
