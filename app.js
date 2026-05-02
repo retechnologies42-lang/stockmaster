@@ -1,7 +1,7 @@
 
 
 
-var GAS_URL = "https://script.google.com/macros/s/AKfycbxt8GfGWKLeeWs1OPMc3rJOmWwsCL3BHYFePag-kUPes5PJV6L7y5nNycHycGQf/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbwRjKlU6kteeJDdo_kGBSQEagav-Uy8UWKLR3EkSNzTwSSCnHVQy2nFTM2Tz72qFg/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -6151,7 +6151,7 @@ function applyVKMulti(){
   var chips=document.getElementById("vk-multi-chips");if(chips){
     chips.innerHTML=vkScannedItems.map(function(it){return'<span style="background:var(--s3);border:1px solid var(--b2);border-radius:4px;padding:2px 7px;font-size:11px;color:var(--t2)">'+esc(it.name)+'</span>';}).join("");
   }
-  var pi=document.getElementById("vk-product-info");if(pi){pi.textContent=vkScannedItems.length+" Artikel · EK: "+totalEK.toFixed(2)+" € · VK unten eintragen";pi.style.display="block";}
+  var pi=document.getElementById("vk-product-info");if(pi){pi.textContent=vkScannedItems.length+" Artikel · EK-Summe: "+totalEK.toFixed(2)+" € · VK nur im blauen Feld unten";pi.style.display="block";}
   closeVKMulti();
   scheduleVKRecalc();
   toast(vkScannedItems.length+" Artikel übernommen – Schritt 1 prüfen, dann „Weiter“.","ok",3200);
