@@ -11,7 +11,7 @@ var scanMode="einlagern"; // "einlagern" | "verkauf" | "einkauf"
 var curCat="", curType="";
 var forcedSpielSystem="";
 var stepCur=1, stepTotal=6;
-var probChoice=null, probType=null;
+var probChoice=null;
 var photos=[];
 var editingItem=null, isEditMode=false;
 var testRowNum=-1, timerInterval=null;
@@ -557,10 +557,20 @@ function loadStats(){gasGet("getStats",{},function(r){if(!r||!r.ok)return;var s=
 
 // ── KATEGORIE ─────────────────────────────────────────────────────
 function inboundStepType(cat){
-  if(cat==="controller")return "controller";
+  if(cat==="controller"||cat==="konsole"||cat==="spiel")return cat;
   if(cat==="handy")return "handy";
   if(cat==="pc")return "pc";
   return "konsole";
+}
+function openConsoleAccessorySub(){
+  var sw=document.getElementById("sw-sub");if(!sw)return;
+  sw.innerHTML='<div class="inb-wrap"><div class="inb-head"><div class="inb-title">Konsolen & Zubehör</div><div class="inb-sub">Wähle den passenden Produkttyp</div></div><div class="inb-grid">'+
+    '<button class="inb-card" onclick="selCat(\'konsole\')"><span class="inb-ic">🎮</span><span class="inb-t">Konsole</span></button>'+
+    '<button class="inb-card" onclick="selCat(\'controller\')"><span class="inb-ic">🕹️</span><span class="inb-t">Controller</span></button>'+
+    '<button class="inb-card" onclick="selCat(\'spiel\')"><span class="inb-ic">💿</span><span class="inb-t">Spiel</span></button>'+
+    '</div><div class="inb-actions"><button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById(\'sw-sub\').style.display=\'none\';document.getElementById(\'cat-chooser\').style.display=\'block\'"><i class="bi bi-arrow-left me-1"></i>Zurück</button></div></div>';
+  document.getElementById("cat-chooser").style.display="none";
+  sw.style.display="block";
 }
 function selCat(cat){
   curCat=cat;isEditMode=false;editingItem=null;
@@ -568,6 +578,7 @@ function selCat(cat){
   document.getElementById("cat-chooser").style.display="none";
   document.getElementById("sw-sub").style.display="none";
   document.getElementById("main-stepper").style.display="none";
+  if(cat==="konsolen_zubehoer"){openConsoleAccessorySub();return;}
   startStepper(inboundStepType(cat));
 }
 function renderInboundCategoryChooser(){
@@ -576,10 +587,10 @@ function renderInboundCategoryChooser(){
     '<div class="inb-wrap">'+
       '<div class="inb-head"><div class="inb-title">Was möchtest du einlagern?</div><div class="inb-sub">Wähle eine Kategorie, um den Artikel zu erfassen</div></div>'+
       '<div class="inb-grid">'+
-        '<button class="inb-card" onclick="selCat(\'controller\')"><span class="inb-ic">🎮</span><span class="inb-t">Controller & Zubehör</span></button>'+
+        '<button class="inb-card" onclick="selCat(\'konsolen_zubehoer\')"><span class="inb-ic">🎮</span><span class="inb-t">Konsolen & Zubehör</span></button>'+
         '<button class="inb-card" onclick="selCat(\'handy\')"><span class="inb-ic">📱</span><span class="inb-t">Smartphones</span></button>'+
         '<button class="inb-card" onclick="selCat(\'pc\')"><span class="inb-ic">💻</span><span class="inb-t">PC & Laptop</span></button>'+
-        '<button class="inb-card" onclick="selCat(\'sonstiges\')"><span class="inb-ic">📦</span><span class="inb-t">Sonstiges</span></button>'+
+        '<button class="inb-card" onclick="selCat(\'allgemein\')"><span class="inb-ic">📦</span><span class="inb-t">Allgemeine Elektronik</span></button>'+
       '</div>'+
       '<div class="inb-actions"><button class="btn btn-sm btn-outline-secondary" onclick="resetToMode()"><i class="bi bi-arrow-left me-1"></i>Zurück</button></div>'+
     '</div>';
@@ -591,9 +602,9 @@ function saveStepperDraft(){
     var d={
       stepCur:stepCur,
       scanId:gv("f-scanid"),name:gv("f-name"),ma:gv("f-ma"),ek:gv("f-einkaufspreis"),wt:gv("f-warentyp"),
-      sys:gv("f-sys"),zustand:gv("f-zustand"),hinweise:gv("f-hinweise"),product:gv("f-product-c"),conn:gv("f-conn"),drift:gv("f-drift"),box:gv("f-box-c"),acc:gv("f-acc-c"),
+      sys:gv("f-sys"),zustand:gv("f-zustand"),hinweise:gv("f-hinweise"),conn:gv("f-conn"),drift:gv("f-drift"),box:gv("f-box-c"),acc:gv("f-acc-c"),
       optOpen:(function(){var e=document.getElementById("s3-optional-wrap");return !!(e&&e.style.display!=="none");})(),
-      probChoice:probChoice,probType:probType,probD:gv("f-prob-beschr"),
+      probChoice:probChoice,probD:gv("f-prob-beschr"),
       photos:(photos||[]).slice(0,12)
     };
     localStorage.setItem(stepperDraftKey(),JSON.stringify(d));
@@ -605,10 +616,9 @@ function loadStepperDraft(){
     var d=JSON.parse(raw||"{}");if(!d)return;
     if(!isEditMode){
       sv("f-scanid",d.scanId);sv("f-name",d.name);sv("f-ma",d.ma);sv("f-einkaufspreis",d.ek);sv("f-warentyp",d.wt);
-      sv("f-sys",d.sys);sv("f-zustand",d.zustand);sv("f-hinweise",d.hinweise);sv("f-product-c",d.product);sv("f-conn",d.conn);sv("f-drift",d.drift);sv("f-box-c",d.box);sv("f-acc-c",d.acc);sv("f-prob-beschr",d.probD);
+      sv("f-sys",d.sys);sv("f-zustand",d.zustand);sv("f-hinweise",d.hinweise);sv("f-conn",d.conn);sv("f-drift",d.drift);sv("f-box-c",d.box);sv("f-acc-c",d.acc);sv("f-prob-beschr",d.probD);
       if(Array.isArray(d.photos)){photos=d.photos.slice(0,12);renderAllPhotos();}
       if(d.probChoice){selProb(d.probChoice);}
-      if(d.probType){selProbType(d.probType);}
       if(curType==="controller"){refreshControllerChipState();if(d.optOpen){var bx=document.getElementById("s3-optional-wrap"),bt=document.getElementById("s3-toggle-more");if(bx)bx.style.display="block";if(bt)bt.textContent="Weitere Details ausblenden";}}
       if(d.stepCur&&d.stepCur>=1&&d.stepCur<=stepTotal)stepCur=d.stepCur;
       updateProgress();showStep(stepCur);
@@ -630,11 +640,6 @@ function applySmartSuggestions(){
   if(n.indexOf("ps5")>-1||n.indexOf("playstation")>-1)sys.value="PlayStation";
   else if(n.indexOf("xbox")>-1)sys.value="Xbox";
   else if(n.indexOf("switch")>-1||n.indexOf("nintendo")>-1)sys.value="Nintendo";
-  var product=document.getElementById("f-product-c");
-  if(product&&!product.value){
-    if(/dualsense|playstation|ps5/i.test(n))product.value="Sony DualSense V2";
-    if(/xbox/i.test(n))product.value="Microsoft Xbox Controller";
-  }
   refreshControllerChipState();
   updateStepperCTA();
 }
@@ -700,7 +705,7 @@ function startStepper(type, prefillItem){
   stepCur=(type==="spiel"||type==="handy")?2:1;
   resetStepperState();
   document.getElementById("main-stepper").style.display="block";
-  configS2(type);configS3(type);buildDots();updateProgress();showStep(stepCur);fillMA();bindStepperAutoSave();
+  configS2(type);configS3(type);renderDamageStepUI();buildDots();updateProgress();showStep(stepCur);fillMA();bindStepperAutoSave();
   if(!prefillItem)loadStepperDraft();
   setDefaultWarentyp();
   var zs=document.getElementById("f-zustand");if(zs&&!zs.value)zs.value="Gut";
@@ -719,14 +724,14 @@ function prefillStepper(item,type){
     else if(type==="handy"){sv("f-gb",item.speicherGB);sv("f-ram",item.ram);sv("f-farbe",item.farbe);sv("f-netz",item.netzwerk);sv("f-imei",item.imei);sv("f-zustand",item.zustand);}
     else if(type==="pc"){if(item.typ_){selPCTyp(item.typ_);}setTimeout(function(){sv("f-cpu",item.prozessor);sv("f-ram",item.ram);sv("f-gb",item.speicherGB);sv("f-stype",item.speicherTyp);sv("f-gpu",item.grafikkarte);sv("f-mb",item.mainboard);sv("f-psu",item.netzteil);sv("f-os",item.betriebssystem);sv("f-zustand",item.zustand);},60);}
     if(item.problemTyp&&item.problemTyp!==""){
-      selProb("ja");
+      var pt=String(item.problemTyp||"").toLowerCase();
+      var mapped=(pt==="physisch"||pt==="software")?"major":(pt.indexOf("leicht")>-1?"light":"major");
+      selProb(mapped);
       setTimeout(function(){
-        if(item.problemTyp==="physisch"||item.problemTyp==="software"){selProbType(item.problemTyp);}
-        else{document.getElementById("prob-descr-row").style.display="block";}
         sv("f-prob-beschr",item.problemBeschr);
-        if(item.fotos&&item.fotos.length>0){photos=item.fotos.map(function(b64){return{b64:b64,name:"foto.jpg"};});renderAllPhotos();document.getElementById("photo-row").style.display="block";}
+        if(item.fotos&&item.fotos.length>0){photos=item.fotos.map(function(b64){return{b64:b64,name:"foto.jpg"};});renderAllPhotos();renderDamageInlinePhotos();}
       },60);
-    } else {selProb("nein");}
+    } else {selProb("none");}
   },120);
 }
 function sv(id,val){var el=document.getElementById(id);if(!el||val===undefined||val===null)return;el.value=String(val);}
@@ -768,7 +773,6 @@ function configS3(t){
       '<button type="button" class="sm-chip" data-v="Akzeptabel" onclick="setChipValue(\'f-zustand\',\'Akzeptabel\',\'chip-zst\')">Akzeptabel</button>'+
       '<button type="button" class="sm-chip" data-v="Defekt" onclick="setChipValue(\'f-zustand\',\'Defekt\',\'chip-zst\')">Defekt</button>'+
       '</div></div></div>'+
-      '<div class="card sm-card"><div class="card-body"><div class="sm-sec-kicker">Produkt (für Verkauf)</div><label class="fl">Produkt (hilft beim Verkauf)</label><input type="text" id="f-product-c" class="fc sm-soft" placeholder="z. B. Sony DualSense V2"/></div></div>'+
       '<div class="card sm-card"><div class="card-body sm-opt"><button type="button" class="sm-acc-btn" id="s3-toggle-more" onclick="toggleControllerDetails()">▼ Weitere Details anzeigen</button>'+
       '<div id="s3-optional-wrap" style="display:none"><div class="sm-sec-kicker">Weitere Details</div>'+
       '<label class="fl">Verbindung</label><input type="hidden" id="f-conn" value=""/><div id="chip-conn" class="sm-chip-row mb-2">'+
@@ -817,6 +821,35 @@ function configS3(t){
     updateStepperCTA();
   }
 }
+function renderDamageStepUI(){
+  var s4=document.getElementById("st-s4");if(!s4)return;
+  s4.innerHTML='<div class="step-title">MÄNGEL</div><div class="step-sub">Wähle den Zustand des Artikels.</div>'+
+    '<div class="inb-grid">'+
+      '<button class="inb-card dmg-card" id="pb-none" onclick="selProb(\'none\')"><span class="inb-ic">✅</span><span class="inb-t">Kein Mangel</span></button>'+
+      '<button class="inb-card dmg-card" id="pb-light" onclick="selProb(\'light\')"><span class="inb-ic">⚠️</span><span class="inb-t">Leichte Gebrauchsspuren</span></button>'+
+      '<button class="inb-card dmg-card" id="pb-major" onclick="selProb(\'major\')" style="grid-column:1/-1"><span class="inb-ic">❗</span><span class="inb-t">Relevanter Schaden</span></button>'+
+    '</div>'+
+    '<div id="prob-descr-row" style="display:none;margin-top:10px"><label class="fl">Beschreibung</label><textarea id="f-prob-beschr" class="fc sm-soft" placeholder="z. B. Trigger klemmt leicht"></textarea></div>'+
+    '<div id="damage-photo-row" style="display:none;margin-top:10px"><label class="fl">Bilder</label><div class="photo-zone"><div class="pz-top" onclick="triggerPhotoInput(\'gallery\');setTimeout(renderDamageInlinePhotos,120)"><i class="bi bi-camera-plus"></i><div class="pz-l">Fotos hinzufügen</div><div class="pz-s">Max. 12 Fotos</div></div><div class="pz-btns"><button class="pz-btn" onclick="triggerPhotoInput(\'cam\');setTimeout(renderDamageInlinePhotos,120)"><i class="bi bi-camera me-1"></i>KAMERA</button><button class="pz-btn" onclick="triggerPhotoInput(\'gallery\');setTimeout(renderDamageInlinePhotos,120)"><i class="bi bi-images me-1"></i>GALERIE</button></div></div><div id="damage-photo-grid" class="photo-thumbs"></div></div>';
+  renderDamageInlinePhotos();
+}
+function renderDamageInlinePhotos(){
+  var g=document.getElementById("damage-photo-grid");if(!g)return;
+  g.innerHTML="";
+  (photos||[]).forEach(function(p,i){
+    var d=document.createElement("div");d.className="photo-thumb";d.innerHTML='<img src="'+p.b64+'"/><button class="rm-thumb" onclick="removePhoto('+i+');renderDamageInlinePhotos()">✕</button>';g.appendChild(d);
+  });
+  updateMangelCTA();
+}
+function updateMangelCTA(){
+  if(stepCur!==4)return;
+  var bn=document.getElementById("btn-next");if(!bn)return;
+  var ok=true,msg="Weiter";
+  if(!probChoice){ok=false;msg="Mangel auswählen";}
+  else if(probChoice==="major"&&!gv("f-prob-beschr").trim()){ok=false;msg="Beschreibung erforderlich";}
+  else if(probChoice==="major"&&photos.length===0){ok=false;msg="Bild erforderlich";}
+  bn.disabled=!ok;bn.textContent=msg;
+}
 function selHTML(id,opts){return'<select id="'+id+'" class="fc"><option value="">– Auswählen –</option>'+opts.map(function(o){return o?'<option>'+o+'</option>':'';}).join("")+'</select>';}
 function selPCTyp(v){
   document.getElementById("f-pc-typ").value=v;
@@ -846,6 +879,7 @@ function updateProgress(){
   if(gb)gb.style.display=inlineAction?"none":"inline-flex";
   if(gn&&!last)gn.style.display=inlineAction?"none":"inline-flex";
   updateStepperCTA();
+  updateMangelCTA();
 }
 function showStep(n){for(var i=1;i<=stepTotal;i++){var el=document.getElementById("st-s"+i);if(el){el.classList.remove("on");if(i===n)el.classList.add("on");}}}
 function jumpToStepperStep(n){
@@ -865,7 +899,8 @@ function stepNext(){
   }
   if(stepCur===4){
     if(!probChoice){toast("Mängel auswählen.","err");createDraftIncompleteTask(["Mängelstatus"]);return;}
-    if(probChoice==="ja"&&!probType){toast("Mangeltyp auswählen.","err");createDraftIncompleteTask(["Mangeltyp"]);return;}
+    if(probChoice==="major"&&!gv("f-prob-beschr").trim()){toast("Beschreibung für relevanten Schaden erforderlich.","err");return;}
+    if(probChoice==="major"&&photos.length===0){toast("Mindestens 1 Bild bei relevantem Schaden erforderlich.","err");return;}
   }
   if(stepCur===5){
     if(photos.length===0){toast("Mindestens 1 Foto erforderlich.","err");createDraftIncompleteTask(["Foto"]);return;}
@@ -898,8 +933,19 @@ function stepBack(){
 }
 
 // ── MÄNGEL ───────────────────────────────────────────────────────
-function selProb(v){probChoice=v;document.getElementById("pb-nein").className="cbtn"+(v==="nein"?" sel-g":"");document.getElementById("pb-ja").className="cbtn"+(v==="ja"?" sel-r":"");document.getElementById("prob-type-row").style.display=v==="ja"?"block":"none";if(v==="nein"){document.getElementById("prob-descr-row").style.display="none";probType=null;}}
-function selProbType(v){probType=v;document.getElementById("pb-phys").className="cbtn"+(v==="physisch"?" sel-r":"");document.getElementById("pb-soft").className="cbtn"+(v==="software"?" sel":"");document.getElementById("prob-descr-row").style.display="block";}
+function selProb(v){
+  probChoice=v;
+  var n=document.getElementById("pb-none"),l=document.getElementById("pb-light"),m=document.getElementById("pb-major");
+  if(n)n.classList.toggle("on",v==="none");
+  if(l)l.classList.toggle("on",v==="light");
+  if(m)m.classList.toggle("on",v==="major");
+  var d=document.getElementById("prob-descr-row"),p=document.getElementById("damage-photo-row");
+  if(d)d.style.display=(v==="major"||v==="light")?"block":"none";
+  if(p)p.style.display=(v==="major"||v==="light")?"block":"none";
+  if(v==="none"){sv("f-prob-beschr","");}
+  renderDamageInlinePhotos();
+  updateMangelCTA();
+}
 
 // ================================================================
 // KAMERA FIX: Kamera 0 immer direkt verwenden
@@ -1030,10 +1076,10 @@ function triggerPhotoInput(mode){
   el.onchange=function(){if(this.files&&this.files[0])processPhotoFile(this.files[0]);this.value="";};
   el.click();
 }
-function processPhotoFile(file){if(!file)return;if(file.size>15*1024*1024){toast("Max. 15 MB pro Foto.","err");return;}if(photos.length>=12){toast("Maximal 12 Bilder pro Produkt.","err");return;}var name=(file.name||"foto.jpg").replace(/[^a-zA-Z0-9._-]/g,"_");var img=new Image(),url=URL.createObjectURL(file);img.onload=function(){URL.revokeObjectURL(url);var MAX=1200,w=img.width,h=img.height;if(w>MAX||h>MAX){if(w>h){h=Math.round(h*(MAX/w));w=MAX;}else{w=Math.round(w*(MAX/h));h=MAX;}}var canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;var ctx=canvas.getContext("2d");ctx.fillStyle="#ffffff";ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);var b64=canvas.toDataURL("image/jpeg",0.78);if(!b64||b64.indexOf("base64,")===-1){toast("Bild konnte nicht verarbeitet werden.","err");return;}photos.push({b64:b64,name:name});renderAllPhotos();toast("Foto hinzugefügt ✅","ok",2000);};img.onerror=function(){toast("Bild konnte nicht geladen werden.","err");};img.src=url;}
+function processPhotoFile(file){if(!file)return;if(file.size>15*1024*1024){toast("Max. 15 MB pro Foto.","err");return;}if(photos.length>=12){toast("Maximal 12 Bilder pro Produkt.","err");return;}var name=(file.name||"foto.jpg").replace(/[^a-zA-Z0-9._-]/g,"_");var img=new Image(),url=URL.createObjectURL(file);img.onload=function(){URL.revokeObjectURL(url);var MAX=1200,w=img.width,h=img.height;if(w>MAX||h>MAX){if(w>h){h=Math.round(h*(MAX/w));w=MAX;}else{w=Math.round(w*(MAX/h));h=MAX;}}var canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;var ctx=canvas.getContext("2d");ctx.fillStyle="#ffffff";ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);var b64=canvas.toDataURL("image/jpeg",0.78);if(!b64||b64.indexOf("base64,")===-1){toast("Bild konnte nicht verarbeitet werden.","err");return;}photos.push({b64:b64,name:name});renderAllPhotos();renderDamageInlinePhotos();toast("Foto hinzugefügt ✅","ok",2000);};img.onerror=function(){toast("Bild konnte nicht geladen werden.","err");};img.src=url;}
 function renderAllPhotos(){var mw=document.getElementById("photo-main-wrap"),thumbs=document.getElementById("photo-thumbs");if(!mw||!thumbs)return;mw.innerHTML="";thumbs.innerHTML="";if(photos.length===0){renderAddThumbBtn();return;}mw.innerHTML='<div class="photo-main-preview" style="max-height:120px"><img src="'+photos[0].b64+'" style="max-height:120px;object-fit:cover"/><div style="display:flex;gap:6px;position:absolute;right:6px;bottom:6px"><button class="rm-main-photo" onclick="movePhoto(0,1)" style="position:static">↓</button><button class="rm-main-photo" onclick="removePhoto(0)" style="position:static">✕</button></div></div>';for(var i=1;i<photos.length;i++){var div=document.createElement("div");div.className="photo-thumb";div.style.width="48px";div.style.height="48px";div.style.position="relative";div.innerHTML='<img src="'+photos[i].b64+'" style="object-fit:cover"/><button class="rm-thumb" onclick="removePhoto('+i+')">✕</button><button class="rm-thumb" style="right:22px" onclick="movePhoto('+i+','+(i-1)+')">↑</button>';thumbs.appendChild(div);}renderAddThumbBtn();}
 function renderAddThumbBtn(){var t=document.getElementById("photo-thumbs");if(!t)return;var btn=document.createElement("div");btn.className="add-thumb";btn.innerHTML='<i class="bi bi-plus"></i>';btn.onclick=function(){triggerPhotoInput("gallery");};t.appendChild(btn);}
-function removePhoto(idx){photos.splice(idx,1);renderAllPhotos();}
+function removePhoto(idx){photos.splice(idx,1);renderAllPhotos();renderDamageInlinePhotos();}
 function movePhoto(from,to){from=parseInt(from,10);to=parseInt(to,10);if(isNaN(from)||isNaN(to)||from<0||to<0||from>=photos.length||to>=photos.length||from===to)return;var it=photos.splice(from,1)[0];photos.splice(to,0,it);renderAllPhotos();}
 
 // ── SAVE ──────────────────────────────────────────────────────────
@@ -1042,8 +1088,8 @@ function doSave(){
   var scanId=document.getElementById("f-scanid").value.trim();
   var name=document.getElementById("f-name").value.trim();
   var ma=document.getElementById("f-ma").value||emp;
-  var probTyp=probChoice==="nein"?"":probType||"";
-  var probD=probChoice==="nein"?"":(gv("f-prob-beschr"));
+  var probTyp=probChoice==="none"?"":(probChoice==="major"?"relevanter_schaden":"leichte_gebrauchsspuren");
+  var probD=probChoice==="none"?"":(gv("f-prob-beschr"));
   var fotoB64arr=photos.map(function(p){return p.b64;});
   if(fotoB64arr.length>12){setBL(btn,false,orig);toast("Maximal 12 Bilder erlaubt.","err");return;}
   var zustF=(gv("f-zustand")||"").trim();
@@ -1072,7 +1118,7 @@ function doSave(){
 
   if(curType==="konsole"){d.name=name;d.speicherGB=gv("f-gb");d.farbe=gv("f-farbe");fn=isEditMode?"updateKonsole":"saveKonsole";}
   else if(curType==="spiel"){d.spiel=name;d.system=gv("f-sys");d.zustand=gv("f-zustand");d.usk=gv("f-usk");d.sprache=gv("f-sprache");d.hinweise=gv("f-hinweise");fn=isEditMode?"updateSpiel":"saveSpiel";}
-  else if(curType==="controller"){d.spiel=name;d.system="Controller-"+(gv("f-sys")||"Universal");d.zustand=gv("f-zustand");d.usk="";d.sprache="";d.hinweise=["Plattform: "+(gv("f-sys")||"-"),"Produkt: "+(gv("f-product-c")||"-"),"Verbindung: "+(gv("f-conn")||"-"),"Stickdrift: "+(gv("f-drift")||"-"),"OVP: "+(gv("f-box-c")||"-"),"Zubehör: "+(gv("f-acc-c")||"-"),gv("f-hinweise")||""].join(" | ");fn=isEditMode?"updateSpiel":"saveSpiel";}
+  else if(curType==="controller"){d.spiel=name;d.system="Controller-"+(gv("f-sys")||"Universal");d.zustand=gv("f-zustand");d.usk="";d.sprache="";d.hinweise=["Plattform: "+(gv("f-sys")||"-"),"Verbindung: "+(gv("f-conn")||"-"),"Stickdrift: "+(gv("f-drift")||"-"),"OVP: "+(gv("f-box-c")||"-"),"Zubehör: "+(gv("f-acc-c")||"-"),gv("f-hinweise")||""].join(" | ");fn=isEditMode?"updateSpiel":"saveSpiel";}
   else if(curType==="handy"){d.modell=name;d.speicherGB=gv("f-gb");d.ram=gv("f-ram");d.farbe=gv("f-farbe");d.netzwerk=gv("f-netz");d.imei=gv("f-imei");d.zustand=gv("f-zustand");fn=isEditMode?"updateHandy":"saveHandy";}
   else if(curType==="pc"){var pcTyp=gv("f-pc-typ");d.modell=(gv("f-brand")||name);d.typ=pcTyp;d.prozessor=gv("f-cpu");d.ram=gv("f-ram");d.speicherGB=gv("f-gb");d.speicherTyp=gv("f-stype");d.grafikkarte=gv("f-gpu");d.mainboard=gv("f-mb");d.netzteil=gv("f-psu");d.anschluesse=gv("f-ports");d.betriebssystem=gv("f-os");d.zustand=gv("f-zustand");if(pcTyp==="Laptop"){d.anschluesse=gv("f-screen")+" | Akku: "+gv("f-battery");}fn=isEditMode?"updatePC":"savePC";}
 
@@ -1086,9 +1132,9 @@ function doSave(){
   );
 }
 
-function resetStepperState(){probChoice=null;probType=null;photos=[];["f-scanid","f-name","f-ma","f-prob-beschr","f-einkaufspreis"].forEach(function(id){var e=document.getElementById(id);if(e)e.value="";});var mw=document.getElementById("photo-main-wrap");if(mw)mw.innerHTML="";var pt=document.getElementById("photo-thumbs");if(pt)pt.innerHTML="";var ptr=document.getElementById("prob-type-row");if(ptr)ptr.style.display="none";var pdr=document.getElementById("prob-descr-row");if(pdr)pdr.style.display="none";var phr=document.getElementById("photo-row");if(phr)phr.style.display="none";var pn=document.getElementById("pb-nein");if(pn)pn.className="cbtn";var pj=document.getElementById("pb-ja");if(pj)pj.className="cbtn";// Fix 1: Barcode-Banner zurücksetzen
+function resetStepperState(){probChoice=null;photos=[];["f-scanid","f-name","f-ma","f-prob-beschr","f-einkaufspreis"].forEach(function(id){var e=document.getElementById(id);if(e)e.value="";});var mw=document.getElementById("photo-main-wrap");if(mw)mw.innerHTML="";var pt=document.getElementById("photo-thumbs");if(pt)pt.innerHTML="";var pdr=document.getElementById("prob-descr-row");if(pdr)pdr.style.display="none";var phr=document.getElementById("damage-photo-row");if(phr)phr.style.display="none";// Fix 1: Barcode-Banner zurücksetzen
 var so=document.getElementById("scan-ok");if(so)so.style.display="none";var sv2=document.getElementById("scan-ok-val");if(sv2)sv2.textContent="";// Fix 2: Mängel-Buttons zurücksetzen
-var pp=document.getElementById("pb-phys");if(pp)pp.className="cbtn";var ps=document.getElementById("pb-soft");if(ps)ps.className="cbtn";var pg=document.getElementById("photo-guide-box");if(pg)pg.innerHTML="";stopCam();}
+["pb-none","pb-light","pb-major"].forEach(function(id){var e=document.getElementById(id);if(e)e.classList.remove("on");});stopCam();}
 function ensureSeparatePhotoStep(){
   var s4=document.getElementById("st-s4"),s5=document.getElementById("st-s5");
   if(!s4||!s5||document.getElementById("st-s6"))return;
