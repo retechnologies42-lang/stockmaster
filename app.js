@@ -652,6 +652,14 @@ function toggleControllerDetails(){
 }
 function stepperLocalBack(){stepBack();}
 function stepperLocalNext(){stepNext();}
+function buildStep3CardFlow(title,mainHtml,saleHtml,optHtml){
+  var h='<div class="card sm-card"><div class="card-body"><div class="sm-flow-head"><div class="sm-flow-title">Details erfassen</div><div class="sm-flow-step">Schritt 3 von 6</div></div><div class="progress"><div id="s3-prog" class="progress-bar" style="width:50%"></div></div></div></div>';
+  h+='<div class="card sm-card"><div class="card-body"><div class="sm-sec-kicker">'+(title||"Wichtige Angaben")+'</div>'+mainHtml+'</div></div>';
+  if(saleHtml)h+='<div class="card sm-card"><div class="card-body"><div class="sm-sec-kicker">Für besseren Verkauf</div>'+saleHtml+'</div></div>';
+  if(optHtml)h+='<div class="card sm-card"><div class="card-body sm-opt"><button type="button" class="sm-acc-btn" id="s3-toggle-more" onclick="toggleControllerDetails()">▼ Weitere Details anzeigen</button><div id="s3-optional-wrap" style="display:none"><div class="sm-sec-kicker">Weitere Details</div>'+optHtml+'</div></div></div>';
+  h+='<div class="card sm-card"><div class="card-body"><div class="row g-2"><div class="col-5"><button type="button" class="btn btn-outline-secondary w-100" onclick="stepperLocalBack()">Zurück</button></div><div class="col-7"><button type="button" id="s3-local-next" class="btn btn-primary w-100" onclick="stepperLocalNext()">Weiter</button></div></div></div></div>';
+  return h;
+}
 function updateStepperCTA(){
   var bn=document.getElementById("btn-next");if(!bn)return;
   var needs=(stepCur===3&&curType==="controller");
@@ -710,8 +718,24 @@ function sv(id,val){var el=document.getElementById(id);if(!el||val===undefined||
 function configS2(t){var tt={konsole:"Name der Konsole",spiel:"Spieltitel",controller:"Controller",handy:"Gerätemodell",pc:"Modell"};var ss={konsole:"z.B. PlayStation 5 Slim",spiel:"z.B. Zelda: Tears of the Kingdom",controller:"z.B. PS5 DualSense",handy:"z.B. Samsung Galaxy S24",pc:"z.B. Dell XPS 15"};document.getElementById("s2-title").textContent=tt[t]||"Name";document.getElementById("s2-lbl").textContent=(tt[t]||"Name")+" *";document.getElementById("f-name").placeholder=ss[t]||"";document.getElementById("s2-sub").textContent="Vollständige Bezeichnung eingeben.";document.getElementById("s2-extra").innerHTML="";}
 function configS3(t){
   var h="";
-  if(t==="konsole"){document.getElementById("s3-title").textContent="Speicher & Farbe";h='<div class="row g-2 mb-3"><div class="col-6"><label class="fl">Speicher (GB)</label><input type="number" id="f-gb" class="fc" placeholder="z.B. 825"/></div><div class="col-6"><label class="fl">Farbe</label><input type="text" id="f-farbe" class="fc" placeholder="z.B. Weiß"/></div></div><div class="mb-3"><label class="fl">Zustand *</label>'+selHTML("f-zustand",["Neu","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div>';}
-  else if(t==="spiel"){document.getElementById("s3-title").textContent="Spiel-Details";h='<div class="mb-3"><label class="fl">System / Plattform</label>'+selHTML("f-sys",["PlayStation 5","PlayStation 4","PlayStation 3","Xbox Series X/S","Xbox One","Xbox 360","Nintendo Switch","Nintendo 3DS","Nintendo Wii","Nintendo Wii U","Game Boy Advance","Nintendo DS","PC","Sonstiges"])+'</div><div class="row g-2 mb-3"><div class="col-4"><label class="fl">USK</label>'+selHTML("f-usk",["","USK 0","USK 6","USK 12","USK 16","USK 18"])+'</div><div class="col-4"><label class="fl">Sprache</label>'+selHTML("f-sprache",["Deutsch","Englisch","Multilingual","Sonstiges"])+'</div><div class="col-4"><label class="fl" style="display:flex;align-items:center;gap:4px">Zustand <button type="button" onclick="showZustandInfo()" style="width:17px;height:17px;background:var(--blue);border:none;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#fff;cursor:pointer;flex-shrink:0;padding:0">i</button></label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div></div><div class="mb-3"><label class="fl">Hinweise</label><textarea id="f-hinweise" class="fc" placeholder="z.B. Cover fehlt…"></textarea></div>';}
+  if(t==="konsole"){
+    document.getElementById("s3-title").textContent="Details";
+    h=buildStep3CardFlow(
+      "Wichtige Angaben",
+      '<div class="row g-2 mb-2"><div class="col-6"><label class="fl">Speicher (GB)</label><input type="number" id="f-gb" class="fc sm-soft" placeholder="z.B. 825"/></div><div class="col-6"><label class="fl">Farbe</label><input type="text" id="f-farbe" class="fc sm-soft" placeholder="z.B. Weiß"/></div></div><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"]),
+      '<label class="fl">Hinweise für Verkauf</label><textarea id="f-hinweise" class="fc sm-soft" placeholder="z.B. leichte Gebrauchsspuren"></textarea>',
+      ""
+    );
+  }
+  else if(t==="spiel"){
+    document.getElementById("s3-title").textContent="Details";
+    h=buildStep3CardFlow(
+      "Wichtige Angaben",
+      '<label class="fl">System / Plattform</label>'+selHTML("f-sys",["PlayStation 5","PlayStation 4","PlayStation 3","Xbox Series X/S","Xbox One","Xbox 360","Nintendo Switch","Nintendo 3DS","Nintendo Wii","Nintendo Wii U","Game Boy Advance","Nintendo DS","PC","Sonstiges"])+'<div class="row g-2 mt-2"><div class="col-4"><label class="fl">USK</label>'+selHTML("f-usk",["","USK 0","USK 6","USK 12","USK 16","USK 18"])+'</div><div class="col-4"><label class="fl">Sprache</label>'+selHTML("f-sprache",["Deutsch","Englisch","Multilingual","Sonstiges"])+'</div><div class="col-4"><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div></div>',
+      '<label class="fl">Hinweise (z. B. Cover fehlt)</label><textarea id="f-hinweise" class="fc sm-soft" placeholder="z.B. Cover fehlt"></textarea>',
+      ""
+    );
+  }
   else if(t==="controller"){
     document.getElementById("s3-title").textContent="Details";
     h='<div class="card sm-card"><div class="card-body"><div class="sm-flow-head"><div class="sm-flow-title">Details erfassen</div><div class="sm-flow-step">Schritt 3 von 6</div></div><div class="progress"><div id="s3-prog" class="progress-bar" style="width:50%"></div></div></div></div>'+
@@ -750,8 +774,24 @@ function configS3(t){
       '<div class="sm-opt-note">Hilft, Rückfragen zu vermeiden</div></div></div></div>'+
       '<div class="card sm-card"><div class="card-body"><div class="row g-2"><div class="col-5"><button type="button" class="btn btn-outline-secondary w-100" onclick="stepperLocalBack()">Zurück</button></div><div class="col-7"><button type="button" id="s3-local-next" class="btn btn-primary w-100" onclick="stepperLocalNext()">Weiter</button></div></div></div></div>';
   }
-  else if(t==="handy"){document.getElementById("s3-title").textContent="Technische Daten";h='<div class="row g-2 mb-3"><div class="col-6"><label class="fl">Speicher (GB)</label><input type="number" id="f-gb" class="fc" placeholder="z.B. 256"/></div><div class="col-6"><label class="fl">RAM (GB)</label><input type="number" id="f-ram" class="fc" placeholder="z.B. 8"/></div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Farbe</label><input type="text" id="f-farbe" class="fc" placeholder="z.B. Midnight Black"/></div><div class="col-6"><label class="fl">Netzwerk</label>'+selHTML("f-netz",["","4G/LTE","5G","Dual-SIM 5G","Sonstiges"])+'</div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div><div class="col-6"><label class="fl">IMEI (optional)</label><input type="text" id="f-imei" class="fc" placeholder="15-stellig"/></div></div>';}
-  else if(t==="pc"){document.getElementById("s3-title").textContent="Hardware-Spezifikationen";h='<div class="mb-3"><label class="fl">Typ – Bitte zuerst wählen</label><div class="cg2"><button class="cbtn" id="pc-l" onclick="selPCTyp(\'Laptop\')"><span class="ci">💻</span>Laptop</button><button class="cbtn" id="pc-d" onclick="selPCTyp(\'Desktop\')"><span class="ci">🖥️</span>Desktop</button></div><input type="hidden" id="f-pc-typ" value=""/></div><div id="pc-fields-wrap" style="display:none"></div>';}
+  else if(t==="handy"){
+    document.getElementById("s3-title").textContent="Details";
+    h=buildStep3CardFlow(
+      "Wichtige Angaben",
+      '<div class="row g-2 mb-2"><div class="col-6"><label class="fl">Speicher (GB)</label><input type="number" id="f-gb" class="fc sm-soft" placeholder="z.B. 256"/></div><div class="col-6"><label class="fl">RAM (GB)</label><input type="number" id="f-ram" class="fc sm-soft" placeholder="z.B. 8"/></div></div><div class="row g-2 mb-2"><div class="col-6"><label class="fl">Farbe</label><input type="text" id="f-farbe" class="fc sm-soft" placeholder="z.B. Midnight Black"/></div><div class="col-6"><label class="fl">Netzwerk</label>'+selHTML("f-netz",["","4G/LTE","5G","Dual-SIM 5G","Sonstiges"])+'</div></div><div class="row g-2"><div class="col-6"><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div><div class="col-6"><label class="fl">IMEI (optional)</label><input type="text" id="f-imei" class="fc sm-soft" placeholder="15-stellig"/></div></div>',
+      "",
+      ""
+    );
+  }
+  else if(t==="pc"){
+    document.getElementById("s3-title").textContent="Details";
+    h=buildStep3CardFlow(
+      "Wichtige Angaben",
+      '<div class="mb-2"><label class="fl">Typ</label><div class="cg2"><button class="cbtn" id="pc-l" onclick="selPCTyp(\'Laptop\')"><span class="ci">💻</span>Laptop</button><button class="cbtn" id="pc-d" onclick="selPCTyp(\'Desktop\')"><span class="ci">🖥️</span>Desktop</button></div><input type="hidden" id="f-pc-typ" value=""/></div><div id="pc-fields-wrap" style="display:none"></div>',
+      "",
+      ""
+    );
+  }
   document.getElementById("s3-fields").innerHTML=h;
   if((t==="controller"||forcedSpielSystem==="Controller")&&document.getElementById("f-sys")&&forcedSpielSystem==="Controller"){document.getElementById("f-sys").value="PlayStation";}
   if(t==="controller"){
@@ -784,7 +824,7 @@ function updateProgress(){
   document.getElementById("btn-next").style.display=last?"none":"inline-flex";
   var sb=document.getElementById("btn-save-step");sb.style.display=last?"inline-flex":"none";
   sb.innerHTML=isEditMode?'<i class="bi bi-pencil-fill me-1"></i>Aktualisieren':'<i class="bi bi-cloud-upload-fill me-1"></i>Speichern';
-  var inlineAction=(stepCur===3&&curType==="controller");
+  var inlineAction=(stepCur===3);
   var gb=document.getElementById("btn-back");
   var gn=document.getElementById("btn-next");
   if(gb)gb.style.display=inlineAction?"none":"inline-flex";
