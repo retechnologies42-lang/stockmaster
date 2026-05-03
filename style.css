@@ -320,3 +320,17 @@
 #main-stepper{padding-bottom:72px;background:var(--b0)}
 #btn-next,#btn-back{position:static}
 #btn-next[disabled]{opacity:.62;filter:saturate(.72)}
+
+/* Einlagerung Kategorie-Screen */
+.inb-wrap{max-width:560px;margin:0 auto}
+.inb-head{margin-bottom:14px}
+.inb-title{font-size:20px;font-weight:800;color:var(--w1);letter-spacing:.2px}
+.inb-sub{font-size:12px;color:var(--w3);margin-top:3px}
+.inb-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.inb-card{min-height:132px;border:1px solid #1f2937;border-radius:14px;background:var(--b2);box-shadow:0 2px 14px rgba(0,0,0,.28);color:var(--w2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:all .14s;font-family:var(--font);padding:12px}
+.inb-card:hover{border-color:rgba(0,255,136,.3);color:var(--acc);background:var(--b3)}
+.inb-card:active{transform:scale(.985)}
+.inb-ic{font-size:28px;line-height:1}
+.inb-t{font-size:13px;font-weight:700;text-align:center;line-height:1.3}
+.inb-actions{display:flex;justify-content:flex-end;margin-top:14px}
+#scan-panel .wrap{padding-bottom:88px}
