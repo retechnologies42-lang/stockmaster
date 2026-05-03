@@ -556,17 +556,33 @@ function applyHomeKpiFromStock(serverStats){
 function loadStats(){gasGet("getStats",{},function(r){if(!r||!r.ok)return;var s=r.stats||{},sw=document.getElementById("st-sw"),sh=document.getElementById("st-h"),sp=document.getElementById("st-pc"),sd=document.getElementById("st-def"),she=document.getElementById("st-heu");if(sw)sw.textContent=(s.konsolen||0)+(s.spiele||0);if(sh)sh.textContent=s.handys||0;if(sp)sp.textContent=s.pcs||0;if(sd)sd.textContent=s.defekte||0;if(she)she.textContent=s.heute||0;var ve=document.getElementById("st-vk");if(ve)ve.textContent=s.verkauf||0;var ee=document.getElementById("st-ek");if(ee)ee.textContent=s.einkauf||0;window._statsCacheT=Date.now();applyHomeKpiFromStock(s);renderHomeControlHub();},function(){});}
 
 // ── KATEGORIE ─────────────────────────────────────────────────────
-function selCat(cat){curCat=cat;isEditMode=false;editingItem=null;document.getElementById("mode-chooser").style.display="none";document.getElementById("cat-chooser").style.display="none";document.getElementById("sw-sub").style.display="none";document.getElementById("main-stepper").style.display="none";if(cat==="spielwaren"){document.getElementById("sw-sub").style.display="block";}else{startStepper(cat);}}
-function selControllerMode(){forcedSpielSystem="Controller";selCat("controller");}
-function ensureControllerOption(){
-  var grid=document.querySelector("#sw-sub .cat-grid");
-  if(!grid||document.getElementById("sw-controller-btn"))return;
-  var btn=document.createElement("button");
-  btn.id="sw-controller-btn";
-  btn.className="cat-btn cb-sw";
-  btn.innerHTML='<span class="ci">🎮</span>CONTROLLER';
-  btn.onclick=function(){selControllerMode();};
-  grid.appendChild(btn);
+function inboundStepType(cat){
+  if(cat==="controller")return "controller";
+  if(cat==="handy")return "handy";
+  if(cat==="pc")return "pc";
+  return "konsole";
+}
+function selCat(cat){
+  curCat=cat;isEditMode=false;editingItem=null;
+  document.getElementById("mode-chooser").style.display="none";
+  document.getElementById("cat-chooser").style.display="none";
+  document.getElementById("sw-sub").style.display="none";
+  document.getElementById("main-stepper").style.display="none";
+  startStepper(inboundStepType(cat));
+}
+function renderInboundCategoryChooser(){
+  var cc=document.getElementById("cat-chooser");if(!cc)return;
+  cc.innerHTML=
+    '<div class="inb-wrap">'+
+      '<div class="inb-head"><div class="inb-title">Was möchtest du einlagern?</div><div class="inb-sub">Wähle eine Kategorie, um den Artikel zu erfassen</div></div>'+
+      '<div class="inb-grid">'+
+        '<button class="inb-card" onclick="selCat(\'controller\')"><span class="inb-ic">🎮</span><span class="inb-t">Controller & Zubehör</span></button>'+
+        '<button class="inb-card" onclick="selCat(\'handy\')"><span class="inb-ic">📱</span><span class="inb-t">Smartphones</span></button>'+
+        '<button class="inb-card" onclick="selCat(\'pc\')"><span class="inb-ic">💻</span><span class="inb-t">PC & Laptop</span></button>'+
+        '<button class="inb-card" onclick="selCat(\'sonstiges\')"><span class="inb-ic">📦</span><span class="inb-t">Sonstiges</span></button>'+
+      '</div>'+
+      '<div class="inb-actions"><button class="btn btn-sm btn-outline-secondary" onclick="resetToMode()"><i class="bi bi-arrow-left me-1"></i>Zurück</button></div>'+
+    '</div>';
 }
 function resetFlow(){stopCam();document.getElementById("mode-chooser").style.display="block";document.getElementById("cat-chooser").style.display="none";document.getElementById("sw-sub").style.display="none";document.getElementById("main-stepper").style.display="none";isEditMode=false;editingItem=null;forcedSpielSystem="";resetStepperState();}
 function stepperDraftKey(){return "smp_inbound_draft_"+String(curType||"all");}
@@ -877,7 +893,7 @@ function stepBack(){
       ekFlowPhase="store";_renderEKFlow();
       return;
     }
-    stopCam();document.getElementById("main-stepper").style.display="none";if(isEditMode){isEditMode=false;editingItem=null;goTabFn("list-panel");}else if(curCat==="spielwaren"){document.getElementById("sw-sub").style.display="block";}else{document.getElementById("cat-chooser").style.display="block";}resetStepperState();
+    stopCam();document.getElementById("main-stepper").style.display="none";if(isEditMode){isEditMode=false;editingItem=null;goTabFn("list-panel");}else{document.getElementById("cat-chooser").style.display="block";}resetStepperState();
   }
 }
 
@@ -1576,6 +1592,7 @@ function setMode(mode){
   if(!mc){toast("Scan-Ansicht unvollständig. Bitte Seite neu laden.","err");return;}
   mc.style.display="none";
   if(mode==="einlagern"){
+    renderInboundCategoryChooser();
     var cc=document.getElementById("cat-chooser");
     if(cc)cc.style.display="block";
   } else if(mode==="einkauf"){
@@ -6186,7 +6203,7 @@ window.addEventListener("load",function(){
   var rt=document.getElementById("rt-modal");if(rt)rt.addEventListener("click",function(e){if(e.target===this)closeRTModal();});
   var cm=document.getElementById("china-modal");if(cm)cm.addEventListener("click",function(e){if(e.target===this)closeChinaModal();});
   var vmo=document.getElementById("vk-multi-overlay");if(vmo)vmo.addEventListener("click",function(e){if(e.target===this)closeVKMulti();});
-  ensureControllerOption();
+  renderInboundCategoryChooser();
   setupRefreshButtons();
   // Check for saved session (auto-login)
   var hasActivationToken = (new URLSearchParams(window.location.search)).get("activate");
