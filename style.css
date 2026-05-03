@@ -347,3 +347,5 @@
 .sb-ka-opt{margin:6px 0 0;padding:0 0 0 18px;font-size:13px;color:var(--w2);line-height:1.55}
 .sb-ka-opt li{margin:5px 0}
 .sb-ka-loading{display:flex;align-items:center;gap:10px;padding:10px 0;color:var(--w3);font-size:12px}
+.sb-ka-line-tight{margin-bottom:4px}
+.sb-ka-opt-one{font-size:12px;color:var(--w3);margin-top:10px;line-height:1.4}
