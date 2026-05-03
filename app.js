@@ -6215,19 +6215,80 @@ function renderSetBuilderFlow(){
   }).join("");
   body.innerHTML='<div style="font-size:13px;color:#00ff88;font-weight:700;margin-bottom:8px">Set zusammenstellen</div><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="sb-chat-in" class="fc" placeholder="z.B. PS4 + 3 Spiele + Controller" style="flex:1;min-width:200px"/><button type="button" class="btn btn-success" onclick="sbHandleChat()">Senden</button><button type="button" class="btn btn-outline-secondary" onclick="sbSaveSetChatsClick()">Chat speichern</button><button type="button" class="btn btn-outline-secondary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets</button></div><hr style="border-color:#1f2937;margin:10px 0"/><div style="font-size:12px;color:#e6edf3;font-weight:700;margin-bottom:6px">Artikel direkt auswählen</div><div id="sb-stock-list" style="max-height:220px;overflow:auto;display:grid;gap:6px;margin-bottom:8px">'+(stockList||'<div class="empty"><p>Keine verfügbaren Artikel</p></div>')+'</div><button type="button" class="btn btn-success btn-sm" onclick="sbBuildFromSelection()">Set aus Auswahl erstellen</button><hr style="border-color:#1f2937;margin:10px 0"/><div style="font-size:11px;color:#8b949e;margin-bottom:6px">Gespeicherte Set-Anfragen</div><div style="max-height:240px;overflow:auto">'+(chatHtml||'<div class="empty"><p>Keine Einträge</p></div>')+'</div>';
 }
-function sbParseRequest(text){
-  var q=String(text||"").toLowerCase().trim();
-  if(!q)return null;
-  if(!/(set|bundle|\+|spiele|spiel|controller|ps4|ps5|xbox|nintendo|switch|pc)/.test(q))return null;
-  return {plattform:_sbNormalizePlatform(q)||"PlayStation",games:((q.match(/(\d+)\s*spiel/)||[])[1]|0)||3};
+function sbHayForFilter(i){
+  return [i.name,i.spiel,i.modell,i.system,i.hinweise,i.type].map(function(x){return String(x||"").toLowerCase();}).join(" ");
+}
+function sbInputRecognized(q){
+  q=String(q||"").toLowerCase();
+  return/(xbox|switch|nintendo|ps\s*[2345]|playstation|spiel|spiele|games|controller|gamepad|pad|bundle|set|\bpc\b|laptop)/.test(q);
+}
+function sbFilterStockByKeywords(q, stock){
+  q=String(q||"").toLowerCase().trim();
+  if(!q)return[];
+  var pool=(stock||[]).slice();
+  var wantOnlySpiele=/\bspiele\b|\bgames\b|nur\s+spiel/.test(q)&&!/konsole|console|bundle/.test(q);
+  var wantCtrl=/controller|gamepad|\bpads?\b/.test(q);
+  var narrowed=false;
+  if(/switch|nintendo/.test(q)){
+    narrowed=true;
+    pool=pool.filter(function(i){var h=sbHayForFilter(i),sys=String(i.system||"").toLowerCase();
+      if(i.type==="spiel")return/\bswitch\b|nintendo/i.test(h)||/\bswitch\b|nintendo/i.test(sys);
+      if(i.type==="controller")return(/switch|nintendo|joy|pro controller/i.test(h)||/switch|nintendo/i.test(sys))&&h.indexOf("xbox")===-1;
+      if(i.type==="konsole")return/switch|nintendo/i.test(h);
+      return false;
+    });
+  }else if(/xbox/.test(q)){
+    narrowed=true;
+    pool=pool.filter(function(i){var h=sbHayForFilter(i),sys=String(i.system||"").toLowerCase();
+      return h.indexOf("xbox")>-1||sys.indexOf("xbox")>-1;
+    });
+  }else if(/ps\s*5|playstation\s*5|\bps5\b/.test(q)){
+    narrowed=true;
+    pool=pool.filter(function(i){var h=sbHayForFilter(i),sys=String(i.system||"").toLowerCase();
+      return/ps\s*5|playstation\s*5/.test(h)||/ps\s*5|playstation\s*5/.test(sys);
+    });
+  }else if(/ps\s*4|playstation\s*4|\bps4\b/.test(q)){
+    narrowed=true;
+    pool=pool.filter(function(i){var h=sbHayForFilter(i),sys=String(i.system||"").toLowerCase();
+      return/ps\s*4|playstation\s*4/.test(h)||/ps\s*4|playstation\s*4/.test(sys);
+    });
+  }else if(/ps\s*3|playstation\s*3|\bps3\b/.test(q)){
+    narrowed=true;
+    pool=pool.filter(function(i){var h=sbHayForFilter(i),sys=String(i.system||"").toLowerCase();
+      return/ps\s*3|playstation\s*3/.test(h)||/ps\s*3/.test(sys);
+    });
+  }
+  if(wantOnlySpiele){
+    narrowed=true;
+    pool=pool.filter(function(i){return i.type==="spiel";});
+  }
+  if(wantCtrl&&!wantOnlySpiele){
+    narrowed=true;
+    pool=pool.filter(function(i){return i.type==="controller"||sbHayForFilter(i).indexOf("controller")>-1;});
+  }
+  if(!narrowed){
+    var parts=q.split(/[^a-z0-9äöüß]+/).filter(function(w){return w&&w.length>2&&["und","mit","für","aus","dem","der","die","ein","eine","einen","zum","zur","vom","von","set","bundle","kleinanzeigen","spiel","spiele"].indexOf(w)===-1;});
+    if(parts.length){
+      pool=pool.filter(function(i){var h=sbHayForFilter(i);return parts.some(function(p){return h.indexOf(p)>-1;});});
+    }
+  }
+  var seen={},out=[];
+  for(var i=0;i<pool.length;i++){
+    var sid=String(pool[i].scanId||pool[i].rowIndex||"").trim();
+    if(sid&&seen[sid])continue;
+    if(sid)seen[sid]=1;
+    out.push(pool[i]);
+  }
+  return out;
 }
 function sbSaveSetChatsClick(){saveSetChats();toast("Chat gespeichert.","ok",2200);}
 function sbHandleChat(){
   var q=gv("sb-chat-in");
-  var req=sbParseRequest(q);
-  if(!req){toast("Bitte Set-Anfrage formulieren (z. B. Plattform + Spiele).","err");return;}
+  if(!String(q).trim()){toast("Eingabe fehlt.","err");return;}
+  if(!sbInputRecognized(q)){toast("Bitte Plattform/Stichwort nennen (z. B. Xbox, Switch, PS4, Spiele, Controller).","err");return;}
   setBuilderLoading=true;renderSetBuilderFlow();
-  setBuilderAnswers={ziel:"Schneller Verkauf",plattform:req.plattform,budget:"0",zustand:"Gebraucht",gamesReq:req.games};
+  var g=parseInt((String(q).toLowerCase().match(/(\d+)\s*(spiel|spiele|games)/)||[])[1]||"0",10)||0;
+  setBuilderAnswers={rawQuery:q,ziel:"Schneller Verkauf",plattform:_sbNormalizePlatform(q)||"",budget:"0",zustand:"Gebraucht",gamesReq:g};
   buildSetWithAI(function(draft){
     setBuilderLoading=false;
     if(draft){setChats.unshift({q:q,time:new Date().toLocaleString("de-DE"),draft:draft});}
@@ -6287,47 +6348,37 @@ function showCenterSuccess(msg){
 }
 function sbAddSetImage(){var inp=document.createElement("input");inp.type="file";inp.accept="image/*";inp.onchange=function(){if(!this.files||!this.files[0])return;var fr=new FileReader();fr.onload=function(){if(setDraftImages.length<10)setDraftImages.push(String(fr.result||""));sbRenderSetImages();};fr.readAsDataURL(this.files[0]);};inp.click();}
 function sbRenderSetImages(){var el=document.getElementById("sb-set-images");if(!el)return;el.innerHTML=(setDraftImages||[]).map(function(b,i){return'<div class="card-foto" style="width:44px;height:44px"><img src="'+esc(b)+'"/><button class="rm-thumb" onclick="setDraftImages.splice('+i+',1);sbRenderSetImages()">✕</button></div>';}).join("")+'<div class="add-thumb" style="width:44px;height:44px" onclick="sbAddSetImage()"><i class="bi bi-plus"></i></div>';}
-function _sbPair(lo,hi){lo=Math.round(lo*100)/100;hi=Math.round(hi*100)/100;if(lo>hi){var t=lo;lo=hi;hi=t;}if(lo<1)lo=1;return{min:lo,max:hi};}
-function sbEstimateKaRangeForItem(item){
-  var n=String(item.name||"").toLowerCase(),typ=String(item.typ||item.type||"");
-  if(typ==="konsole"){
-    if(/ps5|playstation\s*5/.test(n))return{min:280,max:480};
-    if(/ps4\s*pro|playstation\s*4\s*pro/.test(n))return{min:150,max:240};
-    if(/ps4|playstation\s*4/.test(n))return{min:95,max:195};
-    if(/series\s*x|xbox\s*series\s*x/.test(n))return{min:300,max:480};
-    if(/series\s*s/.test(n))return{min:170,max:270};
-    if(/xbox\s*one\s*x|one\s*x/.test(n))return{min:85,max:155};
-    if(/xbox\s*one|xb1/.test(n))return{min:55,max:115};
-    if(/switch\s*oled/.test(n))return{min:210,max:310};
-    if(/switch\s*lite/.test(n))return{min:130,max:195};
-    if(/switch|nintendo/.test(n))return{min:170,max:275};
-    if(/xbox/.test(n))return{min:80,max:130};
-    return{min:75,max:240};
-  }
-  if(typ==="controller")return{min:15,max:45};
-  if(typ==="spiel")return{min:5,max:20};
-  if(typ==="pc")return{min:160,max:620};
-  var ek2=parseFloat(item.ek||0)||0,a=Math.max(8,Math.round(ek2*1.3*100)/100),b=Math.max(a+4,Math.round(ek2*2.5*100)/100);
-  return _sbPair(Math.min(a,400),Math.min(b,750));
-}
+function _sbPair(lo,hi){lo=Math.round(lo*100)/100;hi=Math.round(hi*100)/100;if(lo>hi){var t=lo;lo=hi;hi=t;}if(lo<0)lo=0;return{min:lo,max:hi};}
 function sbBuildSetKaAnalyse(draft){
   var items=draft.items||[],cnt=items.length;
-  var mwMin=0,mwMax=0;
-  for(var i=0;i<items.length;i++){var r=sbEstimateKaRangeForItem(items[i]);mwMin+=r.min;mwMax+=r.max;}
-  var markt=_sbPair(mwMin,mwMax);
-  var mLo=markt.min,mHi=markt.max;
+  var sumEk=0;
+  for(var i=0;i<cnt;i++){sumEk+=parseFloat(items[i].ek||0)||0;}
+  sumEk=Math.round(sumEk*100)/100;
+  if(cnt<1||sumEk<=0){
+    return{marktwert:{min:0,max:0},preise:{start:{min:0,max:0},verkauf:{min:0,max:0},schnell:{min:0,max:0}},nachfrage:{score:0,begruendung:"Keine Artikel / keine EK-Werte."},optimierung:["Set aus Lager wählen oder Eingabe anpassen."]};
+  }
+  var markt=_sbPair(sumEk*0.97,sumEk*1.03);
   var preise={
-    start:_sbPair(mLo*1.02,mHi*1.08),
-    verkauf:_sbPair(mLo*0.85,mHi*0.95),
-    schnell:_sbPair(mLo*0.75,mHi*0.85)
+    start:_sbPair(sumEk*1.12,sumEk*1.18),
+    verkauf:_sbPair(sumEk*0.96,sumEk*1.04),
+    schnell:_sbPair(sumEk*0.82,sumEk*0.88)
   };
-  var hasMix=items.some(function(it){return it.typ==="konsole"||it.typ==="pc";})&&items.some(function(it){return it.typ==="controller"||it.typ==="spiel";});
-  var plats=[],seen={};
-  for(var j=0;j<items.length;j++){var pl=_sbNormalizePlatform(items[j].name||"");if(pl&&!seen[pl]){seen[pl]=1;plats.push(pl);}}
-  var homog=plats.length<=1;
-  var score=Math.max(1,Math.min(10,Math.round(4+(hasMix?2:0)+(cnt>=3?1:0)+(cnt>=4?1:0)+(homog&&plats.length?1:0))));
-  var beg=hasMix?"Bundle wirkt stimmig.":"Bundle eher schwach — Einzelverkauf prüfen.";
-  var opt=cnt>=3?"VB im Bereich „Start“ ansetzen, leichten Rabatt einplanen.":"Preis an „Verkauf“ anlehnen.";
+  var types=items.map(function(it){return String(it.typ||it.type||"?");});
+  var freq={},ti;
+  for(ti=0;ti<types.length;ti++){var t=types[ti];freq[t]=(freq[t]||0)+1;}
+  var maxC=0;for(var k in freq)if(freq[k]>maxC)maxC=freq[k];
+  var distinct=0;for(var k2 in freq)distinct++;
+  var mix=distinct>2||(distinct===2&&maxC===1);
+  var score=Math.max(1,Math.min(10,Math.round(3+(maxC/cnt)*6-(mix?2:0)+(cnt>=4?1:0))));
+  var beg="EK-Summe "+sumEk.toFixed(2)+" € · "+cnt+" Artikel · "+distinct+" Produkttyp(en) · häufigster Typ "+(maxC===cnt?"einheitlich":"gemischt")+".";
+  var onlySpiele=cnt>0&&items.every(function(it){return String(it.typ||it.type)==="spiel";});
+  var hasKonsole=items.some(function(it){return String(it.typ||it.type)==="konsole"||String(it.typ||it.type)==="pc";});
+  var hasSpiele=items.some(function(it){return String(it.typ||it.type)==="spiel";});
+  var opt;
+  if(onlySpiele)opt="Nur Spiele — Bundle mit passender Konsole steigert Nachfrage.";
+  else if(hasKonsole&&hasSpiele)opt="Konsole + Spiele — sinnvolles Kleinanzeigen-Paket.";
+  else if(hasKonsole&&!hasSpiele)opt="Konsole ohne Spiele — passende Titel ergänzen.";
+  else opt="Zusammenstellung "+cnt+" Teile — Preis an Verkaufs-Spanne ausrichten.";
   return{marktwert:markt,preise:preise,nachfrage:{score:score,begruendung:beg},optimierung:[opt]};
 }
 function sbApplyAnalyseToDraft(data){
@@ -6367,32 +6418,55 @@ function _sbSoldMap(){
   return map;
 }
 function buildSetWithAI(onDone){
-  var p=setBuilderAnswers.plattform||"PlayStation",budget=parseFloat(setBuilderAnswers.budget||0),ziel=setBuilderAnswers.ziel||"Lager bereinigen",cond=setBuilderAnswers.zustand||"Gebraucht",gamesNeed=parseInt(setBuilderAnswers.gamesReq||3,10)||3;
-  if(!allVerkauf||!allVerkauf.length){gasGet("getAllVerkauf",{},function(r){if(r&&r.ok){allVerkauf=r.data||[];buildSetWithAI(onDone);}else if(typeof onDone==="function"){onDone(null);}},function(){if(typeof onDone==="function"){onDone(null);}});return;}
-  var sold=_sbSoldMap();
+  var ans=setBuilderAnswers||{};
+  var raw=String(ans.rawQuery||"").trim();
+  var budget=parseFloat(ans.budget||0),ziel=ans.ziel||"Schneller Verkauf",cond=ans.zustand||"Gebraucht";
+  var gamesNeed=parseInt(ans.gamesReq||0,10)||0;
   var stock=_setEligibleItems();
-  var cons=stock.filter(function(i){return i.type==="konsole"&&_sbDetectPlatform(i)===p;}).sort(function(a,b){return (parseFloat(a.einkaufspreis||0)||0)-(parseFloat(b.einkaufspreis||0)||0);});
-  var ctrl=stock.filter(function(i){return i.type==="controller"&&_sbDetectPlatform(i)===p;}).sort(function(a,b){return (sold[a.scanId||""]||0)-(sold[b.scanId||""]||0);});
-  var games=stock.filter(function(i){return i.type==="spiel"&&_sbDetectPlatform(i)===p;}).sort(function(a,b){
-    var sa=sold[a.scanId||""]||0,sb=sold[b.scanId||""]||0;
-    var ea=parseFloat(a.einkaufspreis||0)||0,eb=parseFloat(b.einkaufspreis||0)||0;
-    if(ziel==="Maximaler Gewinn")return eb-ea;
-    if(ziel==="Schneller Verkauf")return sa-sb;
-    return sa===sb?ea-eb:sa-sb;
-  });
-  var picks=[],push=function(arr,n){for(var i=0;i<arr.length&&n>0;i++){if(picks.indexOf(arr[i])===-1){picks.push(arr[i]);n--;}}};
-  push(cons,1);push(games,gamesNeed);push(ctrl,1);
-  var total=picks.reduce(function(s,i){return s+(parseFloat(i.einkaufspreis||0)||0);},0);
-  if(budget>0&&total>budget){picks=picks.filter(function(i){return i.type!=="spiel";});push(games.slice(gamesNeed),1);total=picks.reduce(function(s,i){return s+(parseFloat(i.einkaufspreis||0)||0);},0);}
-  if(!picks.length){setBuilderDraft=null;var bd=document.getElementById("sb-flow-body");if(bd)bd.innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Keine passenden Produkte für '+esc(p)+'</p></div><button type="button" class="btn btn-outline-secondary" onclick="setBuilderStep=1;renderSetBuilderFlow()">Zurück</button>';if(typeof onDone==="function")onDone(null);return;}
-  var priceFast=Math.round((total*1.18)*100)/100,priceMax=Math.round((total*1.28)*100)/100;
-  setBuilderDraft={name:p+" "+(ziel==="Maximaler Gewinn"?"Profit":"Smart")+" Set",plattform:p,budget:budget,zustand:cond,items:picks.map(function(i){return {typ:i.type,name:i.name||i.spiel||i.modell||i.scanId,scanId:i.scanId||"",ek:parseFloat(i.einkaufspreis||0)||0};}),total:Math.round(total*100)/100,priceFast:priceFast.toFixed(2)+"€ VB (schneller Verkauf)",priceMax:priceMax.toFixed(2)+"€ VB (max Gewinn)"};
-  var sumEinzel=Math.round((picks.reduce(function(s,i){return s+((parseFloat(i.preis||i.verkaufspreis||0)||0)||((parseFloat(i.einkaufspreis||0)||0)*1.35));},0))*100)/100;
+  var filtered=sbFilterStockByKeywords(raw,stock);
+  var sold=allVerkauf&&allVerkauf.length?_sbSoldMap():{};
+  function ek(i){return parseFloat(i.einkaufspreis||0)||0;}
+  function sortGames(arr){return arr.slice().sort(function(a,b){var sa=sold[a.scanId||""]||0,sb=sold[b.scanId||""]||0;return sa===sb?ek(a)-ek(b):sa-sb;});}
+  function sortCheap(arr){return arr.slice().sort(function(a,b){return ek(a)-ek(b);});}
+  var picks=[];
+  var rawL=String(raw).toLowerCase();
+  if(gamesNeed>0){
+    var gOnly=sortGames(filtered.filter(function(i){return i.type==="spiel";}));
+    for(var gi=0;gi<gOnly.length&&picks.length<gamesNeed;gi++){picks.push(gOnly[gi]);}
+    var pool=filtered.filter(function(i){return picks.indexOf(i)===-1;});
+    if(/konsole|console|\bbundle\b/.test(rawL)){
+      var cons=sortCheap(pool.filter(function(i){return i.type==="konsole"||i.type==="pc";}));
+      if(cons[0])picks.push(cons[0]);
+    }
+    if(/controller|gamepad|\bpads?\b/.test(rawL)){
+      var ctr=sortCheap(pool.filter(function(i){return i.type==="controller";}));
+      if(ctr[0]&&picks.indexOf(ctr[0])===-1)picks.push(ctr[0]);
+    }
+  }else{
+    filtered=sortCheap(filtered);
+    var lim=Math.min(8,filtered.length);
+    for(var li=0;li<lim;li++){picks.push(filtered[li]);}
+  }
+  var plat=_sbNormalizePlatform(raw)||"Kleinanzeigen";
+  var total=picks.reduce(function(s,i){return s+ek(i);},0);
+  if(budget>0&&total>budget){
+    picks=sortCheap(picks.slice());
+    var acc=0,trim=[];
+    for(var bi=0;bi<picks.length;bi++){if(acc+ek(picks[bi])<=budget){trim.push(picks[bi]);acc+=ek(picks[bi]);}}
+    picks=trim;
+    total=picks.reduce(function(s,i){return s+ek(i);},0);
+  }
+  if(!picks.length){
+    setBuilderDraft=null;
+    var bd=document.getElementById("sb-flow-body");
+    if(bd)bd.innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Keine passenden Lager-Artikel für diese Eingabe.</p></div><button type="button" class="btn btn-outline-secondary" onclick="setBuilderStep=1;renderSetBuilderFlow()">Zurück</button>';
+    if(typeof onDone==="function")onDone(null);
+    return;
+  }
+  var setTitle=(raw.split("\n")[0]||"Set").trim().substring(0,80)||plat+" Set";
+  setBuilderDraft={name:setTitle,plattform:plat,budget:budget,zustand:cond,items:picks.map(function(i){return{typ:i.type,name:i.name||i.spiel||i.modell||i.scanId,scanId:i.scanId||"",ek:ek(i)};}),total:Math.round(total*100)/100,priceFast:"",priceMax:""};
+  var sumEinzel=Math.round((picks.reduce(function(s,i){return s+((parseFloat(i.preis||i.verkaufspreis||0)||0)||(ek(i)*1.35));},0))*100)/100;
   setBuilderDraft.sumEinzel=sumEinzel;
-  setBuilderDraft.priceFastMin=Math.round(sumEinzel*0.80*100)/100;
-  setBuilderDraft.priceFastMax=Math.round(sumEinzel*0.90*100)/100;
-  setBuilderDraft.priceMaxMin=Math.round(sumEinzel*0.95*100)/100;
-  setBuilderDraft.priceMaxMax=Math.round(sumEinzel*1.00*100)/100;
   renderSetDraftResult();
   if(typeof onDone==="function")onDone(setBuilderDraft);
 }
