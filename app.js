@@ -558,6 +558,7 @@ function loadStats(){gasGet("getStats",{},function(r){if(!r||!r.ok)return;var s=
 // ── KATEGORIE ─────────────────────────────────────────────────────
 function inboundStepType(cat){
   if(cat==="controller"||cat==="konsole"||cat==="spiel")return cat;
+  if(cat==="allgemein"||cat==="allg_zubehoer"||cat==="allg_audio"||cat==="allg_technik"||cat==="allg_sonstige")return "allgemein";
   if(cat==="handy")return "handy";
   if(cat==="pc")return "pc";
   return "konsole";
@@ -572,6 +573,17 @@ function openConsoleAccessorySub(){
   document.getElementById("cat-chooser").style.display="none";
   sw.style.display="block";
 }
+function openGeneralElectronicsSub(){
+  var sw=document.getElementById("sw-sub");if(!sw)return;
+  sw.innerHTML='<div class="inb-wrap"><div class="inb-head"><div class="inb-title">Allgemeine Elektronik</div><div class="inb-sub">Wähle den passenden Produkttyp</div></div><div class="inb-grid">'+
+    '<button class="inb-card" onclick="selCat(\'allg_zubehoer\')"><span class="inb-ic">📱</span><span class="inb-t">Zubehör</span></button>'+
+    '<button class="inb-card" onclick="selCat(\'allg_audio\')"><span class="inb-ic">🔊</span><span class="inb-t">Audio</span></button>'+
+    '<button class="inb-card" onclick="selCat(\'allg_technik\')"><span class="inb-ic">📷</span><span class="inb-t">Technik</span></button>'+
+    '<button class="inb-card" onclick="selCat(\'allg_sonstige\')"><span class="inb-ic">📦</span><span class="inb-t">Sonstige Geräte</span></button>'+
+    '</div><div class="inb-actions"><button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById(\'sw-sub\').style.display=\'none\';document.getElementById(\'cat-chooser\').style.display=\'block\'"><i class="bi bi-arrow-left me-1"></i>Zurück</button></div></div>';
+  document.getElementById("cat-chooser").style.display="none";
+  sw.style.display="block";
+}
 function selCat(cat){
   curCat=cat;isEditMode=false;editingItem=null;
   document.getElementById("mode-chooser").style.display="none";
@@ -579,6 +591,7 @@ function selCat(cat){
   document.getElementById("sw-sub").style.display="none";
   document.getElementById("main-stepper").style.display="none";
   if(cat==="konsolen_zubehoer"){openConsoleAccessorySub();return;}
+  if(cat==="allgemein"){openGeneralElectronicsSub();return;}
   startStepper(inboundStepType(cat));
 }
 function renderInboundCategoryChooser(){
@@ -809,6 +822,15 @@ function configS3(t){
       "Wichtige Angaben",
       '<div class="mb-2"><label class="fl">Typ</label><div class="cg2"><button class="cbtn" id="pc-l" onclick="selPCTyp(\'Laptop\')"><span class="ci">💻</span>Laptop</button><button class="cbtn" id="pc-d" onclick="selPCTyp(\'Desktop\')"><span class="ci">🖥️</span>Desktop</button></div><input type="hidden" id="f-pc-typ" value=""/></div><div id="pc-fields-wrap" style="display:none"></div>',
       "",
+      ""
+    );
+  }
+  else if(t==="allgemein"){
+    document.getElementById("s3-title").textContent="Details";
+    h=buildStep3CardFlow(
+      "Wichtige Angaben",
+      '<div class="row g-2 mb-2"><div class="col-6"><label class="fl">Geräteart</label><input type="text" id="f-farbe" class="fc sm-soft" placeholder="z. B. Adapter, Kamera"/></div><div class="col-6"><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div></div>',
+      '<label class="fl">Hinweise</label><textarea id="f-hinweise" class="fc sm-soft" placeholder="z. B. mit Originalkabel"></textarea>',
       ""
     );
   }
@@ -1121,6 +1143,7 @@ function doSave(){
   else if(curType==="controller"){d.spiel=name;d.system="Controller-"+(gv("f-sys")||"Universal");d.zustand=gv("f-zustand");d.usk="";d.sprache="";d.hinweise=["Plattform: "+(gv("f-sys")||"-"),"Verbindung: "+(gv("f-conn")||"-"),"Stickdrift: "+(gv("f-drift")||"-"),"OVP: "+(gv("f-box-c")||"-"),"Zubehör: "+(gv("f-acc-c")||"-"),gv("f-hinweise")||""].join(" | ");fn=isEditMode?"updateSpiel":"saveSpiel";}
   else if(curType==="handy"){d.modell=name;d.speicherGB=gv("f-gb");d.ram=gv("f-ram");d.farbe=gv("f-farbe");d.netzwerk=gv("f-netz");d.imei=gv("f-imei");d.zustand=gv("f-zustand");fn=isEditMode?"updateHandy":"saveHandy";}
   else if(curType==="pc"){var pcTyp=gv("f-pc-typ");d.modell=(gv("f-brand")||name);d.typ=pcTyp;d.prozessor=gv("f-cpu");d.ram=gv("f-ram");d.speicherGB=gv("f-gb");d.speicherTyp=gv("f-stype");d.grafikkarte=gv("f-gpu");d.mainboard=gv("f-mb");d.netzteil=gv("f-psu");d.anschluesse=gv("f-ports");d.betriebssystem=gv("f-os");d.zustand=gv("f-zustand");if(pcTyp==="Laptop"){d.anschluesse=gv("f-screen")+" | Akku: "+gv("f-battery");}fn=isEditMode?"updatePC":"savePC";}
+  else if(curType==="allgemein"){d.name=name;d.farbe=gv("f-farbe");d.zustand=gv("f-zustand");d.hinweise=gv("f-hinweise");fn=isEditMode?"updateKonsole":"saveKonsole";}
 
   if(!fn){setBL(btn,false,orig);toast("Kein Typ ausgewählt.","err");return;}
   if(isEditMode&&editingItem)d.rowIndex=editingItem.rowIndex;
@@ -6407,20 +6430,15 @@ function setAnalyseChartMode(m){
 }
 
 function setAnalyseTab(tab){
-  analyseTab=tab;
-  ["guv","china","ka","rt"].forEach(function(t){
-    var b=document.getElementById("atab-"+t);var e=document.getElementById("an-"+t);
-    if(b)b.className="ltab"+(t===tab?" on":"");
-    if(e)e.style.display=t===tab?"block":"none";
-  });
-  if(tab==="guv")buildGUV();
-  if(tab==="china")buildChinaList();
-  if(tab==="ka"){if(!allItems.length)loadAll();setTimeout(function(){renderKAPanel();_buildKAPanel();},allItems.length?0:1500);}
-  if(tab==="rt")buildRetourenList();
+  analyseTab="guv";
+  var tabs=document.querySelector(".an-subtabs");if(tabs&&tabs.parentNode)tabs.parentNode.removeChild(tabs);
+  var guv=document.getElementById("an-guv");if(guv)guv.style.display="block";
+  ["an-china","an-ka","an-rt"].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display="none";});
+  buildGUV();
 }
 function renderAnalysePanel(){
-  if(!allVerkauf||!allVerkauf.length){gasGet("getAllVerkauf",{},function(r){if(r&&r.ok){allVerkauf=r.data||[];setAnalyseTab(analyseTab||"guv");}},function(){});}
-  else{setAnalyseTab(analyseTab||"guv");}
+  if(!allVerkauf||!allVerkauf.length){gasGet("getAllVerkauf",{},function(r){if(r&&r.ok){allVerkauf=r.data||[];setAnalyseTab("guv");}},function(){});}
+  else{setAnalyseTab("guv");}
 }
 function fmtEur(v){var n=parseFloat(v||0);return isNaN(n)?"–":n.toFixed(2)+"€";}
 var _guvBuildTries=0;
