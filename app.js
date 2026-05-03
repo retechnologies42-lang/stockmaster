@@ -1,7 +1,7 @@
 
 
 
-var GAS_URL = "https://script.google.com/macros/s/AKfycbxnjxCq2_qHtsn7lRn0w26hIcCsrJspphzgePVIKV1GRQR3wovJUi6qOy47AI3-hg/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbz0C0d2u7s_LSQ6xmwNFueYx6cQ6IIgua30CQn_cFL6kRImPLG6lBDhY3gQDW0KDg/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -6156,7 +6156,7 @@ function renderSetBuilderFlow(){
   var body=document.getElementById("sb-flow-body");if(!body)return;
   loadSetChats();
   if(setBuilderStep===0){
-    body.innerHTML='<div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:6px">KIsetMaster</div><div style="font-size:12px;color:#8b949e;line-height:1.7">Chat-Anfragen für Sets · gespeicherte Chats & Set-Verwaltung.</div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button type="button" class="btn btn-success" onclick="setBuilderStep=1;renderSetBuilderFlow()">Chat starten</button><button type="button" class="btn btn-outline-secondary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets verwalten</button></div>';
+    body.innerHTML='<div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:6px">KIsetMaster</div><div style="font-size:12px;color:#8b949e;line-height:1.7">Sets zusammenstellen, strukturierte Marktanalyse, Verwaltung.</div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button type="button" class="btn btn-success" onclick="setBuilderStep=1;renderSetBuilderFlow()">Start</button><button type="button" class="btn btn-outline-secondary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets verwalten</button></div>';
     return;
   }
   if(setBuilderStep===99){renderSetManager(body);return;}
@@ -6172,7 +6172,7 @@ function renderSetBuilderFlow(){
     var ek=(parseFloat(i.einkaufspreis||0)||0).toFixed(2);
     return '<label style="display:flex;gap:8px;align-items:center;padding:8px;border:1px solid #1f2937;border-radius:8px;background:#0f1419"><input type="checkbox" value="'+esc(id)+'"/><span style="font-size:12px;color:#e6edf3;flex:1">'+esc(nm)+'</span><span style="font-size:11px;color:#8b949e">'+ek+'€</span></label>';
   }).join("");
-  body.innerHTML='<div style="font-size:13px;color:#00ff88;font-weight:700;margin-bottom:8px">Set-Chat</div><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="sb-chat-in" class="fc" placeholder="z.B. PS4 + 3 Spiele + Controller" style="flex:1;min-width:200px"/><button type="button" class="btn btn-success" onclick="sbHandleChat()">Senden</button><button type="button" class="btn btn-outline-secondary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets</button></div><div id="sb-chat-out" style="font-size:11px;color:#8b949e;margin-top:8px"></div><hr style="border-color:#1f2937;margin:10px 0"/><div style="font-size:12px;color:#e6edf3;font-weight:700;margin-bottom:6px">Artikel direkt auswählen</div><div id="sb-stock-list" style="max-height:220px;overflow:auto;display:grid;gap:6px;margin-bottom:8px">'+(stockList||'<div class="empty"><p>Keine verfügbaren Artikel</p></div>')+'</div><button type="button" class="btn btn-success btn-sm" onclick="sbBuildFromSelection()">Set aus Auswahl erstellen</button><hr style="border-color:#1f2937;margin:10px 0"/><div style="font-size:11px;color:#8b949e;margin-bottom:6px">Vorherige Chats</div><div style="max-height:240px;overflow:auto">'+(chatHtml||'<div class="empty"><p>Keine Chats</p></div>')+'</div>';
+  body.innerHTML='<div style="font-size:13px;color:#00ff88;font-weight:700;margin-bottom:8px">Set zusammenstellen</div><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="sb-chat-in" class="fc" placeholder="z.B. PS4 + 3 Spiele + Controller" style="flex:1;min-width:200px"/><button type="button" class="btn btn-success" onclick="sbHandleChat()">Senden</button><button type="button" class="btn btn-outline-secondary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets</button></div><hr style="border-color:#1f2937;margin:10px 0"/><div style="font-size:12px;color:#e6edf3;font-weight:700;margin-bottom:6px">Artikel direkt auswählen</div><div id="sb-stock-list" style="max-height:220px;overflow:auto;display:grid;gap:6px;margin-bottom:8px">'+(stockList||'<div class="empty"><p>Keine verfügbaren Artikel</p></div>')+'</div><button type="button" class="btn btn-success btn-sm" onclick="sbBuildFromSelection()">Set aus Auswahl erstellen</button><hr style="border-color:#1f2937;margin:10px 0"/><div style="font-size:11px;color:#8b949e;margin-bottom:6px">Gespeicherte Set-Anfragen</div><div style="max-height:240px;overflow:auto">'+(chatHtml||'<div class="empty"><p>Keine Einträge</p></div>')+'</div>';
 }
 function sbParseRequest(text){
   var q=String(text||"").toLowerCase().trim();
@@ -6181,15 +6181,14 @@ function sbParseRequest(text){
   return {plattform:_sbNormalizePlatform(q)||"PlayStation",games:((q.match(/(\d+)\s*spiel/)||[])[1]|0)||3};
 }
 function sbHandleChat(){
-  var q=gv("sb-chat-in"),out=document.getElementById("sb-chat-out");
+  var q=gv("sb-chat-in");
   var req=sbParseRequest(q);
-  if(!req){if(out)out.textContent="Ich reagiere nur auf Set-Anfragen.";return;}
+  if(!req){toast("Bitte Set-Anfrage formulieren (z. B. Plattform + Spiele).","err");return;}
   setBuilderLoading=true;renderSetBuilderFlow();
   setBuilderAnswers={ziel:"Schneller Verkauf",plattform:req.plattform,budget:"0",zustand:"Gebraucht",gamesReq:req.games};
   buildSetWithAI(function(draft){
     setBuilderLoading=false;
-    if(out&&draft){
-      out.innerHTML='Set erstellt: '+esc(draft.name)+' · '+draft.items.length+' Produkte · Preisvorschlag: '+esc(draft.priceFast)+' / '+esc(draft.priceMax);
+    if(draft){
       setChats.unshift({q:q,time:new Date().toLocaleString("de-DE"),draft:draft});
       saveSetChats();
       autoSaveSetBuilderDraft();
@@ -6220,10 +6219,10 @@ function sbBuildFromSelection(){
 function renderSetDraftResult(){
   var body=document.getElementById("sb-flow-body");if(!body||!setBuilderDraft)return;
   setDraftImages=[];
-  body.innerHTML='<div style="font-size:20px;font-weight:800;color:#fff;margin-bottom:10px">Set Analyse</div><div class="mm-card" style="padding:14px;margin-bottom:10px"><div style="font-size:12px;color:#8b949e;line-height:1.7;margin-bottom:10px">'+setBuilderDraft.items.map(function(i){return"• "+esc(i.name)+" ("+i.ek+"€)";}).join("<br>")+'</div><div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><input id="sb-set-name" class="fc" placeholder="Set-Name" value="'+esc(setBuilderDraft.name)+'" style="flex:1;min-width:180px"/><button type="button" class="btn btn-outline-secondary" onclick="sbAnalyzeSet()">Set analysieren</button></div><div id="sb-set-analysis" class="mm-card" style="padding:14px;font-size:14px;color:#d0d7de"></div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-outline-secondary" onclick="setBuilderStep=1;renderSetBuilderFlow()">Zurück</button><button type="button" class="btn btn-success" onclick="confirmSetBundle()">Set speichern</button><button type="button" class="btn btn-outline-secondary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets verwalten</button></div>';
+  body.innerHTML='<div style="font-size:20px;font-weight:800;color:#fff;margin-bottom:10px">Set</div><div class="mm-card" style="padding:14px;margin-bottom:10px"><div style="font-size:12px;color:#8b949e;line-height:1.7;margin-bottom:10px">'+setBuilderDraft.items.map(function(i){return"• "+esc(i.name)+" ("+i.ek+"€)";}).join("<br>")+'</div><div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><input id="sb-set-name" class="fc" placeholder="Set-Name" value="'+esc(setBuilderDraft.name)+'" style="flex:1;min-width:180px"/><button type="button" id="sb-analyze-btn" class="btn btn-outline-secondary" onclick="sbAnalyzeSet()">Set analysieren</button></div><div id="sb-set-analysis" class="mm-card" style="padding:14px;font-size:14px;color:var(--w2);border:1px solid var(--e2);background:var(--b3)"></div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-outline-secondary" onclick="setBuilderStep=1;renderSetBuilderFlow()">Zurück</button><button type="button" class="btn btn-success" onclick="confirmSetBundle()">Set speichern</button><button type="button" class="btn btn-outline-secondary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets verwalten</button></div>';
   sbAnalyzeSet();
 }
-function reloadSetChat(ix){loadSetChats();var c=setChats[ix];if(!c)return;var inp=document.getElementById("sb-chat-in");if(inp)inp.value=c.q||"";if(c.draft){setBuilderDraft=c.draft;var out=document.getElementById("sb-chat-out");if(out)out.innerHTML='Set geladen: '+esc(setBuilderDraft.name)+' · '+esc(setBuilderDraft.priceFast)+' / '+esc(setBuilderDraft.priceMax);}}
+function reloadSetChat(ix){loadSetChats();var c=setChats[ix];if(!c)return;var inp=document.getElementById("sb-chat-in");if(inp)inp.value=c.q||"";if(c.draft){setBuilderDraft=c.draft;}}
 function editSetChat(ix){loadSetChats();var c=setChats[ix];if(!c)return;var n=prompt("Chat bearbeiten:",c.q||"");if(!n)return;c.q=n;setChats[ix]=c;saveSetChats();renderSetBuilderFlow();}
 function deleteSetChat(ix){loadSetChats();setChats.splice(ix,1);saveSetChats();renderSetBuilderFlow();}
 function confirmSetBundle(){
@@ -6233,7 +6232,6 @@ function confirmSetBundle(){
     if(r&&r.ok){
       toast("Set gespeichert ✅","ok");
       showCenterSuccess("Set "+setName+" erfolgreich erstellt");
-      var out=document.getElementById("sb-chat-out");if(out)out.innerHTML='<span style="color:#00ff88;font-weight:700">Set '+esc(setName)+' erfolgreich erstellt</span>';
       setBuilderDraft=null;loadAll(true);setBuilderStep=99;renderSetBuilderFlow();
     }
     else{toast("Fehler: "+(r?r.fehler:"?"),"err");}
@@ -6257,26 +6255,130 @@ function autoSaveSetBuilderDraft(){
 }
 function sbAddSetImage(){var inp=document.createElement("input");inp.type="file";inp.accept="image/*";inp.onchange=function(){if(!this.files||!this.files[0])return;var fr=new FileReader();fr.onload=function(){if(setDraftImages.length<10)setDraftImages.push(String(fr.result||""));sbRenderSetImages();};fr.readAsDataURL(this.files[0]);};inp.click();}
 function sbRenderSetImages(){var el=document.getElementById("sb-set-images");if(!el)return;el.innerHTML=(setDraftImages||[]).map(function(b,i){return'<div class="card-foto" style="width:44px;height:44px"><img src="'+esc(b)+'"/><button class="rm-thumb" onclick="setDraftImages.splice('+i+',1);sbRenderSetImages()">✕</button></div>';}).join("")+'<div class="add-thumb" style="width:44px;height:44px" onclick="sbAddSetImage()"><i class="bi bi-plus"></i></div>';}
+function _sbPair(lo,hi){lo=Math.round(lo*100)/100;hi=Math.round(hi*100)/100;if(lo>hi){var t=lo;lo=hi;hi=t;}if(lo<1)lo=1;return{min:lo,max:hi};}
+function sbEstimateKaRangeForItem(item){
+  var n=String(item.name||"").toLowerCase(),typ=String(item.typ||item.type||"");
+  if(typ==="konsole"){
+    if(/ps5|playstation\s*5/.test(n))return{min:280,max:480};
+    if(/ps4\s*pro|playstation\s*4\s*pro/.test(n))return{min:150,max:240};
+    if(/ps4|playstation\s*4/.test(n))return{min:95,max:195};
+    if(/series\s*x|xbox\s*series\s*x/.test(n))return{min:300,max:480};
+    if(/series\s*s/.test(n))return{min:170,max:270};
+    if(/xbox\s*one\s*x|one\s*x/.test(n))return{min:85,max:155};
+    if(/xbox\s*one|xb1/.test(n))return{min:55,max:115};
+    if(/switch\s*oled/.test(n))return{min:210,max:310};
+    if(/switch\s*lite/.test(n))return{min:130,max:195};
+    if(/switch|nintendo/.test(n))return{min:170,max:275};
+    return{min:75,max:240};
+  }
+  if(typ==="controller")return{min:20,max:55};
+  if(typ==="spiel"){
+    var ek=parseFloat(item.ek||0)||0,lo=Math.max(4,Math.round(ek*1.35*100)/100),hi=Math.max(lo+2,Math.round(ek*3.1*100)/100);
+    if(hi>95)hi=95;if(/limited|collector|steelbook|remake|deluxe|goty/.test(n)){hi=Math.min(160,Math.round(hi*1.28*100)/100);lo=Math.min(lo+5,hi-4);}
+    return _sbPair(lo,hi);
+  }
+  if(typ==="pc")return{min:160,max:620};
+  var ek2=parseFloat(item.ek||0)||0,a=Math.max(8,Math.round(ek2*1.3*100)/100),b=Math.max(a+4,Math.round(ek2*2.5*100)/100);
+  return _sbPair(Math.min(a,400),Math.min(b,750));
+}
+function sbBuildSetKaAnalyse(draft){
+  var items=draft.items||[],cnt=items.length;
+  var mwMin=0,mwMax=0;
+  for(var i=0;i<items.length;i++){var r=sbEstimateKaRangeForItem(items[i]);mwMin+=r.min;mwMax+=r.max;}
+  var markt=_sbPair(mwMin,mwMax);
+  var mLo=markt.min,mHi=markt.max;
+  var preise={
+    start:_sbPair(mLo*1.02,mHi*1.08),
+    verkauf:_sbPair(mLo*0.85,mHi*0.95),
+    schnell:_sbPair(mLo*0.75,mHi*0.85)
+  };
+  var hasMix=items.some(function(it){return it.typ==="konsole"||it.typ==="pc";})&&items.some(function(it){return it.typ==="controller"||it.typ==="spiel";});
+  var plats=[],seen={};
+  for(var j=0;j<items.length;j++){var pl=_sbNormalizePlatform(items[j].name||"");if(pl&&!seen[pl]){seen[pl]=1;plats.push(pl);}}
+  var homog=plats.length<=1;
+  var score=Math.max(1,Math.min(10,Math.round(4+(hasMix?2:0)+(cnt>=3?1:0)+(cnt>=4?1:0)+(homog&&plats.length?1:0))));
+  var beg="";
+  if(hasMix&&cnt>=3)beg="Komplett-Set mit Gerät und Medien/Input – typische Kleinanzeigen-Nachfrage nach Sofort-Spielbarkeit.";
+  else if(hasMix)beg="Sinnvolle Kombination aus Hauptgerät und Zubehör/Software; Nachfrage moderat bis gut.";
+  else if(cnt>=4)beg="Breites Bundle ohne klaren Fokus – Käufer vergleichen stärker Einzelpreise.";
+  else beg="Wenig Bundle-Synergie; Einzelverkauf kann schneller sein als ein gemeinsames Paket.";
+  var opts=[];
+  if(!hasMix&&cnt<4)opts.push("Konsole oder mehrere passende Spiele ergänzen, damit das Set auf Kleinanzeigen als Paket Sinn ergibt.");
+  if(cnt>=3)opts.push("Ein VB-Startpreis im oberen Bereich der Spalte „Start (VB)“ wählen und 5–10 % Verhandlungsspielraum einplanen.");
+  else opts.push("Preis näher an „Verkauf“ setzen, damit das Set nicht zu lange steht.");
+  opts.push("Schnellverkauf: Listingpreis in die Spanne „Schnell“ legen; realistischer Durchschnitt bei „Verkauf“.");
+  if(opts.length>3)opts=opts.slice(0,3);
+  while(opts.length<3){opts.push("Fotos aller Artikel + kurze Funktionsbeschreibung erhöhen Vertrauen und Abschlussrate.");}
+  return{marktwert:markt,preise:preise,nachfrage:{score:score,begruendung:beg},optimierung:opts.slice(0,3)};
+}
+function _sbNumAn(x){var n=parseFloat(x);return isFinite(n)?n:null;}
+function _sbNormalizeKaAnalyse(raw){
+  if(!raw||typeof raw!=="object")return null;
+  var mk=raw.marktwert||{},pr=raw.preise||{},st=pr.start||{},ve=pr.verkauf||{},sn=pr.schnell||{},nf=raw.nachfrage||{};
+  function band(a,b){var x=_sbNumAn(a),y=_sbNumAn(b);if(x===null||y===null)return null;if(x>y){var t=x;x=y;y=t;}if(y<0)return null;return{min:Math.max(0,Math.round(x*100)/100),max:Math.max(0,Math.round(y*100)/100)};}
+  var mmin=_sbNumAn(mk.min),mmax=_sbNumAn(mk.max);
+  if(mmin===null||mmax===null)return null;
+  if(mmin>mmax){var s=mmin;mmin=mmax;mmax=s;}
+  mmin=Math.max(0,Math.round(mmin*100)/100);mmax=Math.max(0,Math.round(mmax*100)/100);
+  var start=band(st.min,st.max),verk=band(ve.min,ve.max),schn=band(sn.min,sn.max);
+  if(!start||!verk||!schn)return null;
+  var score=Math.round(_sbNumAn(nf.score)===null?0:_sbNumAn(nf.score));
+  if(!isFinite(score)||score<1)score=1;if(score>10)score=10;
+  var beg=String(nf.begruendung||"").trim();
+  if(!beg)beg="—";
+  var opts=Array.isArray(raw.optimierung)?raw.optimierung.map(function(z){return String(z||"").trim();}).filter(Boolean):[];
+  return{marktwert:{min:mmin,max:mmax},preise:{start:start,verkauf:verk,schnell:schn},nachfrage:{score:score,begruendung:beg},optimierung:opts.slice(0,3)};
+}
+function sbApplyAnalyseToDraft(data){
+  if(!setBuilderDraft||!data||!data.preise)return;
+  setBuilderDraft.kaAnalyse=data;
+  setBuilderDraft.priceFastMin=data.preise.schnell.min;
+  setBuilderDraft.priceFastMax=data.preise.schnell.max;
+  setBuilderDraft.priceMaxMin=data.preise.verkauf.min;
+  setBuilderDraft.priceMaxMax=data.marktwert.max;
+  setBuilderDraft.priceFast=Math.round(data.preise.schnell.min)+"–"+Math.round(data.preise.schnell.max)+" € VB (schnell)";
+  setBuilderDraft.priceMax=Math.round(data.preise.verkauf.min)+"–"+Math.round(data.preise.verkauf.max)+" € VB (realistisch)";
+}
+function sbRenderSetAnalyseCardHtml(data){
+  var m=data.marktwert||{},p=data.preise||{},nf=data.nachfrage||{},op=(data.optimierung||[]).slice(0,3);
+  var fmt=function(lo,hi){return Math.round(Number(lo)||0)+" – "+Math.round(Number(hi)||0)+" €";};
+  var preisLines=[
+    "Marktwert: "+fmt(m.min,m.max),
+    "Start (VB): "+fmt((p.start||{}).min,(p.start||{}).max),
+    "Verkauf: "+fmt((p.verkauf||{}).min,(p.verkauf||{}).max),
+    "Schnell: "+fmt((p.schnell||{}).min,(p.schnell||{}).max)
+  ];
+  var preisHtml=preisLines.map(function(line){return'<div class="sb-ka-line">'+line+"</div>";}).join("");
+  var optHtml=op.length?("<ul class=\"sb-ka-opt\">"+op.map(function(x){return"<li>"+esc(x)+"</li>";}).join("")+"</ul>"):"<ul class=\"sb-ka-opt\"><li>—</li></ul>";
+  return'<div class="sb-set-analyse-inner"><div class="sb-ka-main-title">SET ANALYSE</div>'
+    +'<div class="sb-ka-sec"><div class="sb-ka-sec-title">💰 Preise</div><div class="sb-ka-lines">'+preisHtml+"</div></div>"
+    +'<div class="sb-ka-sec"><div class="sb-ka-sec-title">📊 Nachfrage</div><div class="sb-ka-nf-scoreline">Score: '+(nf.score||0)+" / 10</div>"
+    +'<div class="sb-ka-nf-txt">'+esc(nf.begruendung||"")+"</div></div>"
+    +'<div class="sb-ka-sec"><div class="sb-ka-sec-title">⚡ Optimierung</div>'+optHtml+"</div></div>";
+}
 function sbAnalyzeSet(){
   if(!setBuilderDraft)return;
-  var cnt=(setBuilderDraft.items||[]).length;
-  var sumEinzel=parseFloat(setBuilderDraft.sumEinzel||0)||Math.max(1,(setBuilderDraft.total||0)*1.35);
-  var fastMin=setBuilderDraft.priceFastMin||Math.round(sumEinzel*0.80*100)/100;
-  var fastMax=setBuilderDraft.priceFastMax||Math.round(sumEinzel*0.90*100)/100;
-  var maxMin=setBuilderDraft.priceMaxMin||Math.round(sumEinzel*0.95*100)/100;
-  var maxMax=setBuilderDraft.priceMaxMax||Math.round(sumEinzel*1.00*100)/100;
-  var hasMix=(setBuilderDraft.items||[]).some(function(i){return i.typ==="konsole"||i.typ==="pc";})&&(setBuilderDraft.items||[]).some(function(i){return i.typ==="controller"||i.typ==="spiel";});
-  var sinnvoll=hasMix||cnt>=3;
-  var attr=Math.max(1,Math.min(10,Math.round((sinnvoll?6:4)+(cnt>=4?2:0))));
-  var opt1=cnt>=3?"Spiele als Bundle lassen, Hauptgerät einzeln testen und nur bei funktionalem Match bündeln.":"Einzelverkauf prüfen, da zu wenig Synergie im Bundle.";
-  var opt2="Preis für schnellen Verkauf bei "+fastMin.toFixed(0)+"–"+fastMax.toFixed(0)+" € ansetzen.";
-  var opt3="Für Max-Gewinn Preisfenster "+maxMin.toFixed(0)+"–"+maxMax.toFixed(0)+" € nutzen und nur als Set lassen, wenn komplette Kombi-Nachfrage besteht.";
   var out=document.getElementById("sb-set-analysis");if(!out)return;
-  out.innerHTML='<div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px">🔥 SET ANALYSE</div>'
-    +'<div style="margin-bottom:8px"><b>✔ Sinnvoll: '+(sinnvoll?'JA':'NEIN')+'</b><br><span style="color:#9ca3af">'+(sinnvoll?'Ja – die Artikel ergänzen sich funktional und werden als Bundle nachgefragt.':'Nein – die Artikel haben keinen klaren gemeinsamen Nutzen und sind einzeln meist stärker.')+'</span></div>'
-    +'<div style="margin-bottom:8px"><b>💰 Preis</b><br><span style="color:#9ca3af">Einzelpreise gesamt: '+sumEinzel.toFixed(2)+' €</span><br>Schnellverkauf: '+fastMin.toFixed(2)+'–'+fastMax.toFixed(2)+' €<br>Max Gewinn: '+maxMin.toFixed(2)+'–'+maxMax.toFixed(2)+' €</div>'
-    +'<div style="margin-bottom:8px"><b>📊 Attraktivität:</b> '+attr+'/10<br><span style="color:#9ca3af">'+(attr>=7?'Gute Bundle-Wirkung durch komplementäre Artikel.':'Standard-Bundle ohne seltene Extras, Preis muss sauber gesetzt werden.')+'</span></div>'
-    +'<div><b>⚡ Optimierung</b><br>• '+esc(opt1)+'<br>• '+esc(opt2)+'<br>• '+esc(opt3)+'</div>';
+  var names=(setBuilderDraft.items||[]).map(function(i){return String(i.name||i.typ||i.scanId||"").trim();}).filter(Boolean).join(", ");
+  if(!names)names="(ohne Namen)";
+  out.innerHTML='<div class="sb-ka-loading"><span class="spin-b"></span><span>Analyse läuft…</span></div>';
+  var btn=document.getElementById("sb-analyze-btn");if(btn)btn.disabled=true;
+  gasPost("kisetmasterAnalyzeSet",{artikelNames:names},function(r){
+    if(btn)btn.disabled=false;
+    var data=null;
+    if(r&&r.ok&&r.data)data=_sbNormalizeKaAnalyse(r.data);
+    if(!data&&r&&r.ok)toast("KI-Daten unvollständig — lokale Schätzung.","inf",3600);
+    if(!data)data=sbBuildSetKaAnalyse(setBuilderDraft);
+    if(r&&!r.ok)toast(String(r.fehler||"Analyse nicht möglich"),"inf",3800);
+    sbApplyAnalyseToDraft(data);
+    out.innerHTML=sbRenderSetAnalyseCardHtml(data);
+  },function(){
+    if(btn)btn.disabled=false;
+    var data=sbBuildSetKaAnalyse(setBuilderDraft);
+    sbApplyAnalyseToDraft(data);
+    out.innerHTML=sbRenderSetAnalyseCardHtml(data);
+    toast("Offline-Schätzung (API nicht erreichbar).","inf",3200);
+  });
 }
 function _sbNormalizePlatform(s){var t=String(s||"").toLowerCase();if(t.indexOf("playstation")>-1||/\bps\d/.test(t))return"PlayStation";if(t.indexOf("xbox")>-1)return"Xbox";if(t.indexOf("nintendo")>-1||t.indexOf("switch")>-1)return"Nintendo";if(t.indexOf("pc")>-1)return"PC";return"";}
 function _sbDetectPlatform(item){
