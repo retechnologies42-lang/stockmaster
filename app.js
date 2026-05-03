@@ -1,7 +1,7 @@
 
 
 
-var GAS_URL = "https://script.google.com/macros/s/AKfycbz0C0d2u7s_LSQ6xmwNFueYx6cQ6IIgua30CQn_cFL6kRImPLG6lBDhY3gQDW0KDg/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbwcdzuzkwab5ZEewI9tevTW0Qpxw3bgoIoaf1vR35wfIL8f_yNiRf7UsxuDw-cUZQ/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -1193,15 +1193,18 @@ function ensureSeparatePhotoStep(){
 }
 
 // ── LAGER ─────────────────────────────────────────────────────────
-var _loadAllBusy=false,_loadAllTs=0,_loadAllCache=[];
+var _loadAllBusy=false,_loadAllTs=0,_loadAllCache=[],_loadAllOnDone=null;
 var addToSetModalState={item:null,query:"",selectedSetId:""};
 var setInfoOverlayState={item:null};
 function loadAll(force){
+  var onDone=(arguments.length>1&&typeof arguments[1]==="function")?arguments[1]:null;
+  if(onDone)_loadAllOnDone=onDone;
   if(!force&&_loadAllBusy)return;
   var now=Date.now();
   if(!force&&_loadAllCache.length>0&&(now-_loadAllTs)<15000){
     allItems=_loadAllCache.slice();
     syncIncompleteProductTasks();renderList();checkLongStorageItems();buildWeekChart();buildKAProgress();updateMyStats();
+    var od=_loadAllOnDone;_loadAllOnDone=null;if(od)try{od();}catch(e){}
     return;
   }
   _loadAllBusy=true;
@@ -1267,6 +1270,7 @@ function loadAll(force){
     _loadAllTs=Date.now();
     _loadAllBusy=false;
     syncIncompleteProductTasks();renderList();checkLongStorageItems();buildWeekChart();buildKAProgress();updateMyStats();
+    var od2=_loadAllOnDone;_loadAllOnDone=null;if(od2)try{od2();}catch(e2){}
   }
   gasGet("getAllKonsolen",{},function(r){if(r&&r.ok)kd=r.data||[];tryR();},function(){tryR();});
   gasGet("getAllSpiele",{},function(r){if(r&&r.ok)sd=r.data||[];tryR();},function(){tryR();});
@@ -1292,7 +1296,7 @@ function renderList(){
   var ddSub2=(document.getElementById("lager-dd-sub2")||{value:""}).value;
   var ddStatus=(document.getElementById("lager-dd-status")||{value:""}).value;
   var f=allItems.filter(function(i){
-    if(i.type==="setbundle")return false;
+    if(i.type==="setbundle")return lf==="all";
     if(itemIsLagerSoldOut(i)&&ddStatus!=="soldout")return false;
     if(ddStatus==="soldout"&&!itemIsLagerSoldOut(i))return false;
     var tm=true;
@@ -1418,7 +1422,7 @@ function mkCard(item){
     katBadge='<span class="ic-badge" style="background:rgba(248,81,73,.15);color:var(--red);margin-left:4px">🔧 Defekt</span>';
   }
   var nm=item.name||item.spiel||item.modell||item.geraet||"–";
-  var condBadge=itemHasDefektCondition(item)?'<span class="lager-cond-badge lager-cond-def">Defekt</span>':'<span class="lager-cond-badge lager-cond-ok">OK</span>';
+  var condBadge=item.type==="setbundle"?'<span class="lager-cond-badge lager-cond-ok">Set-Bundle</span>':(itemHasDefektCondition(item)?'<span class="lager-cond-badge lager-cond-def">Defekt</span>':'<span class="lager-cond-badge lager-cond-ok">OK</span>');
   var sidRaw=String(item.scanId||"").trim();
   var inVkSale=sidRaw&&(window._openVerkaufByScanId||{})[sidRaw];
   var tmap={konsole:["ib-k","🕹️ Konsole"],spiel:["ib-sp","💿 Spiel"],controller:["ib-sp","🎮 Controller"],handy:["ib-h","📱 Handy"],pc:["ib-pc","💻 PC/Laptop"],defekt:["ib-def","⚠️ Defekt"],setbundle:["ib-sp","🧩 Set-Bundle"]};
@@ -1437,8 +1441,9 @@ function mkCard(item){
   var sid=String(item.scanId||"").trim();
   if(sid&&setMembershipByScanId[sid]&&setMembershipByScanId[sid].length){
     setRefs=(setMembershipByScanId[sid]||[]);
-    if(setRefs.length===1)setHintText='Teil eines Sets';
-    else setHintText='In '+setRefs.length+' Sets';
+    var sn0=(setRefs[0]&&setRefs[0].name)||(setRefs[0]&&setRefs[0].setId)||"";
+    if(setRefs.length===1)setHintText="Teil von Set: "+String(sn0||"Set");
+    else setHintText="Teil von Set: "+String(sn0||"Set")+" (+"+(setRefs.length-1)+")";
   }
   var note=item.problemBeschr||item.hinweise||"";
   if(item.type==="defekt"){tags.push(String(item.ursprung||""));note=item.problemBeschr||"";}
@@ -1449,11 +1454,12 @@ function mkCard(item){
   var catLabel=tm[1].replace(/^[^A-Za-z0-9ÄÖÜäöüß]+/,"").trim()||tm[1];
   var shownTags=tags.slice(0,3);
   var tagsHtml=shownTags.map(function(t){return '<span class="lager-tag">'+esc(t)+'</span>';}).join("")+(tags.length>3?'<span class="lager-tag">+'+(tags.length-3)+'</span>':"");
-  var qtyDisp=item.type==="defekt"?"–":"1";
+  var qtyDisp=item.type==="defekt"?"–":(item.type==="setbundle"?String((item.items||[]).length)+" Teile":"1");
   var meta='<div class="lager-meta"><span>'+esc(item.datum||"")+'</span><span>'+esc(item.mitarbeiter||"")+'</span><span>Menge: '+qtyDisp+'</span><span>EK: '+esc(item.einkaufspreis?String(item.einkaufspreis)+"€":"—")+'</span></div>';
   cardRegistry.push(item);
   var actions='<div class="lager-actions">';
-  if(item.type!=="defekt"&&item.type!=="setbundle"){actions+='<button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation();openEditStepper('+rIdx+')" title="Bearbeiten"><i class="bi bi-pencil-fill"></i></button><button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDelete('+rIdx+')" title="Löschen"><i class="bi bi-trash3"></i></button>';}
+  if(item.type==="setbundle"){actions+='<button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDeleteSetBundle('+rIdx+')" title="Set löschen"><i class="bi bi-trash3"></i></button>';}
+  else if(item.type!=="defekt"){actions+='<button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation();openEditStepper('+rIdx+')" title="Bearbeiten"><i class="bi bi-pencil-fill"></i></button><button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDelete('+rIdx+')" title="Löschen"><i class="bi bi-trash3"></i></button>';}
   else{actions+='<button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDeleteDefekt('+rIdx+')" title="Löschen"><i class="bi bi-trash3"></i></button>';}
   actions+='</div>';
   var saleMark=inVkSale?'<span class="lager-tag" style="border-color:rgba(255,204,0,.4);color:var(--col-y)">Im Verkauf</span>':"";
@@ -1574,6 +1580,17 @@ function openEditStepperFromItem(item,jumpStep){
 function openEditStepper(rIdx){var item=cardRegistry[rIdx];if(!item)return;openEditStepperFromItem(item);}
 
 function confirmDelete(rIdx){var item=cardRegistry[rIdx];if(!item)return;var nm=item.name||item.spiel||item.modell||"?";var btn=document.getElementById("del-modal-confirm");if(btn){btn.innerHTML='<i class="bi bi-trash3 me-1"></i>LÖSCHEN';btn.className="btn btn-danger fw-bold";btn.onclick=function(){closeDelModal();doDelete(item);};}document.getElementById("del-modal-text").textContent='"'+nm+'" wirklich löschen?';document.getElementById("del-modal").classList.add("open");}
+function confirmDeleteSetBundle(rIdx){
+  var item=cardRegistry[rIdx];if(!item||item.type!=="setbundle")return;
+  var btn=document.getElementById("del-modal-confirm");
+  document.getElementById("del-modal-text").textContent="Set „"+(item.name||item.setId||"?")+"“ wirklich löschen?";
+  if(btn){
+    btn.innerHTML='<i class="bi bi-trash3 me-1"></i>LÖSCHEN';
+    btn.className="btn btn-danger fw-bold";
+    btn.onclick=function(){closeDelModal();gasGet("deleteSetBundle",{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast("Set gelöscht.","ok");allItems=[];loadAll();loadStats();}else{toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){toast("Fehler: "+e,"err");});};
+  }
+  document.getElementById("del-modal").classList.add("open");
+}
 function confirmDeleteDefekt(rIdx){
   var item=cardRegistry[rIdx];if(!item)return;
   var btn=document.getElementById("del-modal-confirm");
@@ -2885,12 +2902,32 @@ function openDetail(rIdx){
   var item=cardRegistry[rIdx];if(!item)return;
   detailItem=item;
   var nm=item.name||item.spiel||item.modell||item.geraet||"–";
+  if(item.type==="setbundle"){
+    document.getElementById("detail-header-title").textContent=nm;
+    document.getElementById("detail-title").textContent=nm;
+    var eb0=document.getElementById("detail-edit-btn");if(eb0)eb0.style.display="none";
+    var pp0=document.getElementById("detail-price"),ps0=document.getElementById("detail-price-sub");
+    if(pp0){pp0.textContent=item.einkaufspreis!=null&&item.einkaufspreis!==""?String(item.einkaufspreis)+" € (Summe EK)":"—";pp0.style.color="var(--acc)";}
+    if(ps0)ps0.textContent="Set-ID: "+(item.setId||"—")+" · "+((item.items||[]).length)+" Artikel";
+    var kab0=document.getElementById("detail-ka-badge");if(kab0)kab0.innerHTML="";
+    var ptab=document.getElementById("detail-photo-tabs");if(ptab)ptab.style.display="none";
+    var hero=document.getElementById("detail-hero");if(hero)hero.innerHTML='<div style="padding:24px;color:var(--w3);font-size:13px">Set-Bundle (Lager)</div>';
+    var thumbs=document.getElementById("detail-thumbs");if(thumbs)thumbs.innerHTML="";
+    var upWrap=document.getElementById("detail-upload-photos-wrap");if(upWrap)upWrap.style.display="none";
+    var linksWrap=document.getElementById("detail-links-wrap");if(linksWrap)linksWrap.style.display="none";
+    var dw=document.getElementById("detail-defekt-wrap");if(dw)dw.style.display="none";
+    var nw=document.getElementById("detail-notes");if(nw)nw.style.display="none";
+    var ul=(item.items||[]).map(function(it){return"<li>"+esc(it.name||it.scanId||"—")+"</li>";}).join("");
+    document.getElementById("detail-specs").innerHTML='<div class="detail-spec"><span class="detail-spec-key">Artikel</span><span class="detail-spec-val"><ul style="margin:0;padding-left:18px">'+ul+"</ul></span></div>";
+    document.getElementById("detail-overlay").classList.add("open");
+    return;
+  }
   document.getElementById("detail-header-title").textContent=nm;
   document.getElementById("detail-title").textContent=nm;
   // Edit button
   var eb=document.getElementById("detail-edit-btn");
   if(eb){
-    eb.style.display=(item.type==="defekt"||item.type==="setbundle")?"none":"inline-flex";
+    eb.style.display=item.type==="defekt"?"none":"inline-flex";
     eb.onclick=function(){closeDetail();openEditStepper(rIdx);};
   }
 
@@ -6144,10 +6181,9 @@ function ensureSetBuilderOverlay(){
 }
 function openSetBuilderFlow(){
   ensureSetBuilderOverlay();
-  loadAll(true);
   setBuilderStep=0;setBuilderAnswers={};setBuilderDraft=null;setBuilderLoading=false;
   goTabFn("kisetmaster-panel");
-  renderSetBuilderFlow();
+  loadAll(true,function(){renderSetBuilderFlow();});
 }
 function closeSetBuilderFlow(){
   goTabFn("home-panel");
@@ -6155,6 +6191,11 @@ function closeSetBuilderFlow(){
 function renderSetBuilderFlow(){
   var body=document.getElementById("sb-flow-body");if(!body)return;
   loadSetChats();
+  if(setBuilderStep===1&&(!allItems||!allItems.length)){
+    if(!_loadAllBusy){loadAll(true,function(){renderSetBuilderFlow();});}
+    body.innerHTML='<div class="empty" style="padding:20px"><span class="spin-b"></span><p style="color:var(--w3);margin-top:10px">Lager wird geladen…</p></div>';
+    return;
+  }
   if(setBuilderStep===0){
     body.innerHTML='<div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:6px">KIsetMaster</div><div style="font-size:12px;color:#8b949e;line-height:1.7">Sets zusammenstellen, strukturierte Marktanalyse, Verwaltung.</div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button type="button" class="btn btn-success" onclick="setBuilderStep=1;renderSetBuilderFlow()">Start</button><button type="button" class="btn btn-outline-secondary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets verwalten</button></div>';
     return;
@@ -6172,7 +6213,7 @@ function renderSetBuilderFlow(){
     var ek=(parseFloat(i.einkaufspreis||0)||0).toFixed(2);
     return '<label style="display:flex;gap:8px;align-items:center;padding:8px;border:1px solid #1f2937;border-radius:8px;background:#0f1419"><input type="checkbox" value="'+esc(id)+'"/><span style="font-size:12px;color:#e6edf3;flex:1">'+esc(nm)+'</span><span style="font-size:11px;color:#8b949e">'+ek+'€</span></label>';
   }).join("");
-  body.innerHTML='<div style="font-size:13px;color:#00ff88;font-weight:700;margin-bottom:8px">Set zusammenstellen</div><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="sb-chat-in" class="fc" placeholder="z.B. PS4 + 3 Spiele + Controller" style="flex:1;min-width:200px"/><button type="button" class="btn btn-success" onclick="sbHandleChat()">Senden</button><button type="button" class="btn btn-outline-secondary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets</button></div><hr style="border-color:#1f2937;margin:10px 0"/><div style="font-size:12px;color:#e6edf3;font-weight:700;margin-bottom:6px">Artikel direkt auswählen</div><div id="sb-stock-list" style="max-height:220px;overflow:auto;display:grid;gap:6px;margin-bottom:8px">'+(stockList||'<div class="empty"><p>Keine verfügbaren Artikel</p></div>')+'</div><button type="button" class="btn btn-success btn-sm" onclick="sbBuildFromSelection()">Set aus Auswahl erstellen</button><hr style="border-color:#1f2937;margin:10px 0"/><div style="font-size:11px;color:#8b949e;margin-bottom:6px">Gespeicherte Set-Anfragen</div><div style="max-height:240px;overflow:auto">'+(chatHtml||'<div class="empty"><p>Keine Einträge</p></div>')+'</div>';
+  body.innerHTML='<div style="font-size:13px;color:#00ff88;font-weight:700;margin-bottom:8px">Set zusammenstellen</div><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="sb-chat-in" class="fc" placeholder="z.B. PS4 + 3 Spiele + Controller" style="flex:1;min-width:200px"/><button type="button" class="btn btn-success" onclick="sbHandleChat()">Senden</button><button type="button" class="btn btn-outline-secondary" onclick="sbSaveSetChatsClick()">Chat speichern</button><button type="button" class="btn btn-outline-secondary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets</button></div><hr style="border-color:#1f2937;margin:10px 0"/><div style="font-size:12px;color:#e6edf3;font-weight:700;margin-bottom:6px">Artikel direkt auswählen</div><div id="sb-stock-list" style="max-height:220px;overflow:auto;display:grid;gap:6px;margin-bottom:8px">'+(stockList||'<div class="empty"><p>Keine verfügbaren Artikel</p></div>')+'</div><button type="button" class="btn btn-success btn-sm" onclick="sbBuildFromSelection()">Set aus Auswahl erstellen</button><hr style="border-color:#1f2937;margin:10px 0"/><div style="font-size:11px;color:#8b949e;margin-bottom:6px">Gespeicherte Set-Anfragen</div><div style="max-height:240px;overflow:auto">'+(chatHtml||'<div class="empty"><p>Keine Einträge</p></div>')+'</div>';
 }
 function sbParseRequest(text){
   var q=String(text||"").toLowerCase().trim();
@@ -6180,6 +6221,7 @@ function sbParseRequest(text){
   if(!/(set|bundle|\+|spiele|spiel|controller|ps4|ps5|xbox|nintendo|switch|pc)/.test(q))return null;
   return {plattform:_sbNormalizePlatform(q)||"PlayStation",games:((q.match(/(\d+)\s*spiel/)||[])[1]|0)||3};
 }
+function sbSaveSetChatsClick(){saveSetChats();toast("Chat gespeichert.","ok",2200);}
 function sbHandleChat(){
   var q=gv("sb-chat-in");
   var req=sbParseRequest(q);
@@ -6188,11 +6230,8 @@ function sbHandleChat(){
   setBuilderAnswers={ziel:"Schneller Verkauf",plattform:req.plattform,budget:"0",zustand:"Gebraucht",gamesReq:req.games};
   buildSetWithAI(function(draft){
     setBuilderLoading=false;
-    if(draft){
-      setChats.unshift({q:q,time:new Date().toLocaleString("de-DE"),draft:draft});
-      saveSetChats();
-      autoSaveSetBuilderDraft();
-    }
+    if(draft){setChats.unshift({q:q,time:new Date().toLocaleString("de-DE"),draft:draft});}
+    else{renderSetBuilderFlow();}
   });
 }
 function _setEligibleItems(){
@@ -6246,13 +6285,6 @@ function showCenterSuccess(msg){
   document.body.appendChild(el);
   setTimeout(function(){if(el&&el.parentNode)el.parentNode.removeChild(el);},1800);
 }
-function autoSaveSetBuilderDraft(){
-  if(!setBuilderDraft||setBuilderDraft._autoSaved)return;
-  var autoName=(setBuilderDraft.name||"")+" #AUTO";
-  gasPost("saveSetBundle",{name:autoName,mitarbeiter:emp,plattform:setBuilderDraft.plattform,budget:setBuilderDraft.budget,zustand:setBuilderDraft.zustand,items:setBuilderDraft.items,notizen:"Auto-gespeichert via KIsetMasterPro"},function(r){
-    if(r&&r.ok){setBuilderDraft._autoSaved=true;loadAll();renderSetsPanel();}
-  },function(){});
-}
 function sbAddSetImage(){var inp=document.createElement("input");inp.type="file";inp.accept="image/*";inp.onchange=function(){if(!this.files||!this.files[0])return;var fr=new FileReader();fr.onload=function(){if(setDraftImages.length<10)setDraftImages.push(String(fr.result||""));sbRenderSetImages();};fr.readAsDataURL(this.files[0]);};inp.click();}
 function sbRenderSetImages(){var el=document.getElementById("sb-set-images");if(!el)return;el.innerHTML=(setDraftImages||[]).map(function(b,i){return'<div class="card-foto" style="width:44px;height:44px"><img src="'+esc(b)+'"/><button class="rm-thumb" onclick="setDraftImages.splice('+i+',1);sbRenderSetImages()">✕</button></div>';}).join("")+'<div class="add-thumb" style="width:44px;height:44px" onclick="sbAddSetImage()"><i class="bi bi-plus"></i></div>';}
 function _sbPair(lo,hi){lo=Math.round(lo*100)/100;hi=Math.round(hi*100)/100;if(lo>hi){var t=lo;lo=hi;hi=t;}if(lo<1)lo=1;return{min:lo,max:hi};}
@@ -6269,14 +6301,11 @@ function sbEstimateKaRangeForItem(item){
     if(/switch\s*oled/.test(n))return{min:210,max:310};
     if(/switch\s*lite/.test(n))return{min:130,max:195};
     if(/switch|nintendo/.test(n))return{min:170,max:275};
+    if(/xbox/.test(n))return{min:80,max:130};
     return{min:75,max:240};
   }
-  if(typ==="controller")return{min:20,max:55};
-  if(typ==="spiel"){
-    var ek=parseFloat(item.ek||0)||0,lo=Math.max(4,Math.round(ek*1.35*100)/100),hi=Math.max(lo+2,Math.round(ek*3.1*100)/100);
-    if(hi>95)hi=95;if(/limited|collector|steelbook|remake|deluxe|goty/.test(n)){hi=Math.min(160,Math.round(hi*1.28*100)/100);lo=Math.min(lo+5,hi-4);}
-    return _sbPair(lo,hi);
-  }
+  if(typ==="controller")return{min:15,max:45};
+  if(typ==="spiel")return{min:5,max:20};
   if(typ==="pc")return{min:160,max:620};
   var ek2=parseFloat(item.ek||0)||0,a=Math.max(8,Math.round(ek2*1.3*100)/100),b=Math.max(a+4,Math.round(ek2*2.5*100)/100);
   return _sbPair(Math.min(a,400),Math.min(b,750));
@@ -6297,37 +6326,9 @@ function sbBuildSetKaAnalyse(draft){
   for(var j=0;j<items.length;j++){var pl=_sbNormalizePlatform(items[j].name||"");if(pl&&!seen[pl]){seen[pl]=1;plats.push(pl);}}
   var homog=plats.length<=1;
   var score=Math.max(1,Math.min(10,Math.round(4+(hasMix?2:0)+(cnt>=3?1:0)+(cnt>=4?1:0)+(homog&&plats.length?1:0))));
-  var beg="";
-  if(hasMix&&cnt>=3)beg="Komplett-Set mit Gerät und Medien/Input – typische Kleinanzeigen-Nachfrage nach Sofort-Spielbarkeit.";
-  else if(hasMix)beg="Sinnvolle Kombination aus Hauptgerät und Zubehör/Software; Nachfrage moderat bis gut.";
-  else if(cnt>=4)beg="Breites Bundle ohne klaren Fokus – Käufer vergleichen stärker Einzelpreise.";
-  else beg="Wenig Bundle-Synergie; Einzelverkauf kann schneller sein als ein gemeinsames Paket.";
-  var opts=[];
-  if(!hasMix&&cnt<4)opts.push("Konsole oder mehrere passende Spiele ergänzen, damit das Set auf Kleinanzeigen als Paket Sinn ergibt.");
-  if(cnt>=3)opts.push("Ein VB-Startpreis im oberen Bereich der Spalte „Start (VB)“ wählen und 5–10 % Verhandlungsspielraum einplanen.");
-  else opts.push("Preis näher an „Verkauf“ setzen, damit das Set nicht zu lange steht.");
-  opts.push("Schnellverkauf: Listingpreis in die Spanne „Schnell“ legen; realistischer Durchschnitt bei „Verkauf“.");
-  if(opts.length>3)opts=opts.slice(0,3);
-  while(opts.length<3){opts.push("Fotos aller Artikel + kurze Funktionsbeschreibung erhöhen Vertrauen und Abschlussrate.");}
-  return{marktwert:markt,preise:preise,nachfrage:{score:score,begruendung:beg},optimierung:opts.slice(0,3)};
-}
-function _sbNumAn(x){var n=parseFloat(x);return isFinite(n)?n:null;}
-function _sbNormalizeKaAnalyse(raw){
-  if(!raw||typeof raw!=="object")return null;
-  var mk=raw.marktwert||{},pr=raw.preise||{},st=pr.start||{},ve=pr.verkauf||{},sn=pr.schnell||{},nf=raw.nachfrage||{};
-  function band(a,b){var x=_sbNumAn(a),y=_sbNumAn(b);if(x===null||y===null)return null;if(x>y){var t=x;x=y;y=t;}if(y<0)return null;return{min:Math.max(0,Math.round(x*100)/100),max:Math.max(0,Math.round(y*100)/100)};}
-  var mmin=_sbNumAn(mk.min),mmax=_sbNumAn(mk.max);
-  if(mmin===null||mmax===null)return null;
-  if(mmin>mmax){var s=mmin;mmin=mmax;mmax=s;}
-  mmin=Math.max(0,Math.round(mmin*100)/100);mmax=Math.max(0,Math.round(mmax*100)/100);
-  var start=band(st.min,st.max),verk=band(ve.min,ve.max),schn=band(sn.min,sn.max);
-  if(!start||!verk||!schn)return null;
-  var score=Math.round(_sbNumAn(nf.score)===null?0:_sbNumAn(nf.score));
-  if(!isFinite(score)||score<1)score=1;if(score>10)score=10;
-  var beg=String(nf.begruendung||"").trim();
-  if(!beg)beg="—";
-  var opts=Array.isArray(raw.optimierung)?raw.optimierung.map(function(z){return String(z||"").trim();}).filter(Boolean):[];
-  return{marktwert:{min:mmin,max:mmax},preise:{start:start,verkauf:verk,schnell:schn},nachfrage:{score:score,begruendung:beg},optimierung:opts.slice(0,3)};
+  var beg=hasMix?"Bundle wirkt stimmig.":"Bundle eher schwach — Einzelverkauf prüfen.";
+  var opt=cnt>=3?"VB im Bereich „Start“ ansetzen, leichten Rabatt einplanen.":"Preis an „Verkauf“ anlehnen.";
+  return{marktwert:markt,preise:preise,nachfrage:{score:score,begruendung:beg},optimierung:[opt]};
 }
 function sbApplyAnalyseToDraft(data){
   if(!setBuilderDraft||!data||!data.preise)return;
@@ -6340,45 +6341,21 @@ function sbApplyAnalyseToDraft(data){
   setBuilderDraft.priceMax=Math.round(data.preise.verkauf.min)+"–"+Math.round(data.preise.verkauf.max)+" € VB (realistisch)";
 }
 function sbRenderSetAnalyseCardHtml(data){
-  var m=data.marktwert||{},p=data.preise||{},nf=data.nachfrage||{},op=(data.optimierung||[]).slice(0,3);
+  var m=data.marktwert||{},p=data.preise||{},nf=data.nachfrage||{},op=(data.optimierung||[]).slice(0,1);
   var fmt=function(lo,hi){return Math.round(Number(lo)||0)+" – "+Math.round(Number(hi)||0)+" €";};
-  var preisLines=[
-    "Marktwert: "+fmt(m.min,m.max),
-    "Start (VB): "+fmt((p.start||{}).min,(p.start||{}).max),
-    "Verkauf: "+fmt((p.verkauf||{}).min,(p.verkauf||{}).max),
-    "Schnell: "+fmt((p.schnell||{}).min,(p.schnell||{}).max)
-  ];
-  var preisHtml=preisLines.map(function(line){return'<div class="sb-ka-line">'+line+"</div>";}).join("");
-  var optHtml=op.length?("<ul class=\"sb-ka-opt\">"+op.map(function(x){return"<li>"+esc(x)+"</li>";}).join("")+"</ul>"):"<ul class=\"sb-ka-opt\"><li>—</li></ul>";
-  return'<div class="sb-set-analyse-inner"><div class="sb-ka-main-title">SET ANALYSE</div>'
-    +'<div class="sb-ka-sec"><div class="sb-ka-sec-title">💰 Preise</div><div class="sb-ka-lines">'+preisHtml+"</div></div>"
-    +'<div class="sb-ka-sec"><div class="sb-ka-sec-title">📊 Nachfrage</div><div class="sb-ka-nf-scoreline">Score: '+(nf.score||0)+" / 10</div>"
-    +'<div class="sb-ka-nf-txt">'+esc(nf.begruendung||"")+"</div></div>"
-    +'<div class="sb-ka-sec"><div class="sb-ka-sec-title">⚡ Optimierung</div>'+optHtml+"</div></div>";
+  var lines='<div class="sb-ka-line sb-ka-line-tight">Markt: '+fmt(m.min,m.max)+"</div>"
+    +'<div class="sb-ka-line sb-ka-line-tight">Start (VB): '+fmt((p.start||{}).min,(p.start||{}).max)+"</div>"
+    +'<div class="sb-ka-line sb-ka-line-tight">Verkauf: '+fmt((p.verkauf||{}).min,(p.verkauf||{}).max)+"</div>"
+    +'<div class="sb-ka-line sb-ka-line-tight">Schnell: '+fmt((p.schnell||{}).min,(p.schnell||{}).max)+"</div>";
+  var opt=op[0]?'<div class="sb-ka-opt-one">'+esc(op[0])+"</div>":"";
+  return'<div class="sb-set-analyse-inner"><div class="sb-ka-main-title">SET ANALYSE</div><div class="sb-ka-sec-title">Preise</div><div class="sb-ka-lines">'+lines+'</div><div class="sb-ka-nf-scoreline">Score: '+(nf.score||0)+' / 10</div><div class="sb-ka-nf-txt">'+esc(nf.begruendung||"")+"</div>"+opt+"</div>";
 }
 function sbAnalyzeSet(){
   if(!setBuilderDraft)return;
   var out=document.getElementById("sb-set-analysis");if(!out)return;
-  var names=(setBuilderDraft.items||[]).map(function(i){return String(i.name||i.typ||i.scanId||"").trim();}).filter(Boolean).join(", ");
-  if(!names)names="(ohne Namen)";
-  out.innerHTML='<div class="sb-ka-loading"><span class="spin-b"></span><span>Analyse läuft…</span></div>';
-  var btn=document.getElementById("sb-analyze-btn");if(btn)btn.disabled=true;
-  gasPost("kisetmasterAnalyzeSet",{artikelNames:names},function(r){
-    if(btn)btn.disabled=false;
-    var data=null;
-    if(r&&r.ok&&r.data)data=_sbNormalizeKaAnalyse(r.data);
-    if(!data&&r&&r.ok)toast("KI-Daten unvollständig — lokale Schätzung.","inf",3600);
-    if(!data)data=sbBuildSetKaAnalyse(setBuilderDraft);
-    if(r&&!r.ok)toast(String(r.fehler||"Analyse nicht möglich"),"inf",3800);
-    sbApplyAnalyseToDraft(data);
-    out.innerHTML=sbRenderSetAnalyseCardHtml(data);
-  },function(){
-    if(btn)btn.disabled=false;
-    var data=sbBuildSetKaAnalyse(setBuilderDraft);
-    sbApplyAnalyseToDraft(data);
-    out.innerHTML=sbRenderSetAnalyseCardHtml(data);
-    toast("Offline-Schätzung (API nicht erreichbar).","inf",3200);
-  });
+  var data=sbBuildSetKaAnalyse(setBuilderDraft);
+  sbApplyAnalyseToDraft(data);
+  out.innerHTML=sbRenderSetAnalyseCardHtml(data);
 }
 function _sbNormalizePlatform(s){var t=String(s||"").toLowerCase();if(t.indexOf("playstation")>-1||/\bps\d/.test(t))return"PlayStation";if(t.indexOf("xbox")>-1)return"Xbox";if(t.indexOf("nintendo")>-1||t.indexOf("switch")>-1)return"Nintendo";if(t.indexOf("pc")>-1)return"PC";return"";}
 function _sbDetectPlatform(item){
