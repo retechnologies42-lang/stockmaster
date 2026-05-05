@@ -1,7 +1,40 @@
 
 
 
-var GAS_URL = "https://script.google.com/macros/s/AKfycbwlw7EHuZVNHd6jkL5hQ3Z301qL5YJEc5XeF1BbvLG3ECUsBSOEC6ljpVb9_jpmiA/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbyw90BjN0bb7zjDm8RrSGtRzJjSWkBfTUg4DeJ8QGirizE3O19ztk7bNsLT5t42IA/exec";
+function resolveGasUrl(){
+  var raw=String(
+    GAS_URL ||
+    (window&&window.GAS_URL) ||
+    (window&&window.__GAS_URL__) ||
+    ((window&&window.localStorage)?(localStorage.getItem("smp_gas_url")||""):"") ||
+    ""
+  ).trim();
+  raw=raw.replace(/^['"]+|['"]+$/g,"");
+  if(!raw){
+    // If app runs directly as Apps Script WebApp, use current URL.
+    var h=String((window&&window.location&&window.location.href)||"");
+    if(h.indexOf("script.google.com")>-1||h.indexOf("script.googleusercontent.com")>-1){
+      raw=h.split("?")[0].split("#")[0];
+    }
+  }
+  return raw;
+}
+function ensureGasUrlOrError(onError){
+  var url=resolveGasUrl();
+  if(!url){
+    var m0="GAS_URL fehlt. Bitte die aktuelle /exec Web-App URL setzen.";
+    if(onError)onError(m0);else toast(m0,"err");
+    return "";
+  }
+  if(url.indexOf("/dev")>-1){
+    var m1="Falsche Apps-Script URL: /dev ist nicht erlaubt. Bitte /exec verwenden.";
+    if(onError)onError(m1);else toast(m1,"err");
+    return "";
+  }
+  GAS_URL=url;
+  return url;
+}
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -31,7 +64,7 @@ window._hhLogUser=window._hhLogUser||"";window._hhLogType=window._hhLogType||"";
 // POST → save/update mit Fotos (Base64 zu groß für URL)
 // ================================================================
 function gasGet(action, data, onSuccess, onError) {
-  if(!GAS_URL){var m0="GAS_URL fehlt (Web-App URL nicht gesetzt).";if(onError)onError(m0);else toast(m0,"err");return;}
+  var base=ensureGasUrlOrError(onError);if(!base)return;
   var params = Object.assign({action: action}, data || {});
   var urlParams = [];
   for (var k in params) {
@@ -39,26 +72,38 @@ function gasGet(action, data, onSuccess, onError) {
     if (v !== null && v !== undefined && typeof v === "object") v = JSON.stringify(v);
     urlParams.push(encodeURIComponent(k) + "=" + encodeURIComponent(String(v == null ? "" : v)));
   }
-  fetch(GAS_URL + "?" + urlParams.join("&"), {method:"GET"})
+  fetch(base + "?" + urlParams.join("&"), {method:"GET"})
     .then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})
     .then(function(result){if(onSuccess)onSuccess(result);})
-    .catch(function(e){if(onError)onError(String(e));else toast("Fehler: "+e,"err");});
+    .catch(function(e){
+      var msg=String(e||"");
+      if(msg.toLowerCase().indexOf("failed to fetch")>-1){
+        msg="Failed to fetch ("+action+"). Prüfe /exec URL, Web-App Zugriff=Jeder und neue Deployment-Version.";
+      }
+      if(onError)onError(msg);else toast("Fehler: "+msg,"err");
+    });
 }
 
 function logClientActivity(o){
   gasPost("logActivity",{mitarbeiter:o.mitarbeiter||emp,aktion:o.aktion||"",details:o.details||"",typ:o.typ||"info"},function(){_cacheActivity.t=0;},function(){});
 }
 function gasPost(action, data, onSuccess, onError) {
-  if(!GAS_URL){var m0="GAS_URL fehlt (Web-App URL nicht gesetzt).";if(onError)onError(m0);else toast(m0,"err");return;}
+  var base=ensureGasUrlOrError(onError);if(!base)return;
   var payload = Object.assign({action: action}, data || {});
-  fetch(GAS_URL, {
+  fetch(base, {
     method: "POST",
     headers: {"Content-Type": "text/plain"},
     body: JSON.stringify(payload)
   })
   .then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})
   .then(function(result){if(onSuccess)onSuccess(result);})
-  .catch(function(e){if(onError)onError(String(e));else toast("Fehler: "+e,"err");});
+  .catch(function(e){
+    var msg=String(e||"");
+    if(msg.toLowerCase().indexOf("failed to fetch")>-1){
+      msg="Failed to fetch ("+action+"). Prüfe /exec URL, Web-App Zugriff=Jeder und neue Deployment-Version.";
+    }
+    if(onError)onError(msg);else toast("Fehler: "+msg,"err");
+  });
 }
 
 // Automatisch POST wenn Fotos enthalten, sonst GET
