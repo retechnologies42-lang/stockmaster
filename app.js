@@ -1,7 +1,7 @@
 
 
 
-var GAS_URL = "https://script.google.com/macros/s/AKfycbyw90BjN0bb7zjDm8RrSGtRzJjSWkBfTUg4DeJ8QGirizE3O19ztk7bNsLT5t42IA/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycby2hkZw4wrrP6WyrfDAmTxVEO6MngYfzp_f3V1xiW-mc7becIID8x-ogp0wGLwoRg/exec";
 function resolveGasUrl(){
   var raw=String(
     GAS_URL ||
@@ -809,12 +809,16 @@ function prefillStepper(item,type){
     else if(type==="spiel"){sv("f-sys",item.system);sv("f-zustand",item.zustand);sv("f-usk",item.usk);sv("f-sprache",item.sprache);sv("f-hinweise",item.hinweise);}
     else if(type==="handy"){sv("f-gb",item.speicherGB);sv("f-ram",item.ram);sv("f-farbe",item.farbe);sv("f-netz",item.netzwerk);sv("f-imei",item.imei);sv("f-zustand",item.zustand);}
     else if(type==="pc"){if(item.typ_){selPCTyp(item.typ_);}setTimeout(function(){sv("f-cpu",item.prozessor);sv("f-ram",item.ram);sv("f-gb",item.speicherGB);sv("f-stype",item.speicherTyp);sv("f-gpu",item.grafikkarte);sv("f-mb",item.mainboard);sv("f-psu",item.netzteil);sv("f-os",item.betriebssystem);sv("f-zustand",item.zustand);},60);}
-    if(item.problemTyp&&item.problemTyp!==""){
-      var pt=String(item.problemTyp||"").toLowerCase();
+    var existingProblemTyp=String(item.problemTyp||"").trim();
+    if(!existingProblemTyp&&item.kategorien&&String(item.kategorien).toLowerCase().indexOf("defekt")>-1){
+      existingProblemTyp="relevanter_schaden";
+    }
+    if(existingProblemTyp){
+      var pt=String(existingProblemTyp||"").toLowerCase();
       var mapped=(pt==="physisch"||pt==="software")?"major":(pt.indexOf("leicht")>-1?"light":"major");
       selProb(mapped);
       setTimeout(function(){
-        sv("f-prob-beschr",item.problemBeschr);
+        sv("f-prob-beschr",item.problemBeschr||"");
       },60);
     } else {selProb("none");}
     if(item.kaFotos&&item.kaFotos.length>0){photos=item.kaFotos.map(function(b64){return{b64:b64,name:"foto.jpg"};});}
