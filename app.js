@@ -12,7 +12,7 @@ var curCat="", curType="";
 var forcedSpielSystem="";
 var stepCur=1, stepTotal=6;
 var probChoice=null;
-var photos=[];
+var photos=[],damagePhotos=[];
 var editingItem=null, isEditMode=false;
 var testRowNum=-1, timerInterval=null;
 var SNAMES={konsole:["Barcode","Name","Details","Mängel","Fotos","Zusammenfassung"],spiel:["Barcode","Titel","Details","Mängel","Fotos","Zusammenfassung"],controller:["Barcode","Controller","Details","Mängel","Fotos","Zusammenfassung"],handy:["Barcode","Modell","Details","Mängel","Fotos","Zusammenfassung"],pc:["Barcode","Modell","Details","Mängel","Fotos","Zusammenfassung"]};
@@ -869,14 +869,14 @@ function renderDamageStepUI(){
       '<button class="inb-card dmg-card" id="pb-major" onclick="selProb(\'major\')" style="grid-column:1/-1"><span class="inb-ic">❗</span><span class="inb-t">Relevanter Schaden</span></button>'+
     '</div>'+
     '<div id="prob-descr-row" style="display:none;margin-top:10px"><label class="fl">Beschreibung</label><textarea id="f-prob-beschr" class="fc sm-soft" placeholder="z. B. Trigger klemmt leicht"></textarea></div>'+
-    '<div id="damage-photo-row" style="display:none;margin-top:10px"><label class="fl">Bilder</label><div class="photo-zone"><div class="pz-top" onclick="triggerPhotoInput(\'gallery\');setTimeout(renderDamageInlinePhotos,120)"><i class="bi bi-camera-plus"></i><div class="pz-l">Fotos hinzufügen</div><div class="pz-s">Max. 12 Fotos</div></div><div class="pz-btns"><button class="pz-btn" onclick="triggerPhotoInput(\'cam\');setTimeout(renderDamageInlinePhotos,120)"><i class="bi bi-camera me-1"></i>KAMERA</button><button class="pz-btn" onclick="triggerPhotoInput(\'gallery\');setTimeout(renderDamageInlinePhotos,120)"><i class="bi bi-images me-1"></i>GALERIE</button></div></div><div id="damage-photo-grid" class="photo-thumbs"></div></div>';
+    '<div id="damage-photo-row" style="display:none;margin-top:10px"><label class="fl">Defekt-Fotos</label><div class="photo-zone"><div class="pz-top" onclick="triggerPhotoInput(\'gallery\',\'damage\');setTimeout(renderDamageInlinePhotos,120)"><i class="bi bi-camera-plus"></i><div class="pz-l">Fotos hinzufügen</div><div class="pz-s">Max. 12 Fotos</div></div><div class="pz-btns"><button class="pz-btn" onclick="triggerPhotoInput(\'cam\',\'damage\');setTimeout(renderDamageInlinePhotos,120)"><i class="bi bi-camera me-1"></i>KAMERA</button><button class="pz-btn" onclick="triggerPhotoInput(\'gallery\',\'damage\');setTimeout(renderDamageInlinePhotos,120)"><i class="bi bi-images me-1"></i>GALERIE</button></div></div><div id="damage-photo-grid" class="photo-thumbs"></div></div>';
   renderDamageInlinePhotos();
 }
 function renderDamageInlinePhotos(){
   var g=document.getElementById("damage-photo-grid");if(!g)return;
   g.innerHTML="";
-  (photos||[]).forEach(function(p,i){
-    var d=document.createElement("div");d.className="photo-thumb";d.innerHTML='<img src="'+p.b64+'"/><button class="rm-thumb" onclick="removePhoto('+i+');renderDamageInlinePhotos()">✕</button>';g.appendChild(d);
+  (damagePhotos||[]).forEach(function(p,i){
+    var d=document.createElement("div");d.className="photo-thumb";d.innerHTML='<img src="'+p.b64+'"/><button class="rm-thumb" onclick="removePhoto('+i+',\'damage\');renderDamageInlinePhotos()">✕</button>';g.appendChild(d);
   });
   updateMangelCTA();
 }
@@ -886,7 +886,7 @@ function updateMangelCTA(){
   var ok=true,msg="Weiter";
   if(!probChoice){ok=false;msg="Mangel auswählen";}
   else if(probChoice==="major"&&!gv("f-prob-beschr").trim()){ok=false;msg="Beschreibung erforderlich";}
-  else if(probChoice==="major"&&photos.length===0){ok=false;msg="Bild erforderlich";}
+  else if(probChoice==="major"&&damagePhotos.length===0){ok=false;msg="Defekt-Bild erforderlich";}
   bn.disabled=!ok;bn.textContent=msg;
 }
 function selHTML(id,opts){return'<select id="'+id+'" class="fc"><option value="">– Auswählen –</option>'+opts.map(function(o){return o?'<option>'+o+'</option>':'';}).join("")+'</select>';}
@@ -923,11 +923,13 @@ function updateProgress(){
 function showStep(n){for(var i=1;i<=stepTotal;i++){var el=document.getElementById("st-s"+i);if(el){el.classList.remove("on");if(i===n)el.classList.add("on");}}}
 function jumpToStepperStep(n){
   n=parseInt(n,10);if(isNaN(n)||n<1||n>stepTotal)return;
+  if(n>=5&&!gv("f-scanid").trim()){toast("Bitte zuerst QR-/Barcode scannen.","err");return;}
   stepCur=n;updateProgress();showStep(stepCur);window.scrollTo({top:0,behavior:"smooth"});
   if(stepCur===5){try{updatePriceSuggest();}catch(e){}}
 }
 function stepNext(){
   if(stepCur===1){hideD("s1-diag");
+    if(!gv("f-scanid").trim()){toast("Bitte zuerst QR-/Barcode scannen.","err");return;}
     // Pre-fill name from EK check context
     if(window._ekCheckPreFillName){setTimeout(function(){var nEl=document.getElementById("f-name");if(nEl&&!nEl.value)nEl.value=window._ekCheckPreFillName;window._ekCheckPreFillName=null;},50);}
   }
@@ -939,7 +941,7 @@ function stepNext(){
   if(stepCur===4){
     if(!probChoice){toast("Mängel auswählen.","err");createDraftIncompleteTask(["Mängelstatus"]);return;}
     if(probChoice==="major"&&!gv("f-prob-beschr").trim()){toast("Beschreibung für relevanten Schaden erforderlich.","err");return;}
-    if(probChoice==="major"&&photos.length===0){toast("Mindestens 1 Bild bei relevantem Schaden erforderlich.","err");return;}
+    if(probChoice==="major"&&damagePhotos.length===0){toast("Mindestens 1 Defekt-Foto bei relevantem Schaden erforderlich.","err");return;}
   }
   if(stepCur===5){
     if(photos.length===0){toast("Mindestens 1 Foto erforderlich.","err");createDraftIncompleteTask(["Foto"]);return;}
@@ -1101,24 +1103,30 @@ function stopCam(){camStop();}
 // ── FOTOS ─────────────────────────────────────────────────────────
 function triggerPhotoInput(mode){
   var useCam=mode==="cam";
-  var id=useCam?"f-photo-cam":"f-photo-gallery";
+  var target=(arguments.length>1&&arguments[1]==="damage")?"damage":"main";
+  var id=(useCam?"f-photo-cam":"f-photo-gallery")+"-"+target;
   var el=document.getElementById(id);
   if(!el){
     el=document.createElement("input");
     el.type="file";
     el.accept="image/*";
+    el.multiple=true;
     if(useCam)el.setAttribute("capture","environment");
     el.id=id;
     el.style.cssText="position:absolute;left:-9999px;width:1px;height:1px;opacity:0";
     document.body.appendChild(el);
   }
-  el.onchange=function(){if(this.files&&this.files[0])processPhotoFile(this.files[0]);this.value="";};
+  el.onchange=function(){
+    var files=this.files||[];
+    for(var i=0;i<files.length;i++)processPhotoFile(files[i],target);
+    this.value="";
+  };
   el.click();
 }
-function processPhotoFile(file){if(!file)return;if(file.size>15*1024*1024){toast("Max. 15 MB pro Foto.","err");return;}if(photos.length>=12){toast("Maximal 12 Bilder pro Produkt.","err");return;}var name=(file.name||"foto.jpg").replace(/[^a-zA-Z0-9._-]/g,"_");var img=new Image(),url=URL.createObjectURL(file);img.onload=function(){URL.revokeObjectURL(url);var MAX=1200,w=img.width,h=img.height;if(w>MAX||h>MAX){if(w>h){h=Math.round(h*(MAX/w));w=MAX;}else{w=Math.round(w*(MAX/h));h=MAX;}}var canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;var ctx=canvas.getContext("2d");ctx.fillStyle="#ffffff";ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);var b64=canvas.toDataURL("image/jpeg",0.78);if(!b64||b64.indexOf("base64,")===-1){toast("Bild konnte nicht verarbeitet werden.","err");return;}photos.push({b64:b64,name:name});renderAllPhotos();renderDamageInlinePhotos();toast("Foto hinzugefügt ✅","ok",2000);};img.onerror=function(){toast("Bild konnte nicht geladen werden.","err");};img.src=url;}
+function processPhotoFile(file,target){if(!file)return;var arr=target==="damage"?damagePhotos:photos;if(file.size>15*1024*1024){toast("Max. 15 MB pro Foto.","err");return;}if(arr.length>=12){toast("Maximal 12 Bilder pro Kategorie.","err");return;}var name=(file.name||"foto.jpg").replace(/[^a-zA-Z0-9._-]/g,"_");var img=new Image(),url=URL.createObjectURL(file);img.onload=function(){URL.revokeObjectURL(url);var MAX=1200,w=img.width,h=img.height;if(w>MAX||h>MAX){if(w>h){h=Math.round(h*(MAX/w));w=MAX;}else{w=Math.round(w*(MAX/h));h=MAX;}}var canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;var ctx=canvas.getContext("2d");ctx.fillStyle="#ffffff";ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);var b64=canvas.toDataURL("image/jpeg",0.78);if(!b64||b64.indexOf("base64,")===-1){toast("Bild konnte nicht verarbeitet werden.","err");return;}arr.push({b64:b64,name:name});renderAllPhotos();renderDamageInlinePhotos();toast("Foto hinzugefügt ✅","ok",2000);};img.onerror=function(){toast("Bild konnte nicht geladen werden.","err");};img.src=url;}
 function renderAllPhotos(){var mw=document.getElementById("photo-main-wrap"),thumbs=document.getElementById("photo-thumbs");if(!mw||!thumbs)return;mw.innerHTML="";thumbs.innerHTML="";if(photos.length===0){renderAddThumbBtn();return;}mw.innerHTML='<div class="photo-main-preview" style="max-height:120px"><img src="'+photos[0].b64+'" style="max-height:120px;object-fit:cover"/><div style="display:flex;gap:6px;position:absolute;right:6px;bottom:6px"><button class="rm-main-photo" onclick="movePhoto(0,1)" style="position:static">↓</button><button class="rm-main-photo" onclick="removePhoto(0)" style="position:static">✕</button></div></div>';for(var i=1;i<photos.length;i++){var div=document.createElement("div");div.className="photo-thumb";div.style.width="48px";div.style.height="48px";div.style.position="relative";div.innerHTML='<img src="'+photos[i].b64+'" style="object-fit:cover"/><button class="rm-thumb" onclick="removePhoto('+i+')">✕</button><button class="rm-thumb" style="right:22px" onclick="movePhoto('+i+','+(i-1)+')">↑</button>';thumbs.appendChild(div);}renderAddThumbBtn();}
 function renderAddThumbBtn(){var t=document.getElementById("photo-thumbs");if(!t)return;var btn=document.createElement("div");btn.className="add-thumb";btn.innerHTML='<i class="bi bi-plus"></i>';btn.onclick=function(){triggerPhotoInput("gallery");};t.appendChild(btn);}
-function removePhoto(idx){photos.splice(idx,1);renderAllPhotos();renderDamageInlinePhotos();}
+function removePhoto(idx,target){var arr=target==="damage"?damagePhotos:photos;arr.splice(idx,1);renderAllPhotos();renderDamageInlinePhotos();}
 function movePhoto(from,to){from=parseInt(from,10);to=parseInt(to,10);if(isNaN(from)||isNaN(to)||from<0||to<0||from>=photos.length||to>=photos.length||from===to)return;var it=photos.splice(from,1)[0];photos.splice(to,0,it);renderAllPhotos();}
 
 // ── SAVE ──────────────────────────────────────────────────────────
@@ -1130,13 +1138,15 @@ function doSave(){
   var probTyp=probChoice==="none"?"":(probChoice==="major"?"relevanter_schaden":"leichte_gebrauchsspuren");
   var probD=probChoice==="none"?"":(gv("f-prob-beschr"));
   var fotoB64arr=photos.map(function(p){return p.b64;});
-  if(fotoB64arr.length>12){setBL(btn,false,orig);toast("Maximal 12 Bilder erlaubt.","err");return;}
+  var defektB64arr=damagePhotos.map(function(p){return p.b64;});
+  if(fotoB64arr.length>12||defektB64arr.length>12){setBL(btn,false,orig);toast("Maximal 12 Bilder pro Kategorie erlaubt.","err");return;}
   var zustF=(gv("f-zustand")||"").trim();
   var miss=[];
   if(!name)miss.push("Name");
   if(!(parseFloat(gv("f-einkaufspreis")||0)>0))miss.push("Preis");
   if(!zustF)miss.push("Zustand");
   if(fotoB64arr.length<1)miss.push("Foto");
+  if(probChoice==="major"&&defektB64arr.length<1)miss.push("Defekt-Foto");
   if(miss.length){setBL(btn,false,orig);createDraftIncompleteTask(miss);toast("Pflichtfelder fehlen: "+miss.join(", "),"err");return;}
   var dup=(allItems||[]).find(function(it){
     if(!it||it.type==="setbundle"||it.type==="defekt")return false;
@@ -1151,7 +1161,7 @@ function doSave(){
     window._saveDupBypass=true;
   }
   if(curType==="controller"&&!scanId){scanId="CTRL-"+Date.now();}
-  var d={scanId:scanId,mitarbeiter:ma,problemTyp:probTyp,problemBeschr:probD,fotos:fotoB64arr,
+  var d={scanId:scanId,mitarbeiter:ma,problemTyp:probTyp,problemBeschr:probD,fotos:defektB64arr,kaFotos:fotoB64arr,
          einkaufspreis:gv("f-einkaufspreis"),warentyp:gv("f-warentyp")||"Gebraucht"};
   var fn="";
 
@@ -1172,7 +1182,7 @@ function doSave(){
   );
 }
 
-function resetStepperState(){probChoice=null;photos=[];["f-scanid","f-name","f-ma","f-prob-beschr","f-einkaufspreis"].forEach(function(id){var e=document.getElementById(id);if(e)e.value="";});var mw=document.getElementById("photo-main-wrap");if(mw)mw.innerHTML="";var pt=document.getElementById("photo-thumbs");if(pt)pt.innerHTML="";var pdr=document.getElementById("prob-descr-row");if(pdr)pdr.style.display="none";var phr=document.getElementById("damage-photo-row");if(phr)phr.style.display="none";// Fix 1: Barcode-Banner zurücksetzen
+function resetStepperState(){probChoice=null;photos=[];damagePhotos=[];["f-scanid","f-name","f-ma","f-prob-beschr","f-einkaufspreis"].forEach(function(id){var e=document.getElementById(id);if(e)e.value="";});var mw=document.getElementById("photo-main-wrap");if(mw)mw.innerHTML="";var pt=document.getElementById("photo-thumbs");if(pt)pt.innerHTML="";var pdr=document.getElementById("prob-descr-row");if(pdr)pdr.style.display="none";var phr=document.getElementById("damage-photo-row");if(phr)phr.style.display="none";// Fix 1: Barcode-Banner zurücksetzen
 var so=document.getElementById("scan-ok");if(so)so.style.display="none";var sv2=document.getElementById("scan-ok-val");if(sv2)sv2.textContent="";// Fix 2: Mängel-Buttons zurücksetzen
 ["pb-none","pb-light","pb-major"].forEach(function(id){var e=document.getElementById(id);if(e)e.classList.remove("on");});stopCam();}
 function ensureSeparatePhotoStep(){
@@ -1459,7 +1469,7 @@ function mkCard(item){
   cardRegistry.push(item);
   var actions='<div class="lager-actions">';
   if(item.type==="setbundle"){actions+='<button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDeleteSetBundle('+rIdx+')" title="Set löschen"><i class="bi bi-trash3"></i></button>';}
-  else if(item.type!=="defekt"){actions+='<button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation();openEditStepper('+rIdx+')" title="Bearbeiten"><i class="bi bi-pencil-fill"></i></button><button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDelete('+rIdx+')" title="Löschen"><i class="bi bi-trash3"></i></button>';}
+  else if(item.type!=="defekt"){actions+='<button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation();openEditStepper('+rIdx+')" title="Bearbeiten"><i class="bi bi-pencil-fill"></i></button><button class="btn btn-outline-secondary btn-sm" onclick="event.stopPropagation();quickClearPriceField('+rIdx+',\'ek\')" title="EK löschen">EK</button><button class="btn btn-outline-secondary btn-sm" onclick="event.stopPropagation();quickClearPriceField('+rIdx+',\'vk\')" title="VK löschen">VK</button><button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDelete('+rIdx+')" title="Löschen"><i class="bi bi-trash3"></i></button>';}
   else{actions+='<button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDeleteDefekt('+rIdx+')" title="Löschen"><i class="bi bi-trash3"></i></button>';}
   actions+='</div>';
   var saleMark=inVkSale?'<span class="lager-tag" style="border-color:rgba(255,204,0,.4);color:var(--col-y)">Im Verkauf</span>':"";
@@ -1468,6 +1478,31 @@ function mkCard(item){
   return '<div class="lager-card'+saleCls+'" onclick="openDetail('+rIdx+')" style="cursor:pointer"><div class="lager-head"><div class="lager-title"'+titleStyle+'>'+esc(nm)+condBadge+'</div>'+actions+'</div><div class="lager-card-row"><div class="lager-thumb">'+(preview?'<img src="'+esc(preview)+'" loading="lazy"/>':'<div style="font-size:20px;display:flex;align-items:center;justify-content:center;width:100%;height:100%">📦</div>')+'</div><div><div class="lager-price">'+esc(priceLabel)+'</div><div class="lager-sub">'+esc(condition)+' • '+esc(catLabel)+'</div><div class="lager-tags">'+saleMark+tagsHtml+'</div>'+meta+(note?'<div style="font-size:11px;color:#9ca3af;margin-top:6px">'+esc(note)+'</div>':"")+(setHintText?'<div class="lager-sethint" onclick="event.stopPropagation();openSetInfoOverlay('+rIdx+')"><i class="bi bi-link-45deg"></i>'+esc(setHintText)+'</div>':'')+'</div></div></div>';
 }
 function getSetRowsCached(){return Array.isArray(setRowsCache)?setRowsCache:[];}
+function _updateActionForType(item){
+  if(item.type==="konsole"||item.type==="allgemein")return"updateKonsole";
+  if(item.type==="spiel"||item.type==="controller")return"updateSpiel";
+  if(item.type==="handy")return"updateHandy";
+  if(item.type==="pc")return"updatePC";
+  return"";
+}
+function _buildUpdatePayloadFromItem(item){
+  var d={rowIndex:item.rowIndex,scanId:item.scanId||"",mitarbeiter:item.mitarbeiter||emp||"",problemTyp:item.problemTyp||"",problemBeschr:item.problemBeschr||"",fotos:item.fotos||[],kaFotos:item.kaFotos||[],einkaufspreis:item.einkaufspreis||"",warentyp:item.warentyp||"Gebraucht"};
+  if(item.type==="konsole"||item.type==="allgemein"){d.name=item.name||item.modell||"";d.speicherGB=item.speicherGB||"";d.farbe=item.farbe||"";d.zustand=item.zustand||"";d.hinweise=item.hinweise||"";}
+  else if(item.type==="spiel"){d.spiel=item.spiel||item.name||"";d.system=item.system||"";d.zustand=item.zustand||"";d.usk=item.usk||"";d.sprache=item.sprache||"";d.hinweise=item.hinweise||"";}
+  else if(item.type==="controller"){d.spiel=item.spiel||item.name||"";d.system=item.system||"Controller-Universal";d.zustand=item.zustand||"";d.usk=item.usk||"";d.sprache=item.sprache||"";d.hinweise=item.hinweise||"";}
+  else if(item.type==="handy"){d.modell=item.modell||item.name||"";d.speicherGB=item.speicherGB||"";d.ram=item.ram||"";d.farbe=item.farbe||"";d.netzwerk=item.netzwerk||"";d.imei=item.imei||"";d.zustand=item.zustand||"";}
+  else if(item.type==="pc"){d.modell=item.modell||item.name||"";d.typ=item.typ||"Desktop";d.prozessor=item.prozessor||"";d.ram=item.ram||"";d.speicherGB=item.speicherGB||"";d.speicherTyp=item.speicherTyp||"";d.grafikkarte=item.grafikkarte||"";d.mainboard=item.mainboard||"";d.netzteil=item.netzteil||"";d.anschluesse=item.anschluesse||"";d.betriebssystem=item.betriebssystem||"";d.zustand=item.zustand||"";}
+  return d;
+}
+function quickClearPriceField(rIdx,kind){
+  var item=cardRegistry[rIdx];if(!item)return;
+  var fn=_updateActionForType(item);if(!fn){toast("Nicht verfügbar.","err");return;}
+  var payload=_buildUpdatePayloadFromItem(item);
+  if(kind==="ek"){payload.einkaufspreis="";item.einkaufspreis="";}
+  else{item.kaPreis="";item.kaPreisTyp="";if(payload.kaPreis!=null)payload.kaPreis="";if(payload.kaPreisTyp!=null)payload.kaPreisTyp="";}
+  renderList();
+  gasPost(fn,payload,function(r){if(r&&r.ok){toast((kind==="ek"?"EK":"VK")+" gelöscht.","ok");}else{toast("Fehler: "+(r?r.fehler:"?"),"err");loadAll(true);}},function(){toast("Fehler beim Speichern","err");loadAll(true);});
+}
 function ensureAddToSetModal(){
   if(document.getElementById("addset-modal-overlay"))return;
   var ov=document.createElement("div");
@@ -1587,7 +1622,7 @@ function confirmDeleteSetBundle(rIdx){
   if(btn){
     btn.innerHTML='<i class="bi bi-trash3 me-1"></i>LÖSCHEN';
     btn.className="btn btn-danger fw-bold";
-    btn.onclick=function(){closeDelModal();gasGet("deleteSetBundle",{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast("Set gelöscht.","ok");allItems=[];loadAll();loadStats();}else{toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){toast("Fehler: "+e,"err");});};
+    btn.onclick=function(){closeDelModal();var backup=(allItems||[]).slice();_removeLocalInventoryRow(item);gasGet("deleteSetBundle",{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast("Set gelöscht.","ok");loadStats();}else{allItems=backup;renderList();toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){allItems=backup;renderList();toast("Fehler: "+e,"err");});};
   }
   document.getElementById("del-modal").classList.add("open");
 }
@@ -1603,9 +1638,17 @@ function confirmDeleteDefekt(rIdx){
   document.getElementById("del-modal").classList.add("open");
 }
 function closeDelModal(){document.getElementById("del-modal").classList.remove("open");}
-function doDelete(item){var fns={konsole:"deleteKonsole",spiel:"deleteSpiel",controller:"deleteSpiel",handy:"deleteHandy",pc:"deletePC"};var fn=fns[item.type];if(!fn){toast("Nicht verfügbar.","err");return;}gasGet(fn,{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast(r.msg,"ok");allItems=[];loadAll();loadStats();}else{toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){toast("Fehler: "+e,"err");});}
+function _removeLocalInventoryRow(item){
+  var key=String(item&&item.rowIndex!=null?item.rowIndex:"");
+  var typ=String(item&&item.type||"");
+  allItems=(allItems||[]).filter(function(i){return !(String(i.rowIndex||"")===key&&String(i.type||"")===typ);});
+  _loadAllCache=(_loadAllCache||[]).filter(function(i){return !(String(i.rowIndex||"")===key&&String(i.type||"")===typ);});
+  renderList();updateMyStats();
+}
+function doDelete(item){var fns={konsole:"deleteKonsole",spiel:"deleteSpiel",controller:"deleteSpiel",handy:"deleteHandy",pc:"deletePC"};var fn=fns[item.type];if(!fn){toast("Nicht verfügbar.","err");return;}var backup=(allItems||[]).slice();_removeLocalInventoryRow(item);gasGet(fn,{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast(r.msg,"ok");loadStats();}else{allItems=backup;renderList();toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){allItems=backup;renderList();toast("Fehler: "+e,"err");});}
 function doDeleteDefekt(item){
-  gasGet("deleteDefekt",{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast(r.msg,"ok");allItems=[];loadAll();loadStats();}else{toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){toast("Fehler: "+e,"err");});
+  var backup=(allItems||[]).slice();_removeLocalInventoryRow(item);
+  gasGet("deleteDefekt",{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast(r.msg,"ok");loadStats();}else{allItems=backup;renderList();toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){allItems=backup;renderList();toast("Fehler: "+e,"err");});
 }
 
 // ── SUCHE ─────────────────────────────────────────────────────────
@@ -2315,6 +2358,10 @@ function mkHandelCard(item,type,idx){
   var isVk=(type==="verkauf");
   var meta='<span class="wf-meta">'+esc(String(item.datum||"").slice(0,16))+'</span>';
   meta+='<span class="wf-meta">Kunde: '+esc(item.kunde||"–")+'</span>';
+  if(isVk){
+    var c=_vkCategoryLabel(item);
+    if(c)meta+='<span class="wf-meta dim">Kategorie: '+esc(c)+'</span>';
+  }
   if(item.mitarbeiter) meta+='<span class="wf-meta dim">Verkäufer: '+esc(item.mitarbeiter)+"</span>";
   var priceHtml="";
   var margeHtml="";
@@ -2374,6 +2421,16 @@ function mkHandelCard(item,type,idx){
     +sendeHtml
     +actions
     +"</div>";
+}
+function _vkCategoryLabel(v){
+  var ids=String(v.scanIds||"").split(/[,;\s]+/).map(function(x){return String(x||"").trim();}).filter(Boolean);
+  if(!ids.length)return"";
+  var map={konsole:"Nintendo/PlayStation/Xbox",spiel:"Spiele",controller:"Controller",handy:"Handy",pc:"PC"};
+  for(var i=0;i<ids.length;i++){
+    var it=(allItems||[]).find(function(x){return String(x.scanId||"").trim()===ids[i];});
+    if(it&&map[it.type])return map[it.type];
+  }
+  return"";
 }
 
 function getLsDot(ls){
@@ -4407,17 +4464,17 @@ var FOTO_GUIDES={
 function showPhotoGuide(type){
   var box=document.getElementById("photo-guide-box");if(!box)return;
   var tips=buildAIFotoTips(type);
-  box.innerHTML='<div class="photo-guide-title"><i class="bi bi-stars" style="font-size:14px"></i>KI Foto-Tipps</div>'+
+  box.innerHTML='<div class="photo-guide-title"><i class="bi bi-stars" style="font-size:14px"></i>Foto-Tipps</div>'+
     tips.map(function(g,i){return'<div class="photo-guide-item"><div class="photo-guide-num">'+(i+1)+'</div><span>'+esc(g)+'</span></div>';}).join("");
 }
 function buildAIFotoTips(type){
   var nm=String(gv("f-name")||"").trim()||String(type||"Produkt");
   var base=[
-    "1. Hauptbild: "+nm+" mittig auf hellem, ruhigem Hintergrund. Kein Blitz, leicht schräger Winkel (ca. 30°).",
-    "2. Detailbild: Zustand zeigen (Kratzer, Tasten, Kanten, Ports) mit sauberem Fokus.",
-    "3. Umfang: Zubehör/Teile ordentlich auslegen und vollständig sichtbar machen.",
-    "4. Vertrauen: Seriennummer oder relevante Rückseite klar und scharf fotografieren.",
-    "5. Vermeiden: dunkle Bilder, unruhiger Hintergrund, abgeschnittene Objekte."
+    nm+" mittig platzieren und vollständig im Bild halten.",
+    "Hellen, ruhigen Hintergrund nutzen und Schatten vermeiden.",
+    "Zustand mit einer Nahaufnahme zeigen (Kanten, Ports, Tasten).",
+    "Zubehör vollständig und geordnet daneben legen.",
+    "Unscharfe oder zu dunkle Bilder direkt neu aufnehmen."
   ];
   var extra={
     konsole:["Bonus: Konsole, Controller und Spiele in einem cleanen Bundle-Bild arrangieren."],
@@ -5868,7 +5925,7 @@ function _beginEKStoreEinlagern(){
     }else if(st==="handy"){
       var zh=document.getElementById("f-zustand");if(zh&&!zh.value)zh.value=item.checkZustand||"Gut";
     }
-    jumpToStepperStep(5);
+    jumpToStepperStep(1);
     fillMA();
   },180);
 }
@@ -6310,10 +6367,10 @@ function sbBuildFromSelection(){
   var picks=pool.filter(function(i){return ids.indexOf(String(i.rowIndex||i.scanId||""))>-1;});
   if(!picks.length){toast("Bitte Artikel auswählen.","err");return;}
   var total=picks.reduce(function(s,i){return s+(parseFloat(i.einkaufspreis||0)||0);},0);
-  var sumEinzel=Math.round(total*1.35*100)/100;
+  var sumEinzel=Math.round(picks.reduce(function(s,i){return s+_sbSaleVal(i);},0)*100)/100;
   var fastMin=Math.round(sumEinzel*0.80*100)/100,fastMax=Math.round(sumEinzel*0.90*100)/100;
   var maxMin=Math.round(sumEinzel*0.95*100)/100,maxMax=Math.round(sumEinzel*1.00*100)/100;
-  setBuilderDraft={name:"Bundle Set",plattform:"Kleinanzeigen",budget:0,zustand:"Gebraucht",items:picks.map(function(i){return{typ:i.type,name:i.name||i.spiel||i.modell||i.scanId,scanId:i.scanId||"",ek:parseFloat(i.einkaufspreis||0)||0};}),total:Math.round(total*100)/100,sumEinzel:sumEinzel,priceFastMin:fastMin,priceFastMax:fastMax,priceMaxMin:maxMin,priceMaxMax:maxMax};
+  setBuilderDraft={name:"Bundle Set",plattform:"Kleinanzeigen",budget:0,zustand:"Gebraucht",items:picks.map(function(i){return{typ:i.type,name:i.name||i.spiel||i.modell||i.scanId,scanId:i.scanId||"",ek:parseFloat(i.einkaufspreis||0)||0,vk:_sbSaleVal(i),setId:i.setId||"",setName:i.setName||""};}),total:Math.round(total*100)/100,sumEinzel:sumEinzel,priceFastMin:fastMin,priceFastMax:fastMax,priceMaxMin:maxMin,priceMaxMax:maxMax};
   renderSetDraftResult();
 }
 function renderSetDraftResult(){
@@ -6349,19 +6406,26 @@ function showCenterSuccess(msg){
 function sbAddSetImage(){var inp=document.createElement("input");inp.type="file";inp.accept="image/*";inp.onchange=function(){if(!this.files||!this.files[0])return;var fr=new FileReader();fr.onload=function(){if(setDraftImages.length<10)setDraftImages.push(String(fr.result||""));sbRenderSetImages();};fr.readAsDataURL(this.files[0]);};inp.click();}
 function sbRenderSetImages(){var el=document.getElementById("sb-set-images");if(!el)return;el.innerHTML=(setDraftImages||[]).map(function(b,i){return'<div class="card-foto" style="width:44px;height:44px"><img src="'+esc(b)+'"/><button class="rm-thumb" onclick="setDraftImages.splice('+i+',1);sbRenderSetImages()">✕</button></div>';}).join("")+'<div class="add-thumb" style="width:44px;height:44px" onclick="sbAddSetImage()"><i class="bi bi-plus"></i></div>';}
 function _sbPair(lo,hi){lo=Math.round(lo*100)/100;hi=Math.round(hi*100)/100;if(lo>hi){var t=lo;lo=hi;hi=t;}if(lo<0)lo=0;return{min:lo,max:hi};}
+function _sbSaleVal(it){
+  var v=parseFloat(it.verkauf||it.vk||it.kaPreis||it.verkaufspreis||0);
+  if(!isNaN(v)&&v>0)return v;
+  var ek=parseFloat(it.ek||it.einkaufspreis||0)||0;
+  return ek>0?ek*1.45:0;
+}
 function sbBuildSetKaAnalyse(draft){
   var items=draft.items||[],cnt=items.length;
-  var sumEk=0;
-  for(var i=0;i<cnt;i++){sumEk+=parseFloat(items[i].ek||0)||0;}
-  sumEk=Math.round(sumEk*100)/100;
-  if(cnt<1||sumEk<=0){
-    return{marktwert:{min:0,max:0},preise:{start:{min:0,max:0},verkauf:{min:0,max:0},schnell:{min:0,max:0}},nachfrage:{score:0,begruendung:"Keine Artikel / keine EK-Werte."},optimierung:["Set aus Lager wählen oder Eingabe anpassen."]};
+  var salesVals=[];
+  for(var i=0;i<cnt;i++){var sv=_sbSaleVal(items[i]);if(sv>0)salesVals.push(sv);}
+  if(cnt<1||!salesVals.length){
+    return{marktwert:{min:0,max:0},preise:{start:{min:0,max:0},verkauf:{min:0,max:0},schnell:{min:0,max:0}},nachfrage:{score:0,begruendung:"Keine verwertbaren Verkaufswerte."},optimierung:["Set aus Lager wählen oder Verkaufswerte ergänzen."]};
   }
-  var markt=_sbPair(sumEk*0.97,sumEk*1.03);
+  var avg=salesVals.reduce(function(s,v){return s+v;},0)/salesVals.length;
+  var span=Math.max(4,avg*0.12);
+  var markt=_sbPair(avg-span,avg+span);
   var preise={
-    start:_sbPair(sumEk*1.12,sumEk*1.18),
-    verkauf:_sbPair(sumEk*0.96,sumEk*1.04),
-    schnell:_sbPair(sumEk*0.82,sumEk*0.88)
+    start:_sbPair(markt.max*1.03,markt.max*1.12),
+    verkauf:_sbPair(markt.min*0.98,markt.max*1.02),
+    schnell:_sbPair(markt.min*0.84,markt.min*0.93)
   };
   var types=items.map(function(it){return String(it.typ||it.type||"?");});
   var freq={},ti;
@@ -6369,16 +6433,18 @@ function sbBuildSetKaAnalyse(draft){
   var maxC=0;for(var k in freq)if(freq[k]>maxC)maxC=freq[k];
   var distinct=0;for(var k2 in freq)distinct++;
   var mix=distinct>2||(distinct===2&&maxC===1);
-  var score=Math.max(1,Math.min(10,Math.round(3+(maxC/cnt)*6-(mix?2:0)+(cnt>=4?1:0))));
-  var beg="EK-Summe "+sumEk.toFixed(2)+" € · "+cnt+" Artikel · "+distinct+" Produkttyp(en) · häufigster Typ "+(maxC===cnt?"einheitlich":"gemischt")+".";
+  var hasSetRef=items.filter(function(it){return String(it.setId||it.setName||"").trim();}).length>0;
+  var score=Math.max(1,Math.min(10,Math.round(4+(maxC/cnt)*5-(mix?1:0)+(cnt>=4?1:0)+(hasSetRef?1:0))));
+  var demandTag=score>=8?"stark":(score>=5?"mittel":"niedrig");
+  var beg=cnt+" Artikel · "+distinct+" Typ(en) · Nachfrage "+demandTag+" · Kombination "+(maxC===cnt?"fokussiert":"gemischt")+".";
   var onlySpiele=cnt>0&&items.every(function(it){return String(it.typ||it.type)==="spiel";});
   var hasKonsole=items.some(function(it){return String(it.typ||it.type)==="konsole"||String(it.typ||it.type)==="pc";});
   var hasSpiele=items.some(function(it){return String(it.typ||it.type)==="spiel";});
   var opt;
-  if(onlySpiele)opt="Nur Spiele — Bundle mit passender Konsole steigert Nachfrage.";
-  else if(hasKonsole&&hasSpiele)opt="Konsole + Spiele — sinnvolles Kleinanzeigen-Paket.";
-  else if(hasKonsole&&!hasSpiele)opt="Konsole ohne Spiele — passende Titel ergänzen.";
-  else opt="Zusammenstellung "+cnt+" Teile — Preis an Verkaufs-Spanne ausrichten.";
+  if(onlySpiele)opt="Nur Spiele-Set: Konsole ergänzen erhöht Abschlussquote.";
+  else if(hasKonsole&&hasSpiele)opt="Konsole + Spiele passt gut zum aktuellen Nachfrageprofil.";
+  else if(hasKonsole&&!hasSpiele)opt="Konsole ohne Spiele: 1-2 passende Titel als Hebel ergänzen.";
+  else opt="Kombination aus "+cnt+" Teilen: Preis eng an der Verkaufs-Spanne halten.";
   return{marktwert:markt,preise:preise,nachfrage:{score:score,begruendung:beg},optimierung:[opt]};
 }
 function sbApplyAnalyseToDraft(data){
@@ -6464,8 +6530,8 @@ function buildSetWithAI(onDone){
     return;
   }
   var setTitle=(raw.split("\n")[0]||"Set").trim().substring(0,80)||plat+" Set";
-  setBuilderDraft={name:setTitle,plattform:plat,budget:budget,zustand:cond,items:picks.map(function(i){return{typ:i.type,name:i.name||i.spiel||i.modell||i.scanId,scanId:i.scanId||"",ek:ek(i)};}),total:Math.round(total*100)/100,priceFast:"",priceMax:""};
-  var sumEinzel=Math.round((picks.reduce(function(s,i){return s+((parseFloat(i.preis||i.verkaufspreis||0)||0)||(ek(i)*1.35));},0))*100)/100;
+  setBuilderDraft={name:setTitle,plattform:plat,budget:budget,zustand:cond,items:picks.map(function(i){return{typ:i.type,name:i.name||i.spiel||i.modell||i.scanId,scanId:i.scanId||"",ek:ek(i),vk:_sbSaleVal(i),setId:i.setId||"",setName:i.setName||""};}),total:Math.round(total*100)/100,priceFast:"",priceMax:""};
+  var sumEinzel=Math.round((picks.reduce(function(s,i){return s+_sbSaleVal(i);},0))*100)/100;
   setBuilderDraft.sumEinzel=sumEinzel;
   renderSetDraftResult();
   if(typeof onDone==="function")onDone(setBuilderDraft);
@@ -6791,7 +6857,7 @@ function _renderAnLineChart(vkData){
 function _buildAnInsights(vkData,ctx){
   var out=[];
   var noEK=vkData.filter(function(v){return!(parseFloat(v.einkaufspreis||0)>0);}).length;
-  if(noEK>0)out.push({icon:"⚠️",text:noEK+" Verkauf"+(noEK>1?"e":"")+" ohne Einkaufspreis — Marge kann ungenau sein.",cls:"an-in-warn"});
+  if(noEK>0)out.push({icon:"⚠️",text:noEK+" Verkauf"+(noEK>1?"e":"")+" ohne Einkaufspreis — Marge kann ungenau sein.",cls:"an-in-warn",issue:"missing_ek"});
   var totM=ctx.totalMarge,totU=ctx.totalVP;
   if(vkData.length>2&&totM>0){
     var sorted=vkData.slice().sort(function(a,b){return parseFloat(b.marge||0)-parseFloat(a.marge||0);});
@@ -6812,11 +6878,27 @@ function _buildAnInsights(vkData,ctx){
     if(prevM>0&&curM<prevM*0.85)out.push({icon:"📉",text:"Marge unter dem Vormonat — Prüfe Preise oder EK.",cls:"an-in-warn"});
   }
   var neg=vkData.filter(function(v){return parseFloat(v.marge||0)<0;}).length;
-  if(neg>0)out.push({icon:"💡",text:neg+" Verkauf"+(neg>1?"e":"")+" mit negativer Marge im Filter.",cls:"an-in-neg"});
-  if(!out.length)out.push({icon:"✓",text:"Saubere Datenbasis — keine kritischen Signale.",cls:"an-in-ok"});
+  if(neg>0)out.push({icon:"💡",text:neg+" Verkauf"+(neg>1?"e":"")+" mit negativer Marge im Filter.",cls:"an-in-neg",issue:"negative_margin"});
+  if(!out.length)out.push({icon:"✓",text:"Saubere Datenbasis — keine kritischen Signale.",cls:"an-in-ok",issue:""});
   var el=document.getElementById("an-insights-list");
   if(el){
-    el.innerHTML=out.map(function(i){return'<div class="an-insight '+i.cls+'"><span class="an-ins-ic">'+i.icon+'</span><p>'+i.text+"</p></div>";}).join("");
+    el.innerHTML=out.map(function(i){return'<div class="an-insight '+i.cls+'" '+(i.issue?'onclick="openRealityCheckIssue(\''+i.issue+'\')" style="cursor:pointer"':'')+'><span class="an-ins-ic">'+i.icon+'</span><p>'+i.text+"</p></div>";}).join("");
+  }
+}
+function openRealityCheckIssue(issue){
+  if(!issue)return;
+  var q="";
+  if(issue==="missing_ek")q="preis offen";
+  if(issue==="negative_margin")q="im verkauf";
+  goTabFn("list-panel","all");
+  var st=document.getElementById("lager-dd-status");
+  if(st&&issue==="negative_margin")st.value="soldout";
+  var qIn=document.getElementById("list-q");
+  if(qIn&&q)qIn.value=q;
+  renderList();
+  if(issue==="missing_ek"){
+    var hit=(allItems||[]).find(function(i){return i.type!=="setbundle"&&i.type!=="defekt"&&!(parseFloat(i.einkaufspreis||0)>0);});
+    if(hit)openEditStepperFromItem(hit);
   }
 }
 function _buildAnPipeline(totalVP,sumEK,gebuehren,totalMarge){
