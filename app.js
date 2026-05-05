@@ -17,6 +17,8 @@ var editingItem=null, isEditMode=false;
 var testRowNum=-1, timerInterval=null;
 var SNAMES={konsole:["Barcode","Name","Details","Mängel","Fotos","Zusammenfassung"],spiel:["Barcode","Titel","Details","Mängel","Fotos","Zusammenfassung"],controller:["Barcode","Controller","Details","Mängel","Fotos","Zusammenfassung"],handy:["Barcode","Modell","Details","Mängel","Fotos","Zusammenfassung"],pc:["Barcode","Modell","Details","Mängel","Fotos","Zusammenfassung"]};
 var setMembershipByScanId={},setRowsCache=[];
+var belegeCache=[];
+window._realityFilter=window._realityFilter||"";
 var restrictedActivationMode=false,restrictedActivationCtx=null;
 var expandedTaskId="",expandedTaskSubtasks={};
 var _cacheAccounts={t:0,data:null};
@@ -396,13 +398,13 @@ function renderHomeControlHub(){
   var ownOpenTasks=tasks.filter(function(t){return t.status==="open"&&String(t.assignee||"").toLowerCase()===String(emp||"").toLowerCase();});
   var ownReviewTasks=tasks.filter(function(t){return t.status==="review"&&String(t.assignee||"").toLowerCase()===String(emp||"").toLowerCase();});
   var ownFinalToday=tasks.filter(function(t){return t.status==="final"&&String(t.assignee||"").toLowerCase()===String(emp||"").toLowerCase();});
-  var noImg=stockItems.filter(function(i){return !i.fotos||!i.fotos.length;});
+  var noImg=stockItems.filter(function(i){return !((i.kaFotos&&i.kaFotos.length)||(i.fotos&&i.fotos.length));});
   var noPrice=stockItems.filter(function(i){return !(parseFloat(i.kaPreis||0)>0||parseFloat(i.einkaufspreis||0)>0);});
   var incompleteSets=(setRowsCache||[]).filter(function(s){return !(s.items||[]).length||!(s.name||"").trim()||!(s.plattform||"").trim();});
   var todaySales=sales.filter(function(v){return String(v.mitarbeiter||"").toLowerCase()===String(emp||"").toLowerCase();});
   var todaySalesCount=_hhCountDay(todaySales,function(v){return _hhDate(v.datum);},0);
   var warnCount=(noImg.length?1:0)+(noPrice.length?1:0)+(incompleteSets.length?1:0);
-  var readyToSell=stockItems.filter(function(i){return (i.fotos&&i.fotos.length)&&(parseFloat(i.kaPreis||0)>0||parseFloat(i.einkaufspreis||0)>0);}).length;
+  var readyToSell=stockItems.filter(function(i){return ((i.kaFotos&&i.kaFotos.length)||(i.fotos&&i.fotos.length))&&(parseFloat(i.kaPreis||0)>0||parseFloat(i.einkaufspreis||0)>0);}).length;
   var inSetCount=Object.keys(setMembershipByScanId||{}).length;
   var kaDone=stockItems.filter(function(i){var k=String(i.kleinanzeigen||"").toLowerCase();return k.indexOf("hochgeladen")>-1||k==="ja";}).length;
   var kaTotal=stockItems.length||0;
@@ -424,7 +426,7 @@ function renderHomeControlHub(){
     {label:"Defekte",value:items.filter(function(i){return itemHasDefektCondition(i);}).length,delta:0,hl:false}
   ];
   var quick='<div class="hh-quick"><button class="btn btn-success btn-sm" onclick="goTabFn(\'scan-panel\')"><i class="bi bi-plus-circle me-1"></i>Produkt hinzufügen</button><button class="btn btn-success btn-sm" onclick="goTabFn(\'scan-panel\');setTimeout(function(){try{startCam();}catch(e){}},120)"><i class="bi bi-upc-scan me-1"></i>Scan starten</button><button class="btn btn-success btn-sm" onclick="openVerkaufForm()"><i class="bi bi-cash-stack me-1"></i>Verkauf starten</button></div>';
-  root.innerHTML='<div class="hh-sec"><div class="hh-head"><div><div class="hh-title">Guten Abend, '+esc(emp||"")+'</div><div class="hh-sub">'+todaySalesCount+' Verkäufe heute • '+ownOpenTasks.length+' Aufgabe offen • '+warnCount+' Probleme</div></div><div class="hh-chip"><i class="bi bi-person-circle me-1"></i>'+(emp?esc(emp.split(" ")[0]):"")+'</div></div></div><div class="hh-sec"><div class="hh-title" style="font-size:18px">Deine heutigen Aktionen</div><div class="hh-prio">'+actions.map(function(a){return '<div class="hh-prio-item" onclick="'+a.click+'"><div class="i">'+a.icon+'</div><div style="font-size:12px;color:#e6edf3">'+esc(a.text)+'</div></div>';}).join("")+'</div></div><div class="hh-mod-grid"><div class="hh-mod" onclick="openBestandsmasterPro()"><div class="i"><i class="bi bi-boxes"></i></div><div class="t">BestandsMasterPro</div><div class="d">Bestand prüfen und Qualität sichern</div></div><div class="hh-mod" onclick="openSetBuilderFlow()"><div class="i"><i class="bi bi-cpu"></i></div><div class="t">KisetMasterPro</div><div class="d">Sets erstellen und optimieren</div></div><div class="hh-mod" onclick="openTasksMaster()"><div class="i"><i class="bi bi-list-task"></i></div><div class="t">TasksMasterPro</div><div class="d">Aufgaben planen und erledigen</div></div></div><div class="hh-sec"><div class="hh-title" style="font-size:18px">KPIs</div><div class="hh-sub">Offene Tasks: '+ownOpenTasks.length+' • In Prüfung: '+ownReviewTasks.length+' • Heute erledigt: '+ownFinalToday.length+'</div><div class="hh-kpi-grid" style="margin-top:10px">'+kpis.map(function(k){return '<div class="hh-kpi '+(k.hl?'hl':'')+'" onclick="homeKpiClick(\''+String(k.label||"").replace(/'/g,"\\'")+'\')" style="cursor:pointer"><div class="n">'+esc(String(k.value))+'</div><div class="l">'+esc(k.label)+'</div><div class="t">'+(k.delta>0?'<span class="u">↑ +'+k.delta+'</span>':k.delta<0?'<span class="d">↓ '+k.delta+'</span>':'<span style="color:#8b949e">± 0</span>')+'</div></div>';}).join("")+'</div><div class="hh-progress"><div class="lbl" style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><span>'+kaDone+' von '+kaTotal+' hochgeladen • '+kaPct+'% abgeschlossen • '+(stockItems.filter(isItemEbayChannelUploaded).length)+' eBay</span><span style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-outline-secondary btn-sm" onclick="openUploadWizard(\'Kleinanzeigen\')">Kleinanzeigen hochladen</button><button class="btn btn-outline-secondary btn-sm" onclick="openUploadWizard(\'eBay\')">Bei eBay hochladen</button></span></div><div class="bar"><div class="fill" style="width:'+kaPct+'%"></div></div></div></div><div class="hh-sec"><div class="hh-title" style="font-size:18px">Schnellaktionen</div>'+quick+'</div><div class="hh-sec"><div class="hh-title" style="font-size:16px">Aktivitäten</div><div class="hh-log-filters"><select id="hh-log-user" class="fc" onchange="window._hhLogUser=this.value;renderHomeActivityFromCache()"><option value="">Alle Nutzer</option></select><select id="hh-log-type" class="fc" onchange="window._hhLogType=this.value;renderHomeActivityFromCache()"><option value="">Alle Typen</option></select></div><div id="hh-activity-list" class="hh-mini"><div class="hh-mini-item"><i class="bi bi-activity"></i><span>Lade…</span></div></div></div>';
+  root.innerHTML='<div class="hh-sec"><div class="hh-head"><div><div class="hh-title">Guten Abend, '+esc(emp||"")+'</div><div class="hh-sub">'+todaySalesCount+' Verkäufe heute • '+ownOpenTasks.length+' Aufgabe offen • '+warnCount+' Probleme</div></div><div class="hh-chip"><i class="bi bi-person-circle me-1"></i>'+(emp?esc(emp.split(" ")[0]):"")+'</div></div></div><div class="hh-sec"><div class="hh-title" style="font-size:18px">Deine heutigen Aktionen</div><div class="hh-prio">'+actions.map(function(a){return '<div class="hh-prio-item" onclick="'+a.click+'"><div class="i">'+a.icon+'</div><div style="font-size:12px;color:#e6edf3">'+esc(a.text)+'</div></div>';}).join("")+'</div></div><div class="hh-mod-grid"><div class="hh-mod" onclick="openBestandsmasterPro()"><div class="i"><i class="bi bi-boxes"></i></div><div class="t">BestandsMasterPro</div><div class="d">Bestand prüfen und Qualität sichern</div></div><div class="hh-mod" onclick="openSetBuilderFlow()"><div class="i"><i class="bi bi-cpu"></i></div><div class="t">KisetMasterPro</div><div class="d">Sets erstellen und optimieren</div></div><div class="hh-mod" onclick="openTasksMaster()"><div class="i"><i class="bi bi-list-task"></i></div><div class="t">TasksMasterPro</div><div class="d">Aufgaben planen und erledigen</div></div><div class="hh-mod" onclick="openBelegePanel()"><div class="i"><i class="bi bi-receipt"></i></div><div class="t">Belege</div><div class="d">EK/VK Belege verwalten</div></div></div><div class="hh-sec"><div class="hh-title" style="font-size:18px">KPIs</div><div class="hh-sub">Offene Tasks: '+ownOpenTasks.length+' • In Prüfung: '+ownReviewTasks.length+' • Heute erledigt: '+ownFinalToday.length+'</div><div class="hh-kpi-grid" style="margin-top:10px">'+kpis.map(function(k){return '<div class="hh-kpi '+(k.hl?'hl':'')+'" onclick="homeKpiClick(\''+String(k.label||"").replace(/'/g,"\\'")+'\')" style="cursor:pointer"><div class="n">'+esc(String(k.value))+'</div><div class="l">'+esc(k.label)+'</div><div class="t">'+(k.delta>0?'<span class="u">↑ +'+k.delta+'</span>':k.delta<0?'<span class="d">↓ '+k.delta+'</span>':'<span style="color:#8b949e">± 0</span>')+'</div></div>';}).join("")+'</div><div class="hh-progress"><div class="lbl" style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><span>'+kaDone+' von '+kaTotal+' hochgeladen • '+kaPct+'% abgeschlossen • '+(stockItems.filter(isItemEbayChannelUploaded).length)+' eBay</span><span style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-outline-secondary btn-sm" onclick="openUploadWizard(\'Kleinanzeigen\')">Kleinanzeigen hochladen</button><button class="btn btn-outline-secondary btn-sm" onclick="openUploadWizard(\'eBay\')">Bei eBay hochladen</button></span></div><div class="bar"><div class="fill" style="width:'+kaPct+'%"></div></div></div></div><div class="hh-sec"><div class="hh-title" style="font-size:18px">Schnellaktionen</div>'+quick+'</div><div class="hh-sec"><div class="hh-title" style="font-size:16px">Aktivitäten</div><div class="hh-log-filters"><select id="hh-log-user" class="fc" onchange="window._hhLogUser=this.value;renderHomeActivityFromCache()"><option value="">Alle Nutzer</option></select><select id="hh-log-type" class="fc" onchange="window._hhLogType=this.value;renderHomeActivityFromCache()"><option value="">Alle Typen</option></select></div><div id="hh-activity-list" class="hh-mini"><div class="hh-mini-item"><i class="bi bi-activity"></i><span>Lade…</span></div></div></div>';
   fetchHomeActivityForHub(function(rows){populateHomeLogFilters(rows||[]);renderHomeActivityFromCache();});
 }
 
@@ -494,7 +496,14 @@ function openHomeKpiAnalyse(kind){
     setHandelTab("einkauf");
   }
 }
-function goTabFn(id,lfMode){if(restrictedActivationMode&&id!=="klausel-panel"){toast("Nur Klausel-Bereich verfügbar.","err");return;}document.querySelectorAll(".bottom-nav .bnav-btn").forEach(function(b){b.classList.toggle("on",b.dataset.tab===id);});document.querySelectorAll(".panel").forEach(function(p){p.classList.toggle("on",p.id===id);});if(id!=="handel-panel"){var fm=document.getElementById("handel-fab-menu");if(fm)fm.style.display="none";}if(lfMode){if(id==="list-panel")setLF(lfMode);else{lf=lfMode;renderList();}}if(window._pendingAnDash&&id==="analyse-panel"){var pd=window._pendingAnDash;window._pendingAnDash=null;if(pd.range)window._anDash.range=pd.range;if(pd.plattform!==undefined)window._anDash.plattform=pd.plattform;if(pd.status!==undefined)window._anDash.status=pd.status;if(pd.chartMode)window._anDash.chartMode=pd.chartMode;if(pd.homeKpi!==undefined)window._anDash.homeKpi=pd.homeKpi;}if(id==="list-panel"&&allItems.length===0)loadAll();if(id==="home-panel"){setGreeting();loadStats();ensureHomeControlHub();if(!allItems.length){loadAll();}else{buildKAProgress();buildWeekChart();updateMyStats();renderHomeControlHub();}}if(id==="analyse-panel"){renderAnalysePanel();}if(id==="sets-panel"){renderSetsPanel();}if(id==="klausel-panel"){renderKlauselPanel();}}
+function goTabFn(id,lfMode){if(restrictedActivationMode&&id!=="klausel-panel"){toast("Nur Klausel-Bereich verfügbar.","err");return;}document.querySelectorAll(".bottom-nav .bnav-btn").forEach(function(b){b.classList.toggle("on",b.dataset.tab===id);});document.querySelectorAll(".panel").forEach(function(p){p.classList.toggle("on",p.id===id);});if(id!=="handel-panel"){var fm=document.getElementById("handel-fab-menu");if(fm)fm.style.display="none";}if(lfMode){if(id==="list-panel")setLF(lfMode);else{lf=lfMode;renderList();}}if(window._pendingAnDash&&id==="analyse-panel"){var pd=window._pendingAnDash;window._pendingAnDash=null;if(pd.range)window._anDash.range=pd.range;if(pd.plattform!==undefined)window._anDash.plattform=pd.plattform;if(pd.status!==undefined)window._anDash.status=pd.status;if(pd.chartMode)window._anDash.chartMode=pd.chartMode;if(pd.homeKpi!==undefined)window._anDash.homeKpi=pd.homeKpi;}if(id==="list-panel"&&allItems.length===0)loadAll();if(id==="home-panel"){setGreeting();loadStats();ensureHomeControlHub();if(!allItems.length){loadAll();}else{buildKAProgress();buildWeekChart();updateMyStats();renderHomeControlHub();}}if(id==="analyse-panel"){renderAnalysePanel();}if(id==="sets-panel"){renderSetsPanel();}if(id==="belege-panel"){renderBelegePanel();}if(id==="klausel-panel"){renderKlauselPanel();}}
+function loadBelege(){try{belegeCache=JSON.parse(localStorage.getItem("smp_belege")||"[]")||[];}catch(e){belegeCache=[];}if(!Array.isArray(belegeCache))belegeCache=[];}
+function saveBelege(){try{localStorage.setItem("smp_belege",JSON.stringify(belegeCache||[]));}catch(e){}}
+function ensureBelegePanelUI(){if(document.getElementById("belege-panel"))return;var panel=document.createElement("section");panel.id="belege-panel";panel.className="panel";panel.innerHTML='<div class="wrap"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0;color:var(--acc)">Belege</h3><button class="btn btn-outline-secondary btn-sm" onclick="renderBelegePanel()">Aktualisieren</button></div><div class="card" style="margin-bottom:10px"><div class="card-body"><div class="row g-2"><div class="col-md-3"><select id="beleg-typ" class="fc"><option value="EK">EK</option><option value="VK">VK</option></select></div><div class="col-md-5"><input id="beleg-name" class="fc" placeholder="Produktname / Belegname"/></div><div class="col-md-4"><button class="btn btn-success w-100" onclick="pickBelegImage()"><i class="bi bi-image me-1"></i>Bild hochladen</button></div></div></div></div><div id="belege-list"></div></div>';document.body.appendChild(panel);}
+function openBelegePanel(){ensureBelegePanelUI();goTabFn("belege-panel");renderBelegePanel();}
+function pickBelegImage(){var n=(document.getElementById("beleg-name")||{value:""}).value.trim();if(!n){toast("Name fehlt.","err");return;}var typ=(document.getElementById("beleg-typ")||{value:"EK"}).value||"EK";var inp=document.getElementById("beleg-file-inp");if(!inp){inp=document.createElement("input");inp.type="file";inp.accept="image/*";inp.id="beleg-file-inp";inp.style.cssText="position:absolute;left:-9999px";document.body.appendChild(inp);}inp.onchange=function(){var f=this.files&&this.files[0];if(!f)return;var fr=new FileReader();fr.onload=function(){belegeCache.unshift({typ:typ,name:n,img:String(fr.result||""),datum:new Date().toLocaleString("de-DE")});saveBelege();renderBelegePanel();toast("Beleg gespeichert.","ok");};fr.readAsDataURL(f);this.value="";};inp.click();}
+function deleteBeleg(ix){belegeCache.splice(ix,1);saveBelege();renderBelegePanel();}
+function renderBelegePanel(){loadBelege();var out=document.getElementById("belege-list");if(!out)return;if(!belegeCache.length){out.innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Keine Belege vorhanden.</p></div>';return;}out.innerHTML=belegeCache.map(function(b,ix){return'<div class="ic" style="display:grid;grid-template-columns:64px 1fr auto;gap:10px;align-items:center"><div style="width:64px;height:64px;border-radius:8px;overflow:hidden;border:1px solid #222">'+(b.img?'<img src="'+esc(b.img)+'" style="width:100%;height:100%;object-fit:cover"/>':'')+'</div><div><div style="font-size:13px;color:#fff;font-weight:700">'+esc((b.typ||"EK")+' · '+(b.name||""))+'</div><div style="font-size:10px;color:var(--w4)">'+esc(b.datum||"")+'</div></div><button class="btn btn-outline-danger btn-sm" onclick="deleteBeleg('+ix+')"><i class="bi bi-trash3"></i></button></div>';}).join("");}
 function ensureSetsPanelUI(){
   if(document.getElementById("sets-panel"))return;
   var panel=document.createElement("section");
@@ -759,7 +768,10 @@ function prefillStepper(item,type){
       selProb(mapped);
       setTimeout(function(){
         sv("f-prob-beschr",item.problemBeschr);
-        if(item.fotos&&item.fotos.length>0){photos=item.fotos.map(function(b64){return{b64:b64,name:"foto.jpg"};});renderAllPhotos();renderDamageInlinePhotos();}
+        if(item.kaFotos&&item.kaFotos.length>0){photos=item.kaFotos.map(function(b64){return{b64:b64,name:"foto.jpg"};});}
+        else if(item.fotos&&item.fotos.length>0){photos=item.fotos.map(function(b64){return{b64:b64,name:"foto.jpg"};});}
+        if(item.fotos&&item.fotos.length>0){damagePhotos=item.fotos.map(function(b64){return{b64:b64,name:"foto.jpg"};});}
+        renderAllPhotos();renderDamageInlinePhotos();
       },60);
     } else {selProb("none");}
   },120);
@@ -923,13 +935,11 @@ function updateProgress(){
 function showStep(n){for(var i=1;i<=stepTotal;i++){var el=document.getElementById("st-s"+i);if(el){el.classList.remove("on");if(i===n)el.classList.add("on");}}}
 function jumpToStepperStep(n){
   n=parseInt(n,10);if(isNaN(n)||n<1||n>stepTotal)return;
-  if(n>=5&&!gv("f-scanid").trim()){toast("Bitte zuerst QR-/Barcode scannen.","err");return;}
   stepCur=n;updateProgress();showStep(stepCur);window.scrollTo({top:0,behavior:"smooth"});
   if(stepCur===5){try{updatePriceSuggest();}catch(e){}}
 }
 function stepNext(){
   if(stepCur===1){hideD("s1-diag");
-    if(!gv("f-scanid").trim()){toast("Bitte zuerst QR-/Barcode scannen.","err");return;}
     // Pre-fill name from EK check context
     if(window._ekCheckPreFillName){setTimeout(function(){var nEl=document.getElementById("f-name");if(nEl&&!nEl.value)nEl.value=window._ekCheckPreFillName;window._ekCheckPreFillName=null;},50);}
   }
@@ -1156,7 +1166,7 @@ function doSave(){
     var sameScan=scanId&&String(it.scanId||"").trim()&&String(it.scanId||"").trim().toLowerCase()===String(scanId).toLowerCase();
     return sameName||sameScan;
   });
-  if(dup&&!window._saveDupBypass){
+  if(!isEditMode&&dup&&!window._saveDupBypass){
     if(!confirm("Ähnlicher Artikel existiert bereits. Trotzdem speichern?")){setBL(btn,false,orig);return;}
     window._saveDupBypass=true;
   }
@@ -1177,7 +1187,7 @@ function doSave(){
 
   // POST für alle save/update (Fotos können dabei sein oder auch nicht)
   gasPost(fn,d,
-    function(r){setBL(btn,false,orig);window._saveDupBypass=false;if(r&&r.ok){clearStepperDraft();if(window._afterSaveCallback){var _cbSave=window._afterSaveCallback;window._afterSaveCallback=null;_cbSave(r.scanId||gv("f-scanid"));}toast(r.msg,"ok");addNotification(isEditMode?"✏️ Aktualisiert":"✅ Eingelagert",r.msg,"info");allItems=[];loadStats();isEditMode=false;editingItem=null;var _ekRet=!!window._ekAfterSaveReturnToCheck;window._ekAfterSaveReturnToCheck=false;if(_ekRet)window._ekStoreActive=false;setTimeout(function(){loadAll();if(_ekRet){stopCam();resetStepperState();document.getElementById("main-stepper").style.display="none";document.getElementById("cat-chooser").style.display="none";document.getElementById("sw-sub").style.display="none";document.getElementById("mode-chooser").style.display="none";var ep=document.getElementById("ek-check-panel");if(ep)ep.style.display="block";goTabFn("scan-panel");ekCheckStep=2;ekFlowPhase="list";_renderEKCheckStep();_renderEKFlow();_ekFocusNextOpenArticle();}else{resetFlow();goTabFn("list-panel");}},700);}else{toast("Fehler: "+(r?r.fehler:"?"),"err");}},
+    function(r){setBL(btn,false,orig);window._saveDupBypass=false;if(r&&r.ok){clearStepperDraft();if(window._afterSaveCallback){var _cbSave=window._afterSaveCallback;window._afterSaveCallback=null;_cbSave(r.scanId||gv("f-scanid"));}toast(r.msg,"ok");addNotification(isEditMode?"✏️ Aktualisiert":"✅ Eingelagert",r.msg,"info");allItems=[];loadStats();isEditMode=false;editingItem=null;var _ekRet=!!window._ekAfterSaveReturnToCheck;window._ekAfterSaveReturnToCheck=false;if(_ekRet)window._ekStoreActive=false;setTimeout(function(){refreshInventoryWithLoading(function(){if(_ekRet){stopCam();resetStepperState();document.getElementById("main-stepper").style.display="none";document.getElementById("cat-chooser").style.display="none";document.getElementById("sw-sub").style.display="none";document.getElementById("mode-chooser").style.display="none";var ep=document.getElementById("ek-check-panel");if(ep)ep.style.display="block";goTabFn("scan-panel");ekCheckStep=2;ekFlowPhase="list";_renderEKCheckStep();_renderEKFlow();_ekFocusNextOpenArticle();}else{resetFlow();goTabFn("list-panel");}});},700);}else{toast("Fehler: "+(r?r.fehler:"?"),"err");}},
     function(e){setBL(btn,false,orig);window._saveDupBypass=false;toast("Fehler: "+e,"err");}
   );
 }
@@ -1289,6 +1299,11 @@ function loadAll(force){
   gasGet("getAllDefekte",{},function(r){if(r&&r.ok)dd=r.data||[];tryR();},function(){tryR();});
   gasGet("getSetBundles",{},function(r){if(r&&r.ok)sb=r.data||[];tryR();},function(){tryR();});
 }
+function refreshInventoryWithLoading(done){
+  var listBody=document.getElementById("list-body");
+  if(listBody)listBody.innerHTML='<div class="empty"><span class="spin-b"></span><p>Lade…</p></div>';
+  loadAll(true,function(){if(typeof done==="function")try{done();}catch(e){}});
+}
 function itemHasDefektCondition(i){
   if(!i||i.type==="setbundle")return false;
   if(i.type==="defekt")return true;
@@ -1331,10 +1346,12 @@ function renderList(){
     }
     if(ddStatus){
       if(ddStatus==="set"&&!(setMembershipByScanId[String(i.scanId||"").trim()]||[]).length)return false;
-      if(ddStatus==="mitbild"&&!(i.fotos&&i.fotos.length))return false;
-      if(ddStatus==="ohnebild"&&(i.fotos&&i.fotos.length))return false;
+      if(ddStatus==="mitbild"&&!((i.kaFotos&&i.kaFotos.length)||(i.fotos&&i.fotos.length)))return false;
+      if(ddStatus==="ohnebild"&&((i.kaFotos&&i.kaFotos.length)||(i.fotos&&i.fotos.length)))return false;
       if(ddStatus==="defekt"&&!String(i.problemTyp||"").trim())return false;
     }
+    if(window._realityFilter==="missing_ek"&&parseFloat(i.einkaufspreis||0)>0)return false;
+    if(window._realityFilter==="missing_vk"&&parseFloat(i.kaPreis||0)>0)return false;
     if(!q)return true;
     var n=i.name||i.spiel||i.modell||i.geraet||"";
     var hay=[n,i.scanId,i.mitarbeiter,i.zustand,i.problemTyp,i.problemBeschr,i.kategorie,i.ursprung,i.notizen].map(function(v){return String(v||"").toLowerCase();}).join(" ");
@@ -1458,7 +1475,7 @@ function mkCard(item){
   var note=item.problemBeschr||item.hinweise||"";
   if(item.type==="defekt"){tags.push(String(item.ursprung||""));note=item.problemBeschr||"";}
   var rIdx=cardRegistry.length;
-  var preview=(item.fotos&&item.fotos[0])?item.fotos[0]:"";
+  var preview=(item.kaFotos&&item.kaFotos[0])?item.kaFotos[0]:((item.fotos&&item.fotos[0])?item.fotos[0]:"");
   var priceLabel=(item.kaPreis?String(item.kaPreis)+"€":(item.einkaufspreis?String(item.einkaufspreis)+"€":"Preis offen"));
   var condition=String(item.zustand||"Unbekannt");
   var catLabel=tm[1].replace(/^[^A-Za-z0-9ÄÖÜäöüß]+/,"").trim()||tm[1];
@@ -1469,7 +1486,7 @@ function mkCard(item){
   cardRegistry.push(item);
   var actions='<div class="lager-actions">';
   if(item.type==="setbundle"){actions+='<button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDeleteSetBundle('+rIdx+')" title="Set löschen"><i class="bi bi-trash3"></i></button>';}
-  else if(item.type!=="defekt"){actions+='<button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation();openEditStepper('+rIdx+')" title="Bearbeiten"><i class="bi bi-pencil-fill"></i></button><button class="btn btn-outline-secondary btn-sm" onclick="event.stopPropagation();quickClearPriceField('+rIdx+',\'ek\')" title="EK löschen">EK</button><button class="btn btn-outline-secondary btn-sm" onclick="event.stopPropagation();quickClearPriceField('+rIdx+',\'vk\')" title="VK löschen">VK</button><button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDelete('+rIdx+')" title="Löschen"><i class="bi bi-trash3"></i></button>';}
+  else if(item.type!=="defekt"){actions+='<button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation();openEditStepper('+rIdx+')" title="Bearbeiten"><i class="bi bi-pencil-fill"></i></button><button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDelete('+rIdx+')" title="Löschen"><i class="bi bi-trash3"></i></button>';}
   else{actions+='<button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDeleteDefekt('+rIdx+')" title="Löschen"><i class="bi bi-trash3"></i></button>';}
   actions+='</div>';
   var saleMark=inVkSale?'<span class="lager-tag" style="border-color:rgba(255,204,0,.4);color:var(--col-y)">Im Verkauf</span>':"";
@@ -1478,31 +1495,6 @@ function mkCard(item){
   return '<div class="lager-card'+saleCls+'" onclick="openDetail('+rIdx+')" style="cursor:pointer"><div class="lager-head"><div class="lager-title"'+titleStyle+'>'+esc(nm)+condBadge+'</div>'+actions+'</div><div class="lager-card-row"><div class="lager-thumb">'+(preview?'<img src="'+esc(preview)+'" loading="lazy"/>':'<div style="font-size:20px;display:flex;align-items:center;justify-content:center;width:100%;height:100%">📦</div>')+'</div><div><div class="lager-price">'+esc(priceLabel)+'</div><div class="lager-sub">'+esc(condition)+' • '+esc(catLabel)+'</div><div class="lager-tags">'+saleMark+tagsHtml+'</div>'+meta+(note?'<div style="font-size:11px;color:#9ca3af;margin-top:6px">'+esc(note)+'</div>':"")+(setHintText?'<div class="lager-sethint" onclick="event.stopPropagation();openSetInfoOverlay('+rIdx+')"><i class="bi bi-link-45deg"></i>'+esc(setHintText)+'</div>':'')+'</div></div></div>';
 }
 function getSetRowsCached(){return Array.isArray(setRowsCache)?setRowsCache:[];}
-function _updateActionForType(item){
-  if(item.type==="konsole"||item.type==="allgemein")return"updateKonsole";
-  if(item.type==="spiel"||item.type==="controller")return"updateSpiel";
-  if(item.type==="handy")return"updateHandy";
-  if(item.type==="pc")return"updatePC";
-  return"";
-}
-function _buildUpdatePayloadFromItem(item){
-  var d={rowIndex:item.rowIndex,scanId:item.scanId||"",mitarbeiter:item.mitarbeiter||emp||"",problemTyp:item.problemTyp||"",problemBeschr:item.problemBeschr||"",fotos:item.fotos||[],kaFotos:item.kaFotos||[],einkaufspreis:item.einkaufspreis||"",warentyp:item.warentyp||"Gebraucht"};
-  if(item.type==="konsole"||item.type==="allgemein"){d.name=item.name||item.modell||"";d.speicherGB=item.speicherGB||"";d.farbe=item.farbe||"";d.zustand=item.zustand||"";d.hinweise=item.hinweise||"";}
-  else if(item.type==="spiel"){d.spiel=item.spiel||item.name||"";d.system=item.system||"";d.zustand=item.zustand||"";d.usk=item.usk||"";d.sprache=item.sprache||"";d.hinweise=item.hinweise||"";}
-  else if(item.type==="controller"){d.spiel=item.spiel||item.name||"";d.system=item.system||"Controller-Universal";d.zustand=item.zustand||"";d.usk=item.usk||"";d.sprache=item.sprache||"";d.hinweise=item.hinweise||"";}
-  else if(item.type==="handy"){d.modell=item.modell||item.name||"";d.speicherGB=item.speicherGB||"";d.ram=item.ram||"";d.farbe=item.farbe||"";d.netzwerk=item.netzwerk||"";d.imei=item.imei||"";d.zustand=item.zustand||"";}
-  else if(item.type==="pc"){d.modell=item.modell||item.name||"";d.typ=item.typ||"Desktop";d.prozessor=item.prozessor||"";d.ram=item.ram||"";d.speicherGB=item.speicherGB||"";d.speicherTyp=item.speicherTyp||"";d.grafikkarte=item.grafikkarte||"";d.mainboard=item.mainboard||"";d.netzteil=item.netzteil||"";d.anschluesse=item.anschluesse||"";d.betriebssystem=item.betriebssystem||"";d.zustand=item.zustand||"";}
-  return d;
-}
-function quickClearPriceField(rIdx,kind){
-  var item=cardRegistry[rIdx];if(!item)return;
-  var fn=_updateActionForType(item);if(!fn){toast("Nicht verfügbar.","err");return;}
-  var payload=_buildUpdatePayloadFromItem(item);
-  if(kind==="ek"){payload.einkaufspreis="";item.einkaufspreis="";}
-  else{item.kaPreis="";item.kaPreisTyp="";if(payload.kaPreis!=null)payload.kaPreis="";if(payload.kaPreisTyp!=null)payload.kaPreisTyp="";}
-  renderList();
-  gasPost(fn,payload,function(r){if(r&&r.ok){toast((kind==="ek"?"EK":"VK")+" gelöscht.","ok");}else{toast("Fehler: "+(r?r.fehler:"?"),"err");loadAll(true);}},function(){toast("Fehler beim Speichern","err");loadAll(true);});
-}
 function ensureAddToSetModal(){
   if(document.getElementById("addset-modal-overlay"))return;
   var ov=document.createElement("div");
@@ -1622,7 +1614,7 @@ function confirmDeleteSetBundle(rIdx){
   if(btn){
     btn.innerHTML='<i class="bi bi-trash3 me-1"></i>LÖSCHEN';
     btn.className="btn btn-danger fw-bold";
-    btn.onclick=function(){closeDelModal();var backup=(allItems||[]).slice();_removeLocalInventoryRow(item);gasGet("deleteSetBundle",{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast("Set gelöscht.","ok");loadStats();}else{allItems=backup;renderList();toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){allItems=backup;renderList();toast("Fehler: "+e,"err");});};
+    btn.onclick=function(){closeDelModal();var backup=(allItems||[]).slice();_removeLocalInventoryRow(item);gasGet("deleteSetBundle",{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast("Set gelöscht.","ok");loadStats();refreshInventoryWithLoading();}else{allItems=backup;renderList();toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){allItems=backup;renderList();toast("Fehler: "+e,"err");});};
   }
   document.getElementById("del-modal").classList.add("open");
 }
@@ -1645,10 +1637,10 @@ function _removeLocalInventoryRow(item){
   _loadAllCache=(_loadAllCache||[]).filter(function(i){return !(String(i.rowIndex||"")===key&&String(i.type||"")===typ);});
   renderList();updateMyStats();
 }
-function doDelete(item){var fns={konsole:"deleteKonsole",spiel:"deleteSpiel",controller:"deleteSpiel",handy:"deleteHandy",pc:"deletePC"};var fn=fns[item.type];if(!fn){toast("Nicht verfügbar.","err");return;}var backup=(allItems||[]).slice();_removeLocalInventoryRow(item);gasGet(fn,{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast(r.msg,"ok");loadStats();}else{allItems=backup;renderList();toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){allItems=backup;renderList();toast("Fehler: "+e,"err");});}
+function doDelete(item){var fns={konsole:"deleteKonsole",spiel:"deleteSpiel",controller:"deleteSpiel",handy:"deleteHandy",pc:"deletePC"};var fn=fns[item.type];if(!fn){toast("Nicht verfügbar.","err");return;}var backup=(allItems||[]).slice();_removeLocalInventoryRow(item);gasGet(fn,{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast(r.msg,"ok");loadStats();refreshInventoryWithLoading();}else{allItems=backup;renderList();toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){allItems=backup;renderList();toast("Fehler: "+e,"err");});}
 function doDeleteDefekt(item){
   var backup=(allItems||[]).slice();_removeLocalInventoryRow(item);
-  gasGet("deleteDefekt",{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast(r.msg,"ok");loadStats();}else{allItems=backup;renderList();toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){allItems=backup;renderList();toast("Fehler: "+e,"err");});
+  gasGet("deleteDefekt",{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast(r.msg,"ok");loadStats();refreshInventoryWithLoading();}else{allItems=backup;renderList();toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){allItems=backup;renderList();toast("Fehler: "+e,"err");});
 }
 
 // ── SUCHE ─────────────────────────────────────────────────────────
@@ -2425,10 +2417,22 @@ function mkHandelCard(item,type,idx){
 function _vkCategoryLabel(v){
   var ids=String(v.scanIds||"").split(/[,;\s]+/).map(function(x){return String(x||"").trim();}).filter(Boolean);
   if(!ids.length)return"";
-  var map={konsole:"Nintendo/PlayStation/Xbox",spiel:"Spiele",controller:"Controller",handy:"Handy",pc:"PC"};
+  function fromSystem(it){
+    var s=String(it.system||it.kategorie||"").toLowerCase();
+    if(s.indexOf("nintendo")>-1||s.indexOf("switch")>-1||s.indexOf("wii")>-1)return"Nintendo";
+    if(s.indexOf("playstation")>-1||/\bps[1-5]\b/.test(s))return"PlayStation";
+    if(s.indexOf("xbox")>-1)return"Xbox";
+    if(s.indexOf("wii")>-1)return"Wii";
+    return"";
+  }
+  var map={konsole:"Konsole",spiel:"Spiel",controller:"Controller",handy:"Handy",pc:"PC"};
   for(var i=0;i<ids.length;i++){
     var it=(allItems||[]).find(function(x){return String(x.scanId||"").trim()===ids[i];});
-    if(it&&map[it.type])return map[it.type];
+    if(it){
+      var sp=fromSystem(it);
+      if(sp)return sp;
+      if(map[it.type])return map[it.type];
+    }
   }
   return"";
 }
@@ -4469,23 +4473,21 @@ function showPhotoGuide(type){
 }
 function buildAIFotoTips(type){
   var nm=String(gv("f-name")||"").trim()||String(type||"Produkt");
-  var base=[
-    nm+" mittig platzieren und vollständig im Bild halten.",
-    "Hellen, ruhigen Hintergrund nutzen und Schatten vermeiden.",
-    "Zustand mit einer Nahaufnahme zeigen (Kanten, Ports, Tasten).",
-    "Zubehör vollständig und geordnet daneben legen.",
-    "Unscharfe oder zu dunkle Bilder direkt neu aufnehmen."
+  var isBundle=/\+|,|bundle|set/i.test(nm);
+  var tips=[
+    "Hellen Hintergrund nutzen, harte Schatten vermeiden.",
+    "Close-Up vom wichtigsten Teil aufnehmen."
   ];
-  var extra={
-    konsole:["Bonus: Konsole, Controller und Spiele in einem cleanen Bundle-Bild arrangieren."],
-    spiel:["Bonus: Cover gerade ausrichten, optional Rückseite für Zustand zeigen."],
-    controller:["Bonus: Sticks/Tasten als Nahaufnahme für Funktionsvertrauen zeigen."],
-    handy:["Bonus: Display AN, Rückseite, Kanten und Kamera-Modul jeweils separat zeigen."],
-    pc:["Bonus: Anschlüsse, Gehäusekanten und Innen-/Port-Ansicht sauber ablichten."]
-  };
-  var out=base.slice();
-  if(extra[type]&&extra[type][0])out.splice(4,0,extra[type][0]);
-  return out.slice(0,6);
+  if(type==="konsole"||type==="pc")tips.push("Anschluesse und Kanten klar zeigen.");
+  if(type==="handy")tips.push("Display an, danach Rueckseite separat fotografieren.");
+  if(type==="controller")tips.push("Sticks und Tasten als Nahaufnahme zeigen.");
+  if(type==="spiel")tips.push("Cover gerade ausrichten, Rueckseite extra aufnehmen.");
+  if(isBundle)tips.push("Hauptprodukt nach hinten, Zubehoer nach vorne.");
+  else tips.push("Produkt leicht diagonal platzieren.");
+  tips.push("Kabel sauber legen und nicht ueberkreuzen.");
+  var uniq={},out=[];
+  for(var i=0;i<tips.length&&out.length<5;i++){var t=tips[i];if(!uniq[t]){uniq[t]=1;out.push(t);}}
+  return out;
 }
 function createDraftIncompleteTask(missingFields){
   try{
@@ -6604,6 +6606,7 @@ window.addEventListener("load",function(){
   ensureHomeSetBuilderTab();
   ensureSeparatePhotoStep();
   ensureSetsPanelUI();
+  ensureBelegePanelUI();
   removeSetsNavButton();
   ensureKlauselPanelUI();
   ensureReportRangeUI();
@@ -6858,6 +6861,8 @@ function _buildAnInsights(vkData,ctx){
   var out=[];
   var noEK=vkData.filter(function(v){return!(parseFloat(v.einkaufspreis||0)>0);}).length;
   if(noEK>0)out.push({icon:"⚠️",text:noEK+" Verkauf"+(noEK>1?"e":"")+" ohne Einkaufspreis — Marge kann ungenau sein.",cls:"an-in-warn",issue:"missing_ek"});
+  var noVK=(allItems||[]).filter(function(i){return i.type!=="defekt"&&i.type!=="setbundle"&&!(parseFloat(i.kaPreis||0)>0);}).length;
+  if(noVK>0)out.push({icon:"📌",text:noVK+" Lagerartikel ohne VK-Preis.",cls:"an-in-warn",issue:"missing_vk"});
   var totM=ctx.totalMarge,totU=ctx.totalVP;
   if(vkData.length>2&&totM>0){
     var sorted=vkData.slice().sort(function(a,b){return parseFloat(b.marge||0)-parseFloat(a.marge||0);});
@@ -6887,18 +6892,19 @@ function _buildAnInsights(vkData,ctx){
 }
 function openRealityCheckIssue(issue){
   if(!issue)return;
-  var q="";
-  if(issue==="missing_ek")q="preis offen";
-  if(issue==="negative_margin")q="im verkauf";
+  window._realityFilter=(issue==="missing_ek"||issue==="missing_vk")?issue:"";
   goTabFn("list-panel","all");
   var st=document.getElementById("lager-dd-status");
   if(st&&issue==="negative_margin")st.value="soldout";
-  var qIn=document.getElementById("list-q");
-  if(qIn&&q)qIn.value=q;
+  if(st&&issue!=="negative_margin")st.value="";
+  var qIn=document.getElementById("list-q");if(qIn)qIn.value="";
   renderList();
   if(issue==="missing_ek"){
     var hit=(allItems||[]).find(function(i){return i.type!=="setbundle"&&i.type!=="defekt"&&!(parseFloat(i.einkaufspreis||0)>0);});
     if(hit)openEditStepperFromItem(hit);
+  }else if(issue==="missing_vk"){
+    var hitVk=(allItems||[]).find(function(i){return i.type!=="setbundle"&&i.type!=="defekt"&&!(parseFloat(i.kaPreis||0)>0);});
+    if(hitVk)openEditStepperFromItem(hitVk);
   }
 }
 function _buildAnPipeline(totalVP,sumEK,gebuehren,totalMarge){
