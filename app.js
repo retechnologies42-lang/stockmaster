@@ -768,9 +768,10 @@ function prefillStepper(item,type){
       selProb(mapped);
       setTimeout(function(){
         sv("f-prob-beschr",item.problemBeschr);
-        if(item.kaFotos&&item.kaFotos.length>0){photos=item.kaFotos.map(function(b64){return{b64:b64,name:"foto.jpg"};});}
-        else if(item.fotos&&item.fotos.length>0){photos=item.fotos.map(function(b64){return{b64:b64,name:"foto.jpg"};});}
-        if(item.fotos&&item.fotos.length>0){damagePhotos=item.fotos.map(function(b64){return{b64:b64,name:"foto.jpg"};});}
+      if(item.kaFotos&&item.kaFotos.length>0){photos=item.kaFotos.map(function(b64){return{b64:b64,name:"foto.jpg"};});}
+      else if(item.fotos&&item.fotos.length>0){photos=item.fotos.map(function(b64){return{b64:b64,name:"foto.jpg"};});}
+      if(item.defektFotos&&item.defektFotos.length>0){damagePhotos=item.defektFotos.map(function(b64){return{b64:b64,name:"foto.jpg"};});}
+      else{damagePhotos=[];}
         renderAllPhotos();renderDamageInlinePhotos();
       },60);
     } else {selProb("none");}
@@ -1171,7 +1172,7 @@ function doSave(){
     window._saveDupBypass=true;
   }
   if(curType==="controller"&&!scanId){scanId="CTRL-"+Date.now();}
-  var d={scanId:scanId,mitarbeiter:ma,problemTyp:probTyp,problemBeschr:probD,fotos:defektB64arr,kaFotos:fotoB64arr,
+  var d={scanId:scanId,mitarbeiter:ma,problemTyp:probTyp,problemBeschr:probD,fotos:fotoB64arr,kaFotos:fotoB64arr,defektFotos:defektB64arr,
          einkaufspreis:gv("f-einkaufspreis"),warentyp:gv("f-warentyp")||"Gebraucht"};
   var fn="";
 
@@ -1232,6 +1233,17 @@ function loadAll(force){
   if(listBody)listBody.innerHTML='<div class="empty"><span class="spin-b"></span><p>Lade…</p></div>';
   allItems=[];
   var done=0,total=6,kd=[],sd=[],hd=[],pd=[],dd=[],sb=[];
+  function normalizeItemPhotoFields(items){
+    (items||[]).forEach(function(it){
+      if(!it)return;
+      if(!Array.isArray(it.kaFotos)||!it.kaFotos.length){
+        if(Array.isArray(it.fotos)&&it.fotos.length)it.kaFotos=it.fotos.slice();
+        else it.kaFotos=[];
+      }
+      if(!Array.isArray(it.defektFotos))it.defektFotos=[];
+      if(it.type==="defekt"&&(!it.defektFotos.length)&&Array.isArray(it.fotos)&&it.fotos.length)it.defektFotos=it.fotos.slice();
+    });
+  }
   function rebuildSetMembership(rows){
     setMembershipByScanId={};setRowsCache=rows||[];
     (rows||[]).forEach(function(s){
@@ -1253,6 +1265,7 @@ function loadAll(force){
   }
   function renderPartial(){
     allItems=kd.concat(sd,hd,pd,dd,sb);
+    normalizeItemPhotoFields(allItems);
     rebuildSetMembership(sb);
     applySetMeta(allItems);
     if(allItems.length>0){renderList();updateMyStats();}
@@ -1283,6 +1296,7 @@ function loadAll(force){
     renderPartial();
     if(done<total)return;
     allItems=kd.concat(sd,hd,pd,dd,sb);
+    normalizeItemPhotoFields(allItems);
     rebuildSetMembership(sb);
     applySetMeta(allItems);
     pruneSoldItemsFromSets();
@@ -1350,8 +1364,14 @@ function renderList(){
       if(ddStatus==="ohnebild"&&((i.kaFotos&&i.kaFotos.length)||(i.fotos&&i.fotos.length)))return false;
       if(ddStatus==="defekt"&&!String(i.problemTyp||"").trim())return false;
     }
-    if(window._realityFilter==="missing_ek"&&parseFloat(i.einkaufspreis||0)>0)return false;
-    if(window._realityFilter==="missing_vk"&&parseFloat(i.kaPreis||0)>0)return false;
+    if(window._realityFilter==="missing_ek"){
+      if(parseFloat(i.einkaufspreis||0)>0)return false;
+      if(!itemIsLagerSoldOut(i))return false;
+    }
+    if(window._realityFilter==="missing_vk"){
+      if(parseFloat(i.kaPreis||0)>0)return false;
+      if(itemIsLagerSoldOut(i))return false;
+    }
     if(!q)return true;
     var n=i.name||i.spiel||i.modell||i.geraet||"";
     var hay=[n,i.scanId,i.mitarbeiter,i.zustand,i.problemTyp,i.problemBeschr,i.kategorie,i.ursprung,i.notizen].map(function(v){return String(v||"").toLowerCase();}).join(" ");
@@ -1614,7 +1634,7 @@ function confirmDeleteSetBundle(rIdx){
   if(btn){
     btn.innerHTML='<i class="bi bi-trash3 me-1"></i>LÖSCHEN';
     btn.className="btn btn-danger fw-bold";
-    btn.onclick=function(){closeDelModal();var backup=(allItems||[]).slice();_removeLocalInventoryRow(item);gasGet("deleteSetBundle",{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast("Set gelöscht.","ok");loadStats();refreshInventoryWithLoading();}else{allItems=backup;renderList();toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){allItems=backup;renderList();toast("Fehler: "+e,"err");});};
+    btn.onclick=function(){closeDelModal();refreshInventoryWithLoading();gasGet("deleteSetBundle",{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast("Set gelöscht.","ok");loadStats();refreshInventoryWithLoading();}else{toast("Fehler: "+(r?r.fehler:"?"),"err");refreshInventoryWithLoading();}},function(e){toast("Fehler: "+e,"err");refreshInventoryWithLoading();});};
   }
   document.getElementById("del-modal").classList.add("open");
 }
@@ -1630,17 +1650,11 @@ function confirmDeleteDefekt(rIdx){
   document.getElementById("del-modal").classList.add("open");
 }
 function closeDelModal(){document.getElementById("del-modal").classList.remove("open");}
-function _removeLocalInventoryRow(item){
-  var key=String(item&&item.rowIndex!=null?item.rowIndex:"");
-  var typ=String(item&&item.type||"");
-  allItems=(allItems||[]).filter(function(i){return !(String(i.rowIndex||"")===key&&String(i.type||"")===typ);});
-  _loadAllCache=(_loadAllCache||[]).filter(function(i){return !(String(i.rowIndex||"")===key&&String(i.type||"")===typ);});
-  renderList();updateMyStats();
-}
-function doDelete(item){var fns={konsole:"deleteKonsole",spiel:"deleteSpiel",controller:"deleteSpiel",handy:"deleteHandy",pc:"deletePC"};var fn=fns[item.type];if(!fn){toast("Nicht verfügbar.","err");return;}var backup=(allItems||[]).slice();_removeLocalInventoryRow(item);gasGet(fn,{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast(r.msg,"ok");loadStats();refreshInventoryWithLoading();}else{allItems=backup;renderList();toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){allItems=backup;renderList();toast("Fehler: "+e,"err");});}
+function _removeLocalInventoryRow(item){}
+function doDelete(item){var fns={konsole:"deleteKonsole",spiel:"deleteSpiel",controller:"deleteSpiel",handy:"deleteHandy",pc:"deletePC"};var fn=fns[item.type];if(!fn){toast("Nicht verfügbar.","err");return;}refreshInventoryWithLoading();gasGet(fn,{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast(r.msg,"ok");loadStats();refreshInventoryWithLoading();}else{toast("Fehler: "+(r?r.fehler:"?"),"err");refreshInventoryWithLoading();}},function(e){toast("Fehler: "+e,"err");refreshInventoryWithLoading();});}
 function doDeleteDefekt(item){
-  var backup=(allItems||[]).slice();_removeLocalInventoryRow(item);
-  gasGet("deleteDefekt",{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast(r.msg,"ok");loadStats();refreshInventoryWithLoading();}else{allItems=backup;renderList();toast("Fehler: "+(r?r.fehler:"?"),"err");}},function(e){allItems=backup;renderList();toast("Fehler: "+e,"err");});
+  refreshInventoryWithLoading();
+  gasGet("deleteDefekt",{rowIndex:item.rowIndex},function(r){if(r&&r.ok){toast(r.msg,"ok");loadStats();refreshInventoryWithLoading();}else{toast("Fehler: "+(r?r.fehler:"?"),"err");refreshInventoryWithLoading();}},function(e){toast("Fehler: "+e,"err");refreshInventoryWithLoading();});
 }
 
 // ── SUCHE ─────────────────────────────────────────────────────────
@@ -2602,7 +2616,6 @@ function saveVKForm() {
     ? vkScannedItems.reduce(function(s,i){return s+i.ekPreis;},0).toFixed(2)
     : gv("vk-ep")||"";
   if(!produkte){var dg=document.getElementById("vk-diag");dg.className="diag derr";dg.textContent="Bitte Produkt eingeben.";dg.style.display="block";return;}
-  if(!gv("vk-preis")){var dg=document.getElementById("vk-diag");dg.className="diag derr";dg.textContent="Bitte Preis eingeben.";dg.style.display="block";return;}
   var lsNeed=String(gv("vk-lieferstatus")||"");
   if(lsNeed==="Versendet"&&!String(gv("vk-sende")||"").trim()){toast("Hinweis: „Versendet“ ohne Tracking – nachtragen ist empfohlen. Verkauf wird trotzdem gespeichert.","inf",4800);}
   var plRaw=String(gv("vk-plattform")||"").trim();
@@ -2629,6 +2642,7 @@ function saveVKForm() {
     datum: new Date().toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"})
       +" "+new Date().toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})
   };
+  if(!String(data.verkaufspreis||"").trim()){data.status="Preis extern festgelegt";}
   var vpNum = parseFloat(data.verkaufspreis||0);
   var epNum = parseFloat(data.einkaufspreis||0);
   var vsNum = parseFloat(data.versandkosten||0);
@@ -2832,7 +2846,6 @@ function vkStepNav(dir){
   if(dir>0){
     if(vkStep===1){
       if(!gv("vk-produkte").trim()){var d=document.getElementById("vk-diag");d.className="diag derr";d.textContent="Bitte Produkt eingeben.";d.style.display="block";return;}
-      if(!parseFloat(gv("vk-preis")||0)){var d2=document.getElementById("vk-diag");d2.className="diag derr";d2.textContent="Bitte VK-Preis unten eintragen.";d2.style.display="block";return;}
     }
     if(vkStep===2){
     if(!gv("vk-plattform")){var d2=document.getElementById("vk-diag");d2.className="diag derr";d2.textContent="Bitte Plattform auswählen.";d2.style.display="block";return;}
@@ -3030,7 +3043,7 @@ function openDetail(rIdx){
   var heroEl=document.getElementById("detail-hero");
   var thumbsEl=document.getElementById("detail-thumbs");
   var kaFotos=item.kaFotos||[];
-  var defFotos=item.fotos||[];
+  var defFotos=item.defektFotos||[];
   // Show photo tab switcher
   if(photoTabsEl){
     var hasBoth=kaFotos.length>0 && defFotos.length>0;
@@ -3145,7 +3158,7 @@ function openDetail(rIdx){
 
 function detailSetHero(idx){
   var item=detailItem;if(!item)return;
-  var kaFotos=item.kaFotos||[];var defFotos=item.fotos||[];
+  var kaFotos=item.kaFotos||[];var defFotos=item.defektFotos||[];
   var all=kaFotos.concat(defFotos);
   if(!all[idx])return;
   var heroEl=document.getElementById("detail-hero");
@@ -4474,17 +4487,22 @@ function showPhotoGuide(type){
 function buildAIFotoTips(type){
   var nm=String(gv("f-name")||"").trim()||String(type||"Produkt");
   var isBundle=/\+|,|bundle|set/i.test(nm);
-  var tips=[
+  var tipsPool=[
     "Hellen Hintergrund nutzen, harte Schatten vermeiden.",
     "Close-Up vom wichtigsten Teil aufnehmen."
   ];
-  if(type==="konsole"||type==="pc")tips.push("Anschluesse und Kanten klar zeigen.");
-  if(type==="handy")tips.push("Display an, danach Rueckseite separat fotografieren.");
-  if(type==="controller")tips.push("Sticks und Tasten als Nahaufnahme zeigen.");
-  if(type==="spiel")tips.push("Cover gerade ausrichten, Rueckseite extra aufnehmen.");
-  if(isBundle)tips.push("Hauptprodukt nach hinten, Zubehoer nach vorne.");
-  else tips.push("Produkt leicht diagonal platzieren.");
-  tips.push("Kabel sauber legen und nicht ueberkreuzen.");
+  if(type==="konsole"||type==="pc")tipsPool.push("Anschluesse und Kanten klar zeigen.");
+  if(type==="handy")tipsPool.push("Display an, danach Rueckseite separat fotografieren.");
+  if(type==="controller")tipsPool.push("Sticks und Tasten als Nahaufnahme zeigen.");
+  if(type==="spiel")tipsPool.push("Cover gerade ausrichten, Rueckseite extra aufnehmen.");
+  if(isBundle)tipsPool.push("Hauptprodukt nach hinten, Zubehoer nach vorne.");
+  else tipsPool.push("Produkt leicht diagonal platzieren.");
+  tipsPool.push("Kabel sauber legen und nicht ueberkreuzen.");
+  tipsPool.push("Perspektive zwischen den Bildern sichtbar wechseln.");
+  var seed=(Date.now()%97)+(nm.length*7)+String(type||"").length*11;
+  function rand(){seed=(seed*9301+49297)%233280;return seed/233280;}
+  var tips=tipsPool.slice();
+  for(var s=tips.length-1;s>0;s--){var j=Math.floor(rand()*(s+1));var tmp=tips[s];tips[s]=tips[j];tips[j]=tmp;}
   var uniq={},out=[];
   for(var i=0;i<tips.length&&out.length<5;i++){var t=tips[i];if(!uniq[t]){uniq[t]=1;out.push(t);}}
   return out;
@@ -6896,7 +6914,8 @@ function openRealityCheckIssue(issue){
   goTabFn("list-panel","all");
   var st=document.getElementById("lager-dd-status");
   if(st&&issue==="negative_margin")st.value="soldout";
-  if(st&&issue!=="negative_margin")st.value="";
+  if(st&&issue==="missing_ek")st.value="soldout";
+  if(st&&issue==="missing_vk")st.value="";
   var qIn=document.getElementById("list-q");if(qIn)qIn.value="";
   renderList();
   if(issue==="missing_ek"){
