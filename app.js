@@ -1,7 +1,7 @@
 
 
 
-var GAS_URL = "https://script.google.com/macros/s/AKfycbwKC84xyZU2iQsSjk_p1gy5BVlDWqycprfz6l9F-z9lrL64UGjFoXZOh9414six-w/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbwlw7EHuZVNHd6jkL5hQ3Z301qL5YJEc5XeF1BbvLG3ECUsBSOEC6ljpVb9_jpmiA/exec";
 
 // ── STATE ─────────────────────────────────────────────────────────
 var emp="", allItems=[], lf="all", cardRegistry=[];
@@ -1233,14 +1233,28 @@ function loadAll(force){
   if(listBody)listBody.innerHTML='<div class="empty"><span class="spin-b"></span><p>Lade…</p></div>';
   allItems=[];
   var done=0,total=6,kd=[],sd=[],hd=[],pd=[],dd=[],sb=[];
+  function normalizePhotoSrc(v){
+    var s=String(v||"").trim();
+    if(!s)return "";
+    if(s.indexOf("data:image/")===0||s.indexOf("http://")===0||s.indexOf("https://")===0||s.indexOf("blob:")===0)return s;
+    if(s.indexOf("base64,")>-1&&s.indexOf("data:image/")!==0)return "data:image/jpeg;"+s;
+    // Fallback for plain base64 payloads saved in older rows.
+    if(/^[A-Za-z0-9+/=\s]+$/.test(s)&&s.length>120)return "data:image/jpeg;base64,"+s.replace(/\s+/g,"");
+    return s;
+  }
   function normalizeItemPhotoFields(items){
     (items||[]).forEach(function(it){
       if(!it)return;
+      if(Array.isArray(it.fotos))it.fotos=it.fotos.map(normalizePhotoSrc).filter(Boolean);
+      else it.fotos=[];
+      if(Array.isArray(it.kaFotos))it.kaFotos=it.kaFotos.map(normalizePhotoSrc).filter(Boolean);
+      else it.kaFotos=[];
+      if(Array.isArray(it.defektFotos))it.defektFotos=it.defektFotos.map(normalizePhotoSrc).filter(Boolean);
+      else it.defektFotos=[];
       if(!Array.isArray(it.kaFotos)||!it.kaFotos.length){
         if(Array.isArray(it.fotos)&&it.fotos.length)it.kaFotos=it.fotos.slice();
         else it.kaFotos=[];
       }
-      if(!Array.isArray(it.defektFotos))it.defektFotos=[];
       if(it.type==="defekt"&&(!it.defektFotos.length)&&Array.isArray(it.fotos)&&it.fotos.length)it.defektFotos=it.fotos.slice();
     });
   }
