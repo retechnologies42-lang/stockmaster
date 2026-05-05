@@ -31,6 +31,7 @@ window._hhLogUser=window._hhLogUser||"";window._hhLogType=window._hhLogType||"";
 // POST → save/update mit Fotos (Base64 zu groß für URL)
 // ================================================================
 function gasGet(action, data, onSuccess, onError) {
+  if(!GAS_URL){var m0="GAS_URL fehlt (Web-App URL nicht gesetzt).";if(onError)onError(m0);else toast(m0,"err");return;}
   var params = Object.assign({action: action}, data || {});
   var urlParams = [];
   for (var k in params) {
@@ -48,6 +49,7 @@ function logClientActivity(o){
   gasPost("logActivity",{mitarbeiter:o.mitarbeiter||emp,aktion:o.aktion||"",details:o.details||"",typ:o.typ||"info"},function(){_cacheActivity.t=0;},function(){});
 }
 function gasPost(action, data, onSuccess, onError) {
+  if(!GAS_URL){var m0="GAS_URL fehlt (Web-App URL nicht gesetzt).";if(onError)onError(m0);else toast(m0,"err");return;}
   var payload = Object.assign({action: action}, data || {});
   fetch(GAS_URL, {
     method: "POST",
@@ -768,13 +770,14 @@ function prefillStepper(item,type){
       selProb(mapped);
       setTimeout(function(){
         sv("f-prob-beschr",item.problemBeschr);
-      if(item.kaFotos&&item.kaFotos.length>0){photos=item.kaFotos.map(function(b64){return{b64:b64,name:"foto.jpg"};});}
-      else if(item.fotos&&item.fotos.length>0){photos=item.fotos.map(function(b64){return{b64:b64,name:"foto.jpg"};});}
-      if(item.defektFotos&&item.defektFotos.length>0){damagePhotos=item.defektFotos.map(function(b64){return{b64:b64,name:"foto.jpg"};});}
-      else{damagePhotos=[];}
-        renderAllPhotos();renderDamageInlinePhotos();
       },60);
     } else {selProb("none");}
+    if(item.kaFotos&&item.kaFotos.length>0){photos=item.kaFotos.map(function(b64){return{b64:b64,name:"foto.jpg"};});}
+    else if(item.fotos&&item.fotos.length>0){photos=item.fotos.map(function(b64){return{b64:b64,name:"foto.jpg"};});}
+    else{photos=[];}
+    if(item.defektFotos&&item.defektFotos.length>0){damagePhotos=item.defektFotos.map(function(b64){return{b64:b64,name:"foto.jpg"};});}
+    else{damagePhotos=[];}
+    renderAllPhotos();renderDamageInlinePhotos();
   },120);
 }
 function sv(id,val){var el=document.getElementById(id);if(!el||val===undefined||val===null)return;el.value=String(val);}
@@ -1150,6 +1153,16 @@ function doSave(){
   var probD=probChoice==="none"?"":(gv("f-prob-beschr"));
   var fotoB64arr=photos.map(function(p){return p.b64;});
   var defektB64arr=damagePhotos.map(function(p){return p.b64;});
+  // Beim Bearbeiten vorhandene Bilder automatisch beibehalten, auch ohne lokalen Re-Upload.
+  if(isEditMode&&editingItem){
+    if(fotoB64arr.length<1){
+      if(Array.isArray(editingItem.kaFotos)&&editingItem.kaFotos.length)fotoB64arr=editingItem.kaFotos.slice();
+      else if(Array.isArray(editingItem.fotos)&&editingItem.fotos.length)fotoB64arr=editingItem.fotos.slice();
+    }
+    if(defektB64arr.length<1&&Array.isArray(editingItem.defektFotos)&&editingItem.defektFotos.length){
+      defektB64arr=editingItem.defektFotos.slice();
+    }
+  }
   if(fotoB64arr.length>12||defektB64arr.length>12){setBL(btn,false,orig);toast("Maximal 12 Bilder pro Kategorie erlaubt.","err");return;}
   var zustF=(gv("f-zustand")||"").trim();
   var miss=[];
