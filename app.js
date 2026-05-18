@@ -1,7 +1,7 @@
 
 
 
-var GAS_URL = "https://script.google.com/macros/s/AKfycbyXWw6y06FD0CQR1go3PAO43GEmylf4Obg-TpN5SDe8dVrEidAjGyhoxHTt5DZE/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbyIG-Wo-53qu7mqJX_wPnQU6DAaJa8Ygqz98yj90nhlcKc157C7OAFc94y7mxPTag/exec";
 function resolveGasUrl(){
   var raw=String(
     GAS_URL ||
@@ -48,7 +48,7 @@ var probChoice=null;
 var photos=[],damagePhotos=[];
 var editingItem=null, isEditMode=false;
 var testRowNum=-1, timerInterval=null;
-var SNAMES={konsole:["Identifikation","Schnellerfassung","Verkaufsdetails","Zustand & Mängel","Verkaufsfotos","Verkaufsstart"],spiel:["Identifikation","Schnellerfassung","Verkaufsdetails","Zustand & Mängel","Verkaufsfotos","Verkaufsstart"],controller:["Identifikation","Schnellerfassung","Verkaufsdetails","Zustand & Mängel","Verkaufsfotos","Verkaufsstart"],handy:["Identifikation","Schnellerfassung","Verkaufsdetails","Zustand & Mängel","Verkaufsfotos","Verkaufsstart"],pc:["Identifikation","Schnellerfassung","Verkaufsdetails","Zustand & Mängel","Verkaufsfotos","Verkaufsstart"]};
+var SNAMES={konsole:["Identifikation","Schnellerfassung","Verkaufsdetails","Zustand & Mängel","Verkaufsfotos","Verkaufsoptimierung"],spiel:["Identifikation","Schnellerfassung","Verkaufsdetails","Zustand & Mängel","Verkaufsfotos","Verkaufsoptimierung"],controller:["Identifikation","Schnellerfassung","Verkaufsdetails","Zustand & Mängel","Verkaufsfotos","Verkaufsoptimierung"],handy:["Identifikation","Schnellerfassung","Verkaufsdetails","Zustand & Mängel","Verkaufsfotos","Verkaufsoptimierung"],pc:["Identifikation","Schnellerfassung","Verkaufsdetails","Zustand & Mängel","Verkaufsfotos","Verkaufsoptimierung"]};
 function ensureResellerOSStyles(){
   if(document.getElementById("reseller-os-style"))return;
   var st=document.createElement("style");
@@ -90,38 +90,44 @@ function buildListingTitle(item){
   if(z)parts.push(z);
   return parts.join(" · ").slice(0,72);
 }
-function buildListingCopyForKA(item){
-  var lines=[];
-  var nm=item.name||item.spiel||item.modell||"Produkt";
-  lines.push(nm);
-  if(item.system)lines.push("Plattform: "+item.system);
-  if(item.zustand)lines.push("Zustand: "+item.zustand);
-  if(item.zubehoer)lines.push("Zubehör: "+item.zubehoer);
-  var hin=String(item.hinweise||item.problemBeschr||"").replace(/\[PROBLEM_TYP:[^\]]*\]/g,"").replace(/\[PROBLEM_BESCHR:[^\]]*\]/g,"").replace(/\[BILDER_FEHLEN\]/g,"").trim();
-  if(hin)lines.push(hin);
-  if(item.problemTyp&&item.problemTyp!=="none")lines.push("Hinweis Mangel: "+(item.problemBeschr||item.problemTyp));
-  var ek=parseFloat(item.einkaufspreis||0);
-  var vk=parseFloat(item.kaPreis||0);
-  if(vk>0)lines.push("Zielpreis: "+vk+"€");
-  else if(ek>0)lines.push("EK-Basis: "+ek+"€");
-  lines.push("Voll funktionsfähig (bitte prüfen)");
-  return lines.filter(Boolean).join("\n");
+function salesStatusEmoji(code){
+  return{ready:"🟢",incomplete:"🟡",defect:"🔴",prep:"🚀",sale:"🟣",work:"🔵"}[code]||"";
 }
-function generateLocalListingDescription(item){
-  var nm=item.name||item.spiel||item.modell||"das Produkt";
-  var sys=item.system?(" für "+item.system):"";
-  var z=String(item.zustand||"gut").toLowerCase();
-  var zTxt=z.indexOf("neu")>-1?"neuwertigem":"gutem";
-  var extras=[];
-  if(item.zubehoer)extras.push("Lieferumfang: "+item.zubehoer);
-  var hin=String(item.hinweise||"").trim();
-  if(hin)extras.push(hin);
-  return "Verkaufe "+nm+sys+" in "+zTxt+" Zustand. "+(extras.length?extras.join(". ")+". ":"")+"Privatverkauf, keine Gewährleistung. Abholung möglich, Versand auf Anfrage.";
+function estimateDemandLevel(item){
+  var sys=String(item.system||"").toLowerCase();
+  var t=String(item.type||"").toLowerCase();
+  if(/ps5|switch|xbox series/i.test(sys))return"Hoch";
+  if(t==="konsole"||t==="handy")return"Mittel";
+  if(t==="spiel")return"Mittel";
+  return"Normal";
+}
+function splitToBullets(text){
+  return String(text||"").replace(/\[PROBLEM_TYP:[^\]]*\]/g,"").replace(/\[PROBLEM_BESCHR:[^\]]*\]/g,"").replace(/\[BILDER_FEHLEN\]/g,"")
+    .split(/[\n;•]+/).map(function(x){return x.replace(/^[\s\-–]+/,"").trim();}).filter(function(x){return x.length>1;});
+}
+function buildListingCopyForKA(item){
+  var bullets=[];
+  var nm=item.name||item.spiel||item.modell||"";
+  if(nm)bullets.push(nm);
+  if(item.system)bullets.push("Plattform: "+item.system);
+  if(item.zustand)bullets.push(String(item.zustand));
+  if(item.zubehoer)splitToBullets(item.zubehoer).forEach(function(b){if(bullets.indexOf(b)===-1)bullets.push(b);});
+  var hin=splitToBullets(item.hinweise||item.problemBeschr||"");
+  hin.forEach(function(b){if(bullets.indexOf(b)===-1)bullets.push(b);});
+  if(item.problemTyp&&item.problemTyp!=="none"&&item.problemBeschr)bullets.push(String(item.problemBeschr));
+  var z=String(item.zustand||"").toLowerCase();
+  if(z.indexOf("defekt")===-1&&!bullets.some(function(b){return /funktion|geht|läuft/i.test(b);}))bullets.push("voll funktionsfähig");
+  var vk=parseFloat(item.kaPreis||0);
+  if(vk>0)bullets.push("Zielpreis ca. "+vk+" € VB");
+  return bullets.map(function(b){return "• "+b; }).join("\n");
+}
+function buildListingCopyHtml(item){
+  return esc(buildListingCopyForKA(item)).replace(/\n/g,"<br>");
 }
 function copyListingInfoForItem(item){
   var t=buildListingCopyForKA(item);
   if(navigator.clipboard&&navigator.clipboard.writeText){
-    navigator.clipboard.writeText(t).then(function(){toast("Verkaufsinfos kopiert","ok");},function(){toast("Kopieren fehlgeschlagen","err");});
+    navigator.clipboard.writeText(t).then(function(){toast("Stichpunkte für Kleinanzeigen-KI kopiert","ok");},function(){toast("Kopieren fehlgeschlagen","err");});
   }else{toast("Clipboard nicht verfügbar","err");}
 }
 function downloadItemPhotos(item){
@@ -179,11 +185,12 @@ function renderDetailKAPrep(item){
   }
   if(!item||item.type==="setbundle"){host.innerHTML="";host.style.display="none";return;}
   host.style.display="block";
-  var copy=buildListingCopyForKA(item);
-  var title=buildListingTitle(item);
-  var desc=generateLocalListingDescription(item);
+  var st=computeItemSalesState(item);
   var chance=estimateSalesChance(item);
-  host.innerHTML='<div class="ros-ka-prep"><div class="ros-ka-title">Für Kleinanzeigen vorbereiten</div><div style="font-size:11px;color:var(--w3);margin-bottom:8px">Titel: <b style="color:var(--w1)">'+esc(title)+'</b> · Verkaufschance <b style="color:var(--acc)">'+chance+'%</b></div><div class="ros-ka-copy">'+esc(copy)+'</div><div style="font-size:11px;color:var(--w2);margin-top:8px;line-height:1.5">'+esc(desc)+'</div><div class="ros-ka-actions"><button type="button" class="btn btn-success btn-sm" onclick="copyListingInfoForItem(detailItem)"><i class="bi bi-clipboard me-1"></i>Infos kopieren</button><button type="button" class="btn btn-outline-primary btn-sm" onclick="downloadItemPhotos(detailItem)"><i class="bi bi-download me-1"></i>Bilder ZIP</button><button type="button" class="btn btn-outline-secondary btn-sm" onclick="openUploadWizard(\'Kleinanzeigen\')"><i class="bi bi-megaphone me-1"></i>Upload</button></div></div>';
+  var demand=estimateDemandLevel(item);
+  var copyHtml=buildListingCopyHtml(item);
+  host.innerHTML='<div class="ros-ka-prep"><div class="ros-ka-title">Für Kleinanzeigen vorbereiten</div><div style="font-size:10px;color:var(--w3);margin-bottom:10px">'+salesStatusEmoji(st.code)+' '+esc(st.label)+' · Verkaufschance <b style="color:var(--acc)">'+chance+'%</b> · Nachfrage <b>'+esc(demand)+'</b></div><div style="font-size:9px;color:var(--w4);margin-bottom:6px;font-family:var(--fm)">Stichpunkte für Kleinanzeigen-KI — hier nur Daten, keine Anzeigentexte</div><div class="ros-ka-copy">'+copyHtml+'</div><div class="ros-ka-actions"><button type="button" class="btn btn-success btn-sm" onclick="copyListingInfoForItem(detailItem)"><i class="bi bi-clipboard me-1"></i>Stichpunkte kopieren</button><button type="button" class="btn btn-outline-primary btn-sm" onclick="downloadItemPhotos(detailItem)"><i class="bi bi-download me-1"></i>Bilder ZIP</button></div></div>';
+
 }
 function renderIntakePhaseBar(step){
   var host=document.getElementById("ros-intake-phases");
@@ -199,8 +206,8 @@ function renderIntakePhaseBar(step){
     else wrap.insertBefore(host,wrap.firstChild);
   }
   var phases=[{n:1,l:"Schnell"},{n:2,l:"Schnell"},{n:3,l:"Details"},{n:4,l:"Zustand"},{n:5,l:"Fotos"},{n:6,l:"Start"}];
-  var phase=step<=2?1:(step<=3?2:(step<=5?3:4));
-  host.innerHTML='<div class="ros-intake-ph'+(phase===1?' on':'')+'">1 · Schnellerfassung</div><div class="ros-intake-ph'+(phase===2?' on':'')+'">2 · Verkaufsdetails</div><div class="ros-intake-ph'+(phase===3?' on':'')+'">3 · KI-Optimierung</div>';
+  var phase=step<=2?1:(step<=4?2:3);
+  host.innerHTML='<div class="ros-intake-ph'+(phase===1?' on':'')+'">1 · Schnellerfassung</div><div class="ros-intake-ph'+(phase===2?' on':'')+'">2 · Verkaufsdetails</div><div class="ros-intake-ph'+(phase===3?' on':'')+'">3 · Verkaufsoptimierung</div>';
 }
 var setMembershipByScanId={},setRowsCache=[];
 var belegeCache=[];
@@ -604,6 +611,7 @@ function renderHomeControlHub(){
   var unvoll=stockItems.filter(function(i){return computeItemSalesState(i).code==="incomplete";}).length;
   var defekte=stockItems.filter(function(i){return computeItemSalesState(i).code==="defect";}).length;
   var noShip=sales.filter(function(v){var st=String(v.status||"");var ls=String(v.lieferstatus||"Offen");return st==="Verkauft"&&ls!=="Versendet"&&ls!=="Zugestellt";});
+  var repairPhotos=stockItems.filter(function(i){return itemHasDefektCondition(i)&&!((i.kaFotos&&i.kaFotos.length)||(i.fotos&&i.fotos.length));});
   var todaySales=sales.filter(function(v){return String(v.mitarbeiter||"").toLowerCase()===String(emp||"").toLowerCase();});
   var todaySalesCount=_hhCountDay(todaySales,function(v){return _hhDate(v.datum);},0);
   var kaDone=stockItems.filter(function(i){var k=String(i.kleinanzeigen||"").toLowerCase();return k.indexOf("hochgeladen")>-1||k==="ja";}).length;
@@ -619,11 +627,12 @@ function renderHomeControlHub(){
     {l:"Analyse",on:"goTabFn('analyse-panel');setAnalyseTab('guv')"}
   ];
   var actions=[];
-  if(noImg.length)actions.push({ic:"bi-image",t:noImg.length+" ohne Fotos → jetzt aufnehmen",c:"goTabFn('scan-panel');setMode('einlagern')"});
-  if(noPrice.length)actions.push({ic:"bi-currency-euro",t:noPrice.length+" ohne Preis → jetzt ergänzen",c:"goTabFn('list-panel','all');renderList();"});
-  if(unvoll>0)actions.push({ic:"bi-exclamation-triangle",t:unvoll+" unvollständig → Daten vervollständigen",c:"goTabFn('list-panel','all');renderList();"});
-  if(noShip.length)actions.push({ic:"bi-truck",t:noShip.length+" Verkäufe ohne Versand → jetzt prüfen",c:"goTabFn('handel-panel');setHandelTab('verkauf')"});
-  if(uploadPrep>0)actions.push({ic:"bi-megaphone",t:uploadPrep+" bereit für Upload → Kleinanzeigen",c:"openUploadWizard('Kleinanzeigen')"});
+  if(noImg.length)actions.push({ic:"bi-image",t:"📷 "+noImg.length+" Artikel ohne Fotos → jetzt aufnehmen",c:"goTabFn('scan-panel');setMode('einlagern')"});
+  if(noPrice.length)actions.push({ic:"bi-currency-euro",t:"💶 "+noPrice.length+" ohne Preis → jetzt ergänzen",c:"goTabFn('list-panel','all');renderList();"});
+  if(unvoll>0)actions.push({ic:"bi-exclamation-triangle",t:"⚠️ "+unvoll+" Artikel unvollständig → Daten vervollständigen",c:"goTabFn('list-panel','all');renderList();"});
+  if(noShip.length)actions.push({ic:"bi-truck",t:"📦 "+noShip.length+" Verkäufe ohne Versand → jetzt prüfen",c:"goTabFn('handel-panel');setHandelTab('verkauf')"});
+  if(repairPhotos.length)actions.push({ic:"bi-tools",t:"🛠 "+repairPhotos.length+" Artikel benötigen Reparaturbilder → jetzt fotografieren",c:"goTabFn('list-panel','defekt');renderList();"});
+  if(uploadPrep>0)actions.push({ic:"bi-megaphone",t:"🚀 "+uploadPrep+" bereit für Kleinanzeigen → Kleinanzeigen",c:"openUploadWizard('Kleinanzeigen')"});
   if(!actions.length)actions.push({ic:"bi-check2-circle",t:"Alles im Flow — weiter verkaufen",c:"goTabFn('list-panel','all')"});
   actions=actions.slice(0,5);
   var pipeHtml='<div class="ros-pipe">'+pipe.map(function(p,i){return'<button type="button" class="ros-pipe-step'+(i===1?' on':'')+'" onclick="'+p.on+'">'+esc(p.l)+'</button>';}).join("")+'</div>';
@@ -634,7 +643,7 @@ function renderHomeControlHub(){
     {n:unvoll,l:"Unvollständig",c:"var(--col-y)",go:"goTabFn('list-panel','all')"},
     {n:defekte,l:"Defekt",c:"var(--col-r)",go:"goTabFn('list-panel','defekt')"}
   ];
-  root.innerHTML='<div class="hh-sec"><div class="hh-head"><div><div class="hh-title">Reseller Leitstand</div><div class="hh-sub">'+esc(emp||"Team")+' · '+todaySalesCount+' Verkäufe heute · '+ownOpenTasks.length+' Aufgaben</div></div><div class="hh-chip"><i class="bi bi-lightning-charge-fill me-1" style="color:var(--acc)"></i>OS</div></div></div>'+pipeHtml+'<div class="hh-sec"><div class="hh-title" style="font-size:16px">Nächste Schritte</div><div class="hh-prio">'+prioHtml+'</div></div><div class="hh-sec"><div class="hh-title" style="font-size:16px">Verkaufsbestand</div><div class="hh-kpi-grid" style="margin-top:8px">'+statTiles.map(function(t){return'<div class="hh-kpi" onclick="'+t.go+'" style="cursor:pointer"><div class="n" style="color:'+t.c+'">'+t.n+'</div><div class="l">'+esc(t.l)+'</div></div>';}).join("")+'</div><div class="hh-progress" style="margin-top:12px"><div class="lbl">'+kaDone+' / '+kaTotal+' auf Kleinanzeigen · '+kaPct+'%</div><div class="bar"><div class="fill" style="width:'+kaPct+'%"></div></div></div></div><div class="hh-sec"><div class="hh-title" style="font-size:16px">Workflow-Tools</div><div class="hh-mod-grid"><div class="hh-mod" onclick="goTabFn(\'scan-panel\');setMode(\'einlagern\')"><div class="i"><i class="bi bi-camera-fill"></i></div><div class="t">Produktaufnahme</div><div class="d">Schnell erfassen</div></div><div class="hh-mod" onclick="openSetBuilderFlow()"><div class="i"><i class="bi bi-cpu"></i></div><div class="t">Set-Builder</div><div class="d">Bundles aus Lager</div></div><div class="hh-mod" onclick="openUploadWizard(\'Kleinanzeigen\')"><div class="i"><i class="bi bi-megaphone"></i></div><div class="t">KA Upload</div><div class="d">Anzeigen starten</div></div><div class="hh-mod" onclick="goTabFn(\'analyse-panel\')"><div class="i"><i class="bi bi-graph-up"></i></div><div class="t">Analyse</div><div class="d">Gewinn optimieren</div></div></div></div><div class="hh-sec"><div class="hh-title" style="font-size:16px">Aktivität</div><div class="hh-log-filters"><select id="hh-log-user" class="fc" onchange="window._hhLogUser=this.value;renderHomeActivityFromCache()"><option value="">Alle Nutzer</option></select><select id="hh-log-type" class="fc" onchange="window._hhLogType=this.value;renderHomeActivityFromCache()"><option value="">Alle Typen</option></select></div><div id="hh-activity-list" class="hh-mini"><div class="hh-mini-item"><i class="bi bi-activity"></i><span>Lade…</span></div></div></div>';
+  root.innerHTML='<div class="hh-sec"><div class="hh-head"><div><div class="hh-title">Reseller Leitstand</div><div class="hh-sub">'+esc(emp||"Team")+' · '+todaySalesCount+' Verkäufe heute · '+ownOpenTasks.length+' Aufgaben</div></div><div class="hh-chip"><i class="bi bi-lightning-charge-fill me-1" style="color:var(--acc)"></i>OS</div></div></div>'+pipeHtml+'<div class="hh-sec"><div class="hh-title" style="font-size:16px">Nächste Schritte</div><div class="hh-prio">'+prioHtml+'</div></div><div class="hh-sec"><div class="hh-title" style="font-size:16px">Verkaufsbestand</div><div class="hh-kpi-grid" style="margin-top:8px">'+statTiles.map(function(t){return'<div class="hh-kpi" onclick="'+t.go+'" style="cursor:pointer"><div class="n" style="color:'+t.c+'">'+t.n+'</div><div class="l">'+esc(t.l)+'</div></div>';}).join("")+'</div><div class="hh-progress" style="margin-top:12px"><div class="lbl">'+kaDone+' / '+kaTotal+' auf Kleinanzeigen · '+kaPct+'%</div><div class="bar"><div class="fill" style="width:'+kaPct+'%"></div></div></div></div><div class="hh-sec"><div class="hh-title" style="font-size:16px">Workflow-Tools</div><div class="hh-mod-grid"><div class="hh-mod" onclick="goTabFn(\'scan-panel\');setMode(\'einlagern\')"><div class="i"><i class="bi bi-camera-fill"></i></div><div class="t">Produktaufnahme</div><div class="d">Schnell erfassen</div></div><div class="hh-mod" onclick="openSetBuilderFlow()"><div class="i"><i class="bi bi-cpu"></i></div><div class="t">Bundle-Assistent</div><div class="d">Bundles aus Lager</div></div><div class="hh-mod" onclick="openUploadWizard(\'Kleinanzeigen\')"><div class="i"><i class="bi bi-megaphone"></i></div><div class="t">KA Upload</div><div class="d">Anzeigen starten</div></div><div class="hh-mod" onclick="goTabFn(\'analyse-panel\')"><div class="i"><i class="bi bi-graph-up"></i></div><div class="t">Analyse</div><div class="d">Gewinn optimieren</div></div></div></div><div class="hh-sec"><div class="hh-title" style="font-size:16px">Aktivität</div><div class="hh-log-filters"><select id="hh-log-user" class="fc" onchange="window._hhLogUser=this.value;renderHomeActivityFromCache()"><option value="">Alle Nutzer</option></select><select id="hh-log-type" class="fc" onchange="window._hhLogType=this.value;renderHomeActivityFromCache()"><option value="">Alle Typen</option></select></div><div id="hh-activity-list" class="hh-mini"><div class="hh-mini-item"><i class="bi bi-activity"></i><span>Lade…</span></div></div></div>';
   fetchHomeActivityForHub(function(rows){populateHomeLogFilters(rows||[]);renderHomeActivityFromCache();});
 }
 
@@ -656,7 +665,7 @@ function normalizePanelHierarchy(){
 
 function normalizeOverlayHierarchy(){
   var ids=[
-    "vk-modal","ek-modal","del-modal","acc-modal","rt-modal","china-modal","vk-multi-overlay","upload-wizard",
+    "vk-modal","ek-modal","del-modal","acc-modal","rt-modal","china-modal","vk-multi-overlay","upload-wizard","setbuilder-overlay",
     "profil-overlay","detail-overlay","notif-overlay","search-scan-overlay","mandatory-notif-overlay","activation-overlay","global-cam-bar"
   ];
   for(var i=0;i<ids.length;i++){
@@ -1105,6 +1114,7 @@ function renderDamageInlinePhotos(){
     var d=document.createElement("div");d.className="photo-thumb";d.innerHTML='<img src="'+p.b64+'"/><button class="rm-thumb" onclick="removePhoto('+i+',\'damage\');renderDamageInlinePhotos()">✕</button>';g.appendChild(d);
   });
   updateMangelCTA();
+  if(stepCur>=5)renderSalesOptimizationHints();
 }
 function updateMangelCTA(){
   if(stepCur!==4)return;
@@ -1126,6 +1136,20 @@ function selPCTyp(v){
   wrap.innerHTML=(v==="Desktop"?df:lf);
 }
 function buildDots(){var c=document.getElementById("step-dots");c.innerHTML="";for(var i=1;i<=stepTotal;i++){var d=document.createElement("div");d.className="sdot"+(i===1?" act":"");d.id="sd"+i;c.appendChild(d);}}
+function renderSalesOptimizationHints(){
+  var box=document.getElementById("sales-opt-box");
+  if(!box){
+    var s5=document.getElementById("st-s5");if(!s5)return;
+    box=document.createElement("div");box.id="sales-opt-box";box.className="photo-guide";box.style.marginTop="10px";
+    var ps=document.getElementById("price-suggest-box");
+    if(ps&&ps.parentNode)ps.parentNode.insertBefore(box,ps);else s5.insertBefore(box,s5.firstChild);
+  }
+  var pseudo={zustand:gv("f-zustand"),system:gv("f-sys"),type:curType,einkaufspreis:gv("f-einkaufspreis"),fotos:photos};
+  var chance=estimateSalesChance(pseudo),demand=estimateDemandLevel(pseudo);
+  var tips=buildAIFotoTips(curType).slice(0,2).map(function(t){return "• "+t;}).join("<br>");
+  box.innerHTML='<div class="photo-guide-title"><i class="bi bi-lightning-charge"></i> Verkaufsoptimierung</div><div style="font-size:12px;color:var(--w2);line-height:1.6">Verkaufschance <b style="color:var(--acc)">'+chance+'%</b> · Nachfrage <b>'+esc(demand)+'</b></div><div style="font-size:11px;color:var(--w3);margin-top:6px">'+tips+'</div>';
+  try{updatePriceSuggest();}catch(e){}
+}
 function updateProgress(){
   ensureResellerOSStyles();
   renderIntakePhaseBar(stepCur);
@@ -1147,12 +1171,13 @@ function updateProgress(){
   if(gn&&!last)gn.style.display=inlineAction?"none":"inline-flex";
   updateStepperCTA();
   updateMangelCTA();
+  if(stepCur>=5)renderSalesOptimizationHints();
 }
 function showStep(n){for(var i=1;i<=stepTotal;i++){var el=document.getElementById("st-s"+i);if(el){el.classList.remove("on");if(i===n)el.classList.add("on");}}}
 function jumpToStepperStep(n){
   n=parseInt(n,10);if(isNaN(n)||n<1||n>stepTotal)return;
   stepCur=n;updateProgress();showStep(stepCur);window.scrollTo({top:0,behavior:"smooth"});
-  if(stepCur===5){try{updatePriceSuggest();}catch(e){}}
+  if(stepCur===5){try{updatePriceSuggest();renderSalesOptimizationHints();}catch(e){}}
 }
 function stepNext(){
   if(stepCur===1){hideD("s1-diag");
@@ -1704,7 +1729,7 @@ function mkCard(item){
   var salesSt=computeItemSalesState(item);
   var chance=estimateSalesChance(item);
   var nm=item.name||item.spiel||item.modell||item.geraet||"–";
-  var statusBadge='<span class="ros-st '+salesSt.cls+'">'+esc(salesSt.label)+'</span>';
+  var statusBadge='<span class="ros-st '+salesSt.cls+'">'+salesStatusEmoji(salesSt.code)+' '+esc(salesSt.label)+'</span>';
   var sidRaw=String(item.scanId||"").trim();
   var inVkSale=sidRaw&&(window._openVerkaufByScanId||{})[sidRaw];
   var tmap={konsole:["ib-k","Konsole"],spiel:["ib-sp","Spiel"],controller:["ib-sp","Controller"],handy:["ib-h","Handy"],pc:["ib-pc","PC"],defekt:["ib-def","Defekt"],setbundle:["ib-sp","Set"]};
@@ -1731,7 +1756,7 @@ function mkCard(item){
   var catLabel=tm[1];
   var shownTags=tags.slice(0,3);
   var tagsHtml=shownTags.map(function(t){return '<span class="lager-tag">'+esc(t)+'</span>';}).join("")+(tags.length>3?'<span class="lager-tag">+'+(tags.length-3)+'</span>':"");
-  var meta='<div class="lager-meta"><span>'+esc(item.datum||"")+'</span><span>'+esc(catLabel)+'</span><span>EK '+esc(item.einkaufspreis?String(item.einkaufspreis)+"€":"—")+'</span></div>';
+  var meta='<div class="lager-meta"><span>Nachfrage '+esc(estimateDemandLevel(item))+'</span><span>'+esc(catLabel)+'</span>'+(item.datum?'<span style="opacity:.45;font-size:9px">'+esc(item.datum)+'</span>':'')+'</div>';
   cardRegistry.push(item);
   var actions='<div class="lager-actions">';
   if(item.type==="setbundle"){actions+='<button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();confirmDeleteSetBundle('+rIdx+')" title="Set löschen"><i class="bi bi-trash3"></i></button>';}
@@ -3719,7 +3744,7 @@ function ensureBestandsmasterBtn(){
   btn2.id="btn-kisetmasterpro";
   btn2.className="btn btn-outline-secondary";
   btn2.style.flex="1";
-  btn2.innerHTML='KIsetMaster';
+  btn2.innerHTML='Bundle-Assistent';
   btn2.onclick=function(){openSetBuilderFlow();};
   var btn3=document.createElement("button");
   btn3.id="btn-tasksmasterpro";
@@ -4720,8 +4745,20 @@ function scorePhotoSetForSale(photoArr,cb){
     var d=ctx.getImageData(0,0,w,h).data,bright=0,n=0,i;
     for(i=0;i<d.length;i+=16){bright+=(d[i]+d[i+1]+d[i+2])/3;n++;}
     bright=bright/(n||1);
-    var score=bright>145?88:(bright>100?68:42);
-    var label=score>=80?"Sehr starke Verkaufswirkung":(score>=60?"Gute Bilder, etwas heller wirkt besser":"Zu dunkel für Kleinanzeigen");
+    var variance=0,vn=0,vi;
+    for(vi=0;vi<d.length;vi+=64){var v=(d[vi]+d[vi+1]+d[vi+2])/3;variance+=Math.abs(v-bright);vn++;}
+    variance=variance/(vn||1);
+    var score=bright>145?82:(bright>100?62:38);
+    if(variance>28)score+=8; else if(variance<12)score-=6;
+    if(bright<90)score-=12;
+    score=Math.max(15,Math.min(98,score));
+    var parts=[];
+    if(score>=80)parts.push("Sehr starke Verkaufswirkung");
+    else if(score>=60)parts.push("Gute Bilder");
+    else parts.push("Schwache Verkaufswirkung");
+    if(bright<100)parts.push("etwas zu dunkel");
+    if(variance<14)parts.push("wenig Dynamik — Perspektive wechseln");
+    var label=parts.join(" · ");
     if(cb)cb({label:label,cls:score>=80?"ros-ph-good":(score>=60?"ros-ph-mid":"ros-ph-bad"),score:score});
   };
   img.onerror=function(){if(cb)cb({label:"Bilder vorhanden",cls:"ros-ph-mid",score:55});};
@@ -4744,44 +4781,46 @@ function buildAIFotoTips(type){
   var nm=String(gv("f-name")||"").trim()||String(type||"Produkt");
   var sys=String(gv("f-sys")||"").trim();
   var zub=String(gv("f-zubehoer")||gv("f-hinweise")||"").trim();
-  var isBundle=/\+|,|bundle|set|paket/i.test(nm+" "+zub);
+  var zust=String(gv("f-zustand")||"").trim();
+  var isBundle=/\+|,|bundle|set|paket|und\s+\d/i.test(nm+" "+zub);
   var tipsPool=[];
-  if(type==="konsole"||type==="pc"){
-    tipsPool.push("Hauptgerät leicht schräg, Controller diagonal davor platzieren.");
-    tipsPool.push("Zubehör versetzt anordnen — nicht alles in einer Linie.");
-    tipsPool.push("Erstes Bild als Gesamtübersicht mit Premium-Look.");
-    tipsPool.push("Kabel ordentlich legen, keine lose Kabelwüste.");
-    tipsPool.push("Nahaufnahme von Anschlüssen für Vertrauen.");
+  if(type==="konsole"){
+    tipsPool.push("Controller leicht diagonal — wirkt lebendiger als frontal.");
+    tipsPool.push("Zubehör versetzt, nicht symmetrisch — Premium-Look auf Kleinanzeigen.");
+    tipsPool.push("Erstes Bild: komplette Szene mit Spannung, nicht Katalogfoto.");
+    tipsPool.push("Asymmetrie erzeugt Aufmerksamkeit — Käufer bleiben länger.");
+    tipsPool.push("Heller, ruhiger Hintergrund — Produkt muss „poppen“.");
   }else if(type==="spiel"){
-    tipsPool.push("Cover leicht schräg statt flach von oben.");
-    tipsPool.push("Spiele leicht überlappend stapeln für Dynamik.");
-    tipsPool.push("Kein Regal-Look: Produkt frei auf hellem Hintergrund.");
-    tipsPool.push("Close-up vom wichtigsten Detail (Label, Disc, Hülle).");
-    tipsPool.push("Letztes Bild im Nutzungskontext aufnehmen.");
+    tipsPool.push("Cover leicht schräg — kein flaches Regalfoto.");
+    tipsPool.push("Spiele leicht überlappend — visuelle Dynamik wie im Feed.");
+    tipsPool.push("Verschiedene Bilddistanzen: Übersicht, Nah, Detail.");
+    tipsPool.push("Kein Regal-Look — frei auf hellem Untergrund wirkt hochwertiger.");
+    tipsPool.push("Letztes Bild: emotionale Nutzungsszene statt Technik.");
   }else if(type==="controller"){
-    tipsPool.push("Controller diagonal, leicht nach hinten gekippt.");
-    tipsPool.push("Sticks und Trigger als starke Nahaufnahme.");
-    tipsPool.push("Kabel sauber gebunden, nicht wild verteilt.");
-    tipsPool.push("Asymmetrische Anordnung wirkt hochwertiger.");
-    tipsPool.push("Heller Hintergrund, starke Kontraste.");
+    tipsPool.push("Controller diagonal kippen — wirkt sportlich und modern.");
+    tipsPool.push("Asymmetrische Platzierung statt Mittig-Standard.");
+    tipsPool.push("Sticks als Hero-Detail — Vertrauen ohne Technik-Overload.");
+    tipsPool.push("Kontrastreicher Hintergrund — Form muss sofort lesbar sein.");
+    tipsPool.push("Kein Kabel-Chaos im ersten Bild.");
   }else if(type==="handy"){
-    tipsPool.push("Display an, Rückseite in separatem Bild.");
-    tipsPool.push("Kamera-Modul als Nahaufnahme zeigen.");
-    tipsPool.push("Gerät leicht schräg, nicht frontal langweilig.");
-    tipsPool.push("Zubehör bewusst platzieren.");
-    tipsPool.push("Fingerabdrücke und Staub vor Aufnahme entfernen.");
+    tipsPool.push("Gerät leicht schräg — wirkt dynamischer als Frontal.");
+    tipsPool.push("Display-Helligkeit hoch — Käufer sehen sofort Qualität.");
+    tipsPool.push("Premium-Look: einfarbig hell, Produkt im Fokus.");
+    tipsPool.push("Zweites Bild: andere Perspektive für Story-Flow.");
+    tipsPool.push("Keine Finger im Bild — wirkt professioneller.");
   }else{
-    tipsPool.push("Hauptprodukt mittig, Zubehör versetzt drumherum.");
-    tipsPool.push("Leicht diagonale Anordnung für mehr Dynamik.");
-    tipsPool.push("Jedes Bild andere Perspektive.");
-    tipsPool.push("Heller, ruhiger Hintergrund ohne Schattenchaos.");
-    tipsPool.push("Close-up vom wichtigsten Verkaufsargument.");
+    tipsPool.push("Hauptprodukt diagonal — mehr Scroll-Stop.");
+    tipsPool.push("Zubehör versetzt für Tiefe und Spannung.");
+    tipsPool.push("Jedes Bild andere Perspektive — TikTok-Logik.");
+    tipsPool.push("Heller Hintergrund, starke Kontraste.");
+    tipsPool.push("Erstes Bild muss sofort Neugier wecken.");
   }
   if(isBundle){
-    tipsPool.push("Bundle wie Story aufbauen: erst Gesamt, dann Einzelteile.");
-    tipsPool.push("Teile leicht überlappend — nicht nebeneinander wie Katalog.");
+    tipsPool.push("Bundle als Story: Gesamt → Teile → Highlight.");
+    tipsPool.push("Teile überlappend stapeln — kein Katalog-Grid.");
   }
-  if(sys)tipsPool.push("Plattform "+sys+": typische Käufer erwarten klare Frontansicht.");
+  if(zust)tipsPool.push("Zustand "+zust+": ehrlich zeigen, aber attraktiv inszenieren.");
+  if(/mikro|kratzer|gebrauch/i.test(zub+" "+zust))tipsPool.push("Gebrauchsspuren ehrlich, aber in gutem Licht — Vertrauen statt Schock.");
   var seed=(Date.now()%997)+(nm.length*13)+(Math.random()*1000|0);
   function rand(){seed=(seed*9301+49297)%233280;return seed/233280;}
   var tips=tipsPool.slice();
@@ -6532,21 +6571,22 @@ function setHomeSubtab(tab){
 }
 function ensureSetBuilderOverlay(){
   ensureMasterModuleUnifiedStyles();
-  if(document.getElementById("kisetmaster-panel"))return;
-  var p=document.createElement("div");
-  p.id="kisetmaster-panel";
-  p.className="panel";
-  p.innerHTML='<div class="wrap" style="max-width:920px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div class="mm-title">KISETMASTERPRO</div><button type="button" class="btn btn-success btn-sm" style="border-color:#00ff8866" onclick="closeSetBuilderFlow()">Zurück</button></div><div id="sb-flow-body" class="mm-card"></div></div>';
-  document.body.appendChild(p);
+  if(document.getElementById("setbuilder-overlay"))return;
+  var ov=document.createElement("div");
+  ov.id="setbuilder-overlay";
+  ov.className="moverlay";
+  ov.innerHTML='<div class="msheet" style="max-width:560px;max-height:92vh"><div class="mhead"><h3>Bundle-Assistent</h3><button type="button" class="btn btn-sm btn-outline-secondary" onclick="closeSetBuilderFlow()"><i class="bi bi-x-lg"></i></button></div><div class="mbody" id="sb-flow-body"></div></div>';
+  ov.addEventListener("click",function(e){if(e.target===ov)closeSetBuilderFlow();});
+  document.body.appendChild(ov);
 }
 function openSetBuilderFlow(){
   ensureSetBuilderOverlay();
   setBuilderStep=0;setBuilderAnswers={};setBuilderDraft=null;setBuilderLoading=false;
-  goTabFn("kisetmaster-panel");
+  var ov=document.getElementById("setbuilder-overlay");if(ov)ov.classList.add("open");
   loadAll(true,function(){renderSetBuilderFlow();});
 }
 function closeSetBuilderFlow(){
-  goTabFn("home-panel");
+  var ov=document.getElementById("setbuilder-overlay");if(ov)ov.classList.remove("open");
 }
 function renderSetBuilderFlow(){
   var body=document.getElementById("sb-flow-body");if(!body)return;
@@ -6557,7 +6597,7 @@ function renderSetBuilderFlow(){
     return;
   }
   if(setBuilderStep===0){
-    body.innerHTML='<div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:6px">KIsetMaster</div><div style="font-size:12px;color:#8b949e;line-height:1.7">Sets zusammenstellen, strukturierte Marktanalyse, Verwaltung.</div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button type="button" class="btn btn-success" onclick="setBuilderStep=1;renderSetBuilderFlow()">Start</button><button type="button" class="btn btn-outline-secondary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets verwalten</button></div>';
+    body.innerHTML='<div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:6px">Bundle-Assistent</div><div style="font-size:12px;color:#8b949e;line-height:1.7">Bundles aus echtem Lager — Markt & Nachfrage. Keine verkauften Artikel.</div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button type="button" class="btn btn-success" onclick="setBuilderStep=1;renderSetBuilderFlow()">Start</button><button type="button" class="btn btn-outline-secondary" onclick="setBuilderStep=99;renderSetBuilderFlow()">Sets verwalten</button></div>';
     return;
   }
   if(setBuilderStep===99){renderSetManager(body);return;}
@@ -6687,8 +6727,11 @@ function editSetChat(ix){loadSetChats();var c=setChats[ix];if(!c)return;var n=pr
 function deleteSetChat(ix){loadSetChats();setChats.splice(ix,1);saveSetChats();renderSetBuilderFlow();}
 function confirmSetBundle(){
   if(!setBuilderDraft||!setBuilderDraft.items||!setBuilderDraft.items.length){toast("Kein Set erstellt.","err");return;}
+  var eligible={};_setEligibleItems().forEach(function(i){var id=String(i.scanId||"").trim();if(id)eligible[id]=1;});
+  setBuilderDraft.items=setBuilderDraft.items.filter(function(it){return eligible[String(it.scanId||"").trim()];});
+  if(!setBuilderDraft.items.length){toast("Keine verkaufsfähigen Artikel im Set.","err");return;}
   var setName=gv("sb-set-name").trim()||setBuilderDraft.name;
-  gasPost("saveSetBundle",{name:setName,mitarbeiter:emp,plattform:setBuilderDraft.plattform,budget:setBuilderDraft.budget,zustand:setBuilderDraft.zustand,items:setBuilderDraft.items,notizen:"Bestätigt via KIsetMasterPro"},function(r){
+  gasPost("saveSetBundle",{name:setName,mitarbeiter:emp,plattform:setBuilderDraft.plattform,budget:setBuilderDraft.budget,zustand:setBuilderDraft.zustand,items:setBuilderDraft.items,notizen:"Bestätigt via Bundle-Assistent"},function(r){
     if(r&&r.ok){
       toast("Set gespeichert ✅","ok");
       showCenterSuccess("Set "+setName+" erfolgreich erstellt");
@@ -6768,7 +6811,7 @@ function sbRenderSetAnalyseCardHtml(data){
     +'<div class="sb-ka-line sb-ka-line-tight">Verkauf: '+fmt((p.verkauf||{}).min,(p.verkauf||{}).max)+"</div>"
     +'<div class="sb-ka-line sb-ka-line-tight">Schnell: '+fmt((p.schnell||{}).min,(p.schnell||{}).max)+"</div>";
   var opt=op[0]?'<div class="sb-ka-opt-one">'+esc(op[0])+"</div>":"";
-  return'<div class="sb-set-analyse-inner"><div class="sb-ka-main-title">SET ANALYSE</div><div class="sb-ka-sec-title">Preise</div><div class="sb-ka-lines">'+lines+'</div><div class="sb-ka-nf-scoreline">Score: '+(nf.score||0)+' / 10</div><div class="sb-ka-nf-txt">'+esc(nf.begruendung||"")+"</div>"+opt+"</div>";
+  return'<div class="sb-set-analyse-inner"><div class="sb-ka-main-title">Bundle-Analyse</div><div class="sb-ka-sec-title">Preise</div><div class="sb-ka-lines">'+lines+'</div><div class="sb-ka-nf-scoreline">Score: '+(nf.score||0)+' / 10</div><div class="sb-ka-nf-txt">'+esc(nf.begruendung||"")+"</div>"+opt+"</div>";
 }
 function sbAnalyzeSet(){
   if(!setBuilderDraft)return;
@@ -7161,9 +7204,9 @@ function _renderAnLineChart(vkData){
 function _buildAnInsights(vkData,ctx){
   var out=[];
   var noEK=vkData.filter(function(v){return!(parseFloat(v.einkaufspreis||0)>0);}).length;
-  if(noEK>0)out.push({icon:"⚠️",text:noEK+" Verkauf"+(noEK>1?"e":"")+" ohne EK — Gewinn kann nicht korrekt berechnet werden → jetzt prüfen",cls:"an-in-warn",issue:"missing_ek"});
+  if(noEK>0)out.push({icon:"⚠️",text:noEK+" Verkauf"+(noEK>1?"e":"")+" Gewinnanalyse ungenau → Einkaufsdaten fehlen → jetzt prüfen",cls:"an-in-warn",issue:"missing_ek"});
   var noVK=(allItems||[]).filter(function(i){return i.type!=="defekt"&&i.type!=="setbundle"&&!(parseFloat(i.kaPreis||0)>0);}).length;
-  if(noVK>0)out.push({icon:"📌",text:noVK+" ohne VK-Preis → jetzt ergänzen",cls:"an-in-warn",issue:"missing_vk"});
+  if(noVK>0)out.push({icon:"📌",text:noVK+" ohne Verkaufspreis → Upload-Daten unvollständig → jetzt ergänzen",cls:"an-in-warn",issue:"missing_vk"});
   var totM=ctx.totalMarge,totU=ctx.totalVP;
   if(vkData.length>2&&totM>0){
     var sorted=vkData.slice().sort(function(a,b){return parseFloat(b.marge||0)-parseFloat(a.marge||0);});
