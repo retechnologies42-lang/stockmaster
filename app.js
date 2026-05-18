@@ -1,7 +1,7 @@
 
 
 
-var GAS_URL = "https://script.google.com/macros/s/AKfycbyIG-Wo-53qu7mqJX_wPnQU6DAaJa8Ygqz98yj90nhlcKc157C7OAFc94y7mxPTag/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbytfRI-vqVgKnOIgaYgrS0uuRJA9yzAJYt5ARM0pKTM4-hoB6NOOAEO0rTHJGtj/exec";
 function resolveGasUrl(){
   var raw=String(
     GAS_URL ||
@@ -53,7 +53,7 @@ function ensureResellerOSStyles(){
   if(document.getElementById("reseller-os-style"))return;
   var st=document.createElement("style");
   st.id="reseller-os-style";
-  st.textContent=".ros-pipe{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 4px}.ros-pipe-step{flex:1;min-width:72px;text-align:center;padding:8px 6px;border-radius:10px;border:1px solid var(--e2);background:var(--b2);font-size:9px;font-weight:700;color:var(--w4);letter-spacing:.4px;text-transform:uppercase}.ros-pipe-step.on{border-color:rgba(0,255,136,.45);color:var(--acc);background:rgba(0,255,136,.08);box-shadow:0 0 12px rgba(0,255,136,.12)}.ros-st{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;padding:3px 9px;border-radius:999px;letter-spacing:.35px;text-transform:uppercase;font-family:var(--fm)}.ros-st-ready{background:rgba(0,255,136,.14);color:var(--acc);border:1px solid rgba(0,255,136,.35)}.ros-st-prep{background:rgba(77,159,255,.12);color:var(--col-b);border:1px solid rgba(77,159,255,.3)}.ros-st-incomplete{background:rgba(255,204,0,.1);color:var(--col-y);border:1px solid rgba(255,204,0,.28)}.ros-st-defect{background:rgba(255,59,59,.1);color:var(--col-r);border:1px solid rgba(255,59,59,.28)}.ros-st-sale{background:rgba(255,204,0,.12);color:var(--col-y);border:1px solid rgba(255,204,0,.35)}.ros-st-work{background:rgba(181,123,255,.1);color:var(--col-p);border:1px solid rgba(181,123,255,.28)}.ros-chance{font-size:11px;color:var(--w3);margin-top:4px}.ros-chance b{color:var(--acc)}.ros-ka-prep{margin:14px 0;padding:14px;border-radius:var(--r-lg);border:1px solid rgba(0,255,136,.25);background:linear-gradient(145deg,rgba(0,255,136,.06),rgba(77,159,255,.04))}.ros-ka-title{font-family:var(--fh);font-size:18px;letter-spacing:1px;color:var(--acc);margin-bottom:8px}.ros-ka-copy{background:var(--b1);border:1px solid var(--e2);border-radius:var(--r);padding:10px;font-size:11px;color:var(--w2);line-height:1.55;white-space:pre-wrap;font-family:var(--fm);max-height:140px;overflow:auto}.ros-ka-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.ros-ph-score{margin-top:8px;padding:8px 10px;border-radius:var(--r);font-size:11px;font-weight:700;font-family:var(--fm)}.ros-ph-good{background:rgba(0,255,136,.1);color:var(--acc);border:1px solid rgba(0,255,136,.25)}.ros-ph-mid{background:rgba(255,204,0,.08);color:var(--col-y);border:1px solid rgba(255,204,0,.25)}.ros-ph-bad{background:rgba(255,59,59,.08);color:var(--col-r);border:1px solid rgba(255,59,59,.25)}.ros-intake-phases{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}.ros-intake-ph{font-size:9px;text-align:center;padding:6px 4px;border-radius:8px;border:1px solid var(--e2);color:var(--w4);font-weight:700;text-transform:uppercase;letter-spacing:.3px}.ros-intake-ph.on{color:var(--acc);border-color:rgba(0,255,136,.4);background:rgba(0,255,136,.08)}.lager-card{border-left-width:3px!important}.lager-card.ros-border-ready{border-left-color:var(--acc)!important}.lager-card.ros-border-prep{border-left-color:var(--col-b)!important}.lager-card.ros-border-incomplete{border-left-color:var(--col-y)!important}.lager-card.ros-border-defect{border-left-color:var(--col-r)!important}.lager-card.ros-border-sale{border-left-color:var(--col-y)!important}.lager-card.ros-border-work{border-left-color:var(--col-p)!important}";
+  st.textContent=".ros-pipe{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 4px}.ros-pipe-step{flex:1;min-width:72px;text-align:center;padding:8px 6px;border-radius:10px;border:1px solid var(--e2);background:var(--b2);font-size:9px;font-weight:700;color:var(--w4);letter-spacing:.4px;text-transform:uppercase}.ros-pipe-step.on{border-color:rgba(0,255,136,.45);color:var(--acc);background:rgba(0,255,136,.08);box-shadow:0 0 12px rgba(0,255,136,.12)}.ros-st{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;padding:3px 9px;border-radius:999px;letter-spacing:.35px;text-transform:uppercase;font-family:var(--fm)}.ros-st-ready{background:rgba(0,255,136,.14);color:var(--acc);border:1px solid rgba(0,255,136,.35)}.ros-st-prep{background:rgba(77,159,255,.12);color:var(--col-b);border:1px solid rgba(77,159,255,.3)}.ros-st-incomplete{background:rgba(255,204,0,.1);color:var(--col-y);border:1px solid rgba(255,204,0,.28)}.ros-st-defect{background:rgba(255,59,59,.1);color:var(--col-r);border:1px solid rgba(255,59,59,.28)}.ros-st-partial{background:rgba(255,204,0,.12);color:var(--col-y);border:1px solid rgba(255,204,0,.35)}.ros-st-sale{background:rgba(255,204,0,.12);color:var(--col-y);border:1px solid rgba(255,204,0,.35)}.ros-st-work{background:rgba(181,123,255,.1);color:var(--col-p);border:1px solid rgba(181,123,255,.28)}.ros-chance{font-size:11px;color:var(--w3);margin-top:4px}.ros-chance b{color:var(--acc)}.ros-ka-prep{margin:14px 0;padding:14px;border-radius:var(--r-lg);border:1px solid rgba(0,255,136,.25);background:linear-gradient(145deg,rgba(0,255,136,.06),rgba(77,159,255,.04))}.ros-ka-title{font-family:var(--fh);font-size:18px;letter-spacing:1px;color:var(--acc);margin-bottom:8px}.ros-ka-copy{background:var(--b1);border:1px solid var(--e2);border-radius:var(--r);padding:10px;font-size:11px;color:var(--w2);line-height:1.55;white-space:pre-wrap;font-family:var(--fm);max-height:140px;overflow:auto}.ros-ka-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.ros-ph-score{margin-top:8px;padding:8px 10px;border-radius:var(--r);font-size:11px;font-weight:700;font-family:var(--fm)}.ros-ph-good{background:rgba(0,255,136,.1);color:var(--acc);border:1px solid rgba(0,255,136,.25)}.ros-ph-mid{background:rgba(255,204,0,.08);color:var(--col-y);border:1px solid rgba(255,204,0,.25)}.ros-ph-bad{background:rgba(255,59,59,.08);color:var(--col-r);border:1px solid rgba(255,59,59,.25)}.ros-intake-phases{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}.ros-intake-ph{font-size:9px;text-align:center;padding:6px 4px;border-radius:8px;border:1px solid var(--e2);color:var(--w4);font-weight:700;text-transform:uppercase;letter-spacing:.3px}.ros-intake-ph.on{color:var(--acc);border-color:rgba(0,255,136,.4);background:rgba(0,255,136,.08)}.lager-card{border-left-width:3px!important}.lager-card.ros-border-ready{border-left-color:var(--acc)!important}.lager-card.ros-border-prep{border-left-color:var(--col-b)!important}.lager-card.ros-border-incomplete{border-left-color:var(--col-y)!important}.lager-card.ros-border-defect{border-left-color:var(--col-r)!important}.lager-card.ros-border-partial{border-left-color:var(--col-y)!important}.lager-card.ros-border-sale{border-left-color:var(--col-y)!important}.lager-card.ros-border-work{border-left-color:var(--col-p)!important}";
   document.head.appendChild(st);
 }
 function computeItemSalesState(item){
@@ -66,7 +66,12 @@ function computeItemSalesState(item){
   var sid=String(item.scanId||"").trim();
   var inSale=sid&&(window._openVerkaufByScanId||{})[sid];
   if(inSale)return{code:"sale",label:"Im Verkauf",cls:"ros-st-sale",score:55,border:"ros-border-sale"};
-  if(itemHasDefektCondition(item))return{code:"defect",label:"Defekt",cls:"ros-st-defect",score:25,border:"ros-border-defect"};
+  var grade=itemConditionGrade(item);
+  if(grade==="defekt")return{code:"defect",label:"Defekt",cls:"ros-st-defect",score:22,border:"ros-border-defect"};
+  if(grade==="teildefekt"){
+    var pScore=hasImg&&hasPrice?(kaDone?74:78):52;
+    return{code:"partial",label:"Teildefekt",cls:"ros-st-partial",score:pScore,border:"ros-border-partial"};
+  }
   if(hasImg&&hasPrice&&!kaDone)return{code:"prep",label:"Upload vorbereiten",cls:"ros-st-prep",score:78,border:"ros-border-prep"};
   if(hasImg&&hasPrice&&kaDone)return{code:"ready",label:"Verkaufsbereit",cls:"ros-st-ready",score:92,border:"ros-border-ready"};
   if(!hasImg||!hasPrice)return{code:"incomplete",label:"Unvollständig",cls:"ros-st-incomplete",score:38,border:"ros-border-incomplete"};
@@ -77,7 +82,8 @@ function estimateSalesChance(item){
   var base=st.score;
   var z=String(item.zustand||"").toLowerCase();
   if(z.indexOf("neu")>-1||z.indexOf("sehr")>-1)base+=8;
-  if(z.indexOf("defekt")>-1)base-=25;
+  if(z.indexOf("teildefekt")>-1)base-=8;
+  else if(itemHasFullDefektCondition(item))base-=25;
   if(item.system&&/switch|ps5|ps4|xbox/i.test(String(item.system)))base+=5;
   return Math.max(5,Math.min(98,base));
 }
@@ -91,7 +97,7 @@ function buildListingTitle(item){
   return parts.join(" · ").slice(0,72);
 }
 function salesStatusEmoji(code){
-  return{ready:"🟢",incomplete:"🟡",defect:"🔴",prep:"🚀",sale:"🟣",work:"🔵"}[code]||"";
+  return{ready:"🟢",incomplete:"🟡",partial:"🟡",defect:"🔴",prep:"🚀",sale:"🟣",work:"🔵"}[code]||"";
 }
 function estimateDemandLevel(item){
   var sys=String(item.system||"").toLowerCase();
@@ -116,7 +122,8 @@ function buildListingCopyForKA(item){
   hin.forEach(function(b){if(bullets.indexOf(b)===-1)bullets.push(b);});
   if(item.problemTyp&&item.problemTyp!=="none"&&item.problemBeschr)bullets.push(String(item.problemBeschr));
   var z=String(item.zustand||"").toLowerCase();
-  if(z.indexOf("defekt")===-1&&!bullets.some(function(b){return /funktion|geht|läuft/i.test(b);}))bullets.push("voll funktionsfähig");
+  if(z.indexOf("teildefekt")>-1&&!bullets.some(function(b){return /teildefekt|eingeschränkt/i.test(b);}))bullets.push("Teildefekt — eingeschränkt funktionsfähig");
+  else if(z.indexOf("defekt")===-1&&!itemHasTeildefektCondition(item)&&!bullets.some(function(b){return /funktion|geht|läuft/i.test(b);}))bullets.push("voll funktionsfähig");
   var vk=parseFloat(item.kaPreis||0);
   if(vk>0)bullets.push("Zielpreis ca. "+vk+" € VB");
   return bullets.map(function(b){return "• "+b; }).join("\n");
@@ -609,9 +616,10 @@ function renderHomeControlHub(){
   var verkaufsbereit=stockItems.filter(function(i){return computeItemSalesState(i).code==="ready";}).length;
   var uploadPrep=stockItems.filter(function(i){return computeItemSalesState(i).code==="prep";}).length;
   var unvoll=stockItems.filter(function(i){return computeItemSalesState(i).code==="incomplete";}).length;
+  var teildefekte=stockItems.filter(function(i){return computeItemSalesState(i).code==="partial";}).length;
   var defekte=stockItems.filter(function(i){return computeItemSalesState(i).code==="defect";}).length;
   var noShip=sales.filter(function(v){var st=String(v.status||"");var ls=String(v.lieferstatus||"Offen");return st==="Verkauft"&&ls!=="Versendet"&&ls!=="Zugestellt";});
-  var repairPhotos=stockItems.filter(function(i){return itemHasDefektCondition(i)&&!((i.kaFotos&&i.kaFotos.length)||(i.fotos&&i.fotos.length));});
+  var repairPhotos=stockItems.filter(function(i){return itemHasFullDefektCondition(i)&&!((i.kaFotos&&i.kaFotos.length)||(i.fotos&&i.fotos.length));});
   var todaySales=sales.filter(function(v){return String(v.mitarbeiter||"").toLowerCase()===String(emp||"").toLowerCase();});
   var todaySalesCount=_hhCountDay(todaySales,function(v){return _hhDate(v.datum);},0);
   var kaDone=stockItems.filter(function(i){var k=String(i.kleinanzeigen||"").toLowerCase();return k.indexOf("hochgeladen")>-1||k==="ja";}).length;
@@ -641,6 +649,7 @@ function renderHomeControlHub(){
     {n:verkaufsbereit,l:"Verkaufsbereit",c:"var(--acc)",go:"goTabFn('list-panel','all')"},
     {n:uploadPrep,l:"Upload vorbereiten",c:"var(--col-b)",go:"openUploadWizard('Kleinanzeigen')"},
     {n:unvoll,l:"Unvollständig",c:"var(--col-y)",go:"goTabFn('list-panel','all')"},
+    {n:teildefekte,l:"Teildefekt",c:"var(--col-y)",go:"goTabFn('list-panel','teildefekt')"},
     {n:defekte,l:"Defekt",c:"var(--col-r)",go:"goTabFn('list-panel','defekt')"}
   ];
   root.innerHTML='<div class="hh-sec"><div class="hh-head"><div><div class="hh-title">Reseller Leitstand</div><div class="hh-sub">'+esc(emp||"Team")+' · '+todaySalesCount+' Verkäufe heute · '+ownOpenTasks.length+' Aufgaben</div></div><div class="hh-chip"><i class="bi bi-lightning-charge-fill me-1" style="color:var(--acc)"></i>OS</div></div></div>'+pipeHtml+'<div class="hh-sec"><div class="hh-title" style="font-size:16px">Nächste Schritte</div><div class="hh-prio">'+prioHtml+'</div></div><div class="hh-sec"><div class="hh-title" style="font-size:16px">Verkaufsbestand</div><div class="hh-kpi-grid" style="margin-top:8px">'+statTiles.map(function(t){return'<div class="hh-kpi" onclick="'+t.go+'" style="cursor:pointer"><div class="n" style="color:'+t.c+'">'+t.n+'</div><div class="l">'+esc(t.l)+'</div></div>';}).join("")+'</div><div class="hh-progress" style="margin-top:12px"><div class="lbl">'+kaDone+' / '+kaTotal+' auf Kleinanzeigen · '+kaPct+'%</div><div class="bar"><div class="fill" style="width:'+kaPct+'%"></div></div></div></div><div class="hh-sec"><div class="hh-title" style="font-size:16px">Workflow-Tools</div><div class="hh-mod-grid"><div class="hh-mod" onclick="goTabFn(\'scan-panel\');setMode(\'einlagern\')"><div class="i"><i class="bi bi-camera-fill"></i></div><div class="t">Produktaufnahme</div><div class="d">Schnell erfassen</div></div><div class="hh-mod" onclick="openSetBuilderFlow()"><div class="i"><i class="bi bi-cpu"></i></div><div class="t">Bundle-Assistent</div><div class="d">Bundles aus Lager</div></div><div class="hh-mod" onclick="openUploadWizard(\'Kleinanzeigen\')"><div class="i"><i class="bi bi-megaphone"></i></div><div class="t">KA Upload</div><div class="d">Anzeigen starten</div></div><div class="hh-mod" onclick="goTabFn(\'analyse-panel\')"><div class="i"><i class="bi bi-graph-up"></i></div><div class="t">Analyse</div><div class="d">Gewinn optimieren</div></div></div></div><div class="hh-sec"><div class="hh-title" style="font-size:16px">Aktivität</div><div class="hh-log-filters"><select id="hh-log-user" class="fc" onchange="window._hhLogUser=this.value;renderHomeActivityFromCache()"><option value="">Alle Nutzer</option></select><select id="hh-log-type" class="fc" onchange="window._hhLogType=this.value;renderHomeActivityFromCache()"><option value="">Alle Typen</option></select></div><div id="hh-activity-list" class="hh-mini"><div class="hh-mini-item"><i class="bi bi-activity"></i><span>Lade…</span></div></div></div>';
@@ -793,7 +802,7 @@ function applyHomeKpiFromStock(serverStats){
   var sp=act.filter(function(i){return i.type==="pc";}).length;
   var sdf=document.getElementById("st-sw"),sdh=document.getElementById("st-h"),sdp=document.getElementById("st-pc");
   if(sdf)sdf.textContent=sw;if(sdh)sdh.textContent=sh;if(sdp)sdp.textContent=sp;
-  var defC=allItems.filter(function(i){return itemHasDefektCondition(i);}).length;
+  var defC=allItems.filter(function(i){return itemHasFullDefektCondition(i);}).length;
   var sdd=document.getElementById("st-def");if(sdd)sdd.textContent=defC;
 }
 function loadStats(){gasGet("getStats",{},function(r){if(!r||!r.ok)return;var s=r.stats||{},sw=document.getElementById("st-sw"),sh=document.getElementById("st-h"),sp=document.getElementById("st-pc"),sd=document.getElementById("st-def"),she=document.getElementById("st-heu");if(sw)sw.textContent=(s.konsolen||0)+(s.spiele||0);if(sh)sh.textContent=s.handys||0;if(sp)sp.textContent=s.pcs||0;if(sd)sd.textContent=s.defekte||0;if(she)she.textContent=s.heute||0;var ve=document.getElementById("st-vk");if(ve)ve.textContent=s.verkauf||0;var ee=document.getElementById("st-ek");if(ee)ee.textContent=s.einkauf||0;window._statsCacheT=Date.now();applyHomeKpiFromStock(s);renderHomeControlHub();},function(){});}
@@ -1008,7 +1017,7 @@ function configS3(t){
     document.getElementById("s3-title").textContent="Details";
     h=buildStep3CardFlow(
       "Wichtige Angaben",
-      '<div class="row g-2 mb-2"><div class="col-6"><label class="fl">Speicher (GB)</label><input type="number" id="f-gb" class="fc sm-soft" placeholder="z.B. 825"/></div><div class="col-6"><label class="fl">Farbe</label><input type="text" id="f-farbe" class="fc sm-soft" placeholder="z.B. Weiß"/></div></div><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"]),
+      '<div class="row g-2 mb-2"><div class="col-6"><label class="fl">Speicher (GB)</label><input type="number" id="f-gb" class="fc sm-soft" placeholder="z.B. 825"/></div><div class="col-6"><label class="fl">Farbe</label><input type="text" id="f-farbe" class="fc sm-soft" placeholder="z.B. Weiß"/></div></div><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Teildefekt","Defekt"]),
       '<label class="fl">Hinweise für Verkauf</label><textarea id="f-hinweise" class="fc sm-soft" placeholder="z.B. leichte Gebrauchsspuren"></textarea>',
       ""
     );
@@ -1017,7 +1026,7 @@ function configS3(t){
     document.getElementById("s3-title").textContent="Details";
     h=buildStep3CardFlow(
       "Wichtige Angaben",
-      '<label class="fl">System / Plattform</label>'+selHTML("f-sys",["PlayStation 5","PlayStation 4","PlayStation 3","Xbox Series X/S","Xbox One","Xbox 360","Nintendo Switch","Nintendo 3DS","Nintendo Wii","Nintendo Wii U","Game Boy Advance","Nintendo DS","PC","Sonstiges"])+'<div class="row g-2 mt-2"><div class="col-4"><label class="fl">USK</label>'+selHTML("f-usk",["","USK 0","USK 6","USK 12","USK 16","USK 18"])+'</div><div class="col-4"><label class="fl">Sprache</label>'+selHTML("f-sprache",["Deutsch","Englisch","Multilingual","Sonstiges"])+'</div><div class="col-4"><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div></div>',
+      '<label class="fl">System / Plattform</label>'+selHTML("f-sys",["PlayStation 5","PlayStation 4","PlayStation 3","Xbox Series X/S","Xbox One","Xbox 360","Nintendo Switch","Nintendo 3DS","Nintendo Wii","Nintendo Wii U","Game Boy Advance","Nintendo DS","PC","Sonstiges"])+'<div class="row g-2 mt-2"><div class="col-4"><label class="fl">USK</label>'+selHTML("f-usk",["","USK 0","USK 6","USK 12","USK 16","USK 18"])+'</div><div class="col-4"><label class="fl">Sprache</label>'+selHTML("f-sprache",["Deutsch","Englisch","Multilingual","Sonstiges"])+'</div><div class="col-4"><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Teildefekt","Defekt"])+'</div></div>',
       '<label class="fl">Hinweise (z. B. Cover fehlt)</label><textarea id="f-hinweise" class="fc sm-soft" placeholder="z.B. Cover fehlt"></textarea>',
       ""
     );
@@ -1036,6 +1045,7 @@ function configS3(t){
       '<button type="button" class="sm-chip" data-v="Sehr gut" onclick="setChipValue(\'f-zustand\',\'Sehr gut\',\'chip-zst\')">Sehr gut</button>'+
       '<button type="button" class="sm-chip" data-v="Gut" onclick="setChipValue(\'f-zustand\',\'Gut\',\'chip-zst\')">Gut</button>'+
       '<button type="button" class="sm-chip" data-v="Akzeptabel" onclick="setChipValue(\'f-zustand\',\'Akzeptabel\',\'chip-zst\')">Akzeptabel</button>'+
+      '<button type="button" class="sm-chip" data-v="Teildefekt" onclick="setChipValue(\'f-zustand\',\'Teildefekt\',\'chip-zst\')">Teildefekt</button>'+
       '<button type="button" class="sm-chip" data-v="Defekt" onclick="setChipValue(\'f-zustand\',\'Defekt\',\'chip-zst\')">Defekt</button>'+
       '</div></div></div>'+
       '<div class="card sm-card"><div class="card-body sm-opt"><button type="button" class="sm-acc-btn" id="s3-toggle-more" onclick="toggleControllerDetails()">▼ Weitere Details anzeigen</button>'+
@@ -1063,7 +1073,7 @@ function configS3(t){
     document.getElementById("s3-title").textContent="Details";
     h=buildStep3CardFlow(
       "Wichtige Angaben",
-      '<div class="row g-2 mb-2"><div class="col-6"><label class="fl">Speicher (GB)</label><input type="number" id="f-gb" class="fc sm-soft" placeholder="z.B. 256"/></div><div class="col-6"><label class="fl">RAM (GB)</label><input type="number" id="f-ram" class="fc sm-soft" placeholder="z.B. 8"/></div></div><div class="row g-2 mb-2"><div class="col-6"><label class="fl">Farbe</label><input type="text" id="f-farbe" class="fc sm-soft" placeholder="z.B. Midnight Black"/></div><div class="col-6"><label class="fl">Netzwerk</label>'+selHTML("f-netz",["","4G/LTE","5G","Dual-SIM 5G","Sonstiges"])+'</div></div><div class="row g-2"><div class="col-6"><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div><div class="col-6"><label class="fl">IMEI (optional)</label><input type="text" id="f-imei" class="fc sm-soft" placeholder="15-stellig"/></div></div>',
+      '<div class="row g-2 mb-2"><div class="col-6"><label class="fl">Speicher (GB)</label><input type="number" id="f-gb" class="fc sm-soft" placeholder="z.B. 256"/></div><div class="col-6"><label class="fl">RAM (GB)</label><input type="number" id="f-ram" class="fc sm-soft" placeholder="z.B. 8"/></div></div><div class="row g-2 mb-2"><div class="col-6"><label class="fl">Farbe</label><input type="text" id="f-farbe" class="fc sm-soft" placeholder="z.B. Midnight Black"/></div><div class="col-6"><label class="fl">Netzwerk</label>'+selHTML("f-netz",["","4G/LTE","5G","Dual-SIM 5G","Sonstiges"])+'</div></div><div class="row g-2"><div class="col-6"><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Teildefekt","Defekt"])+'</div><div class="col-6"><label class="fl">IMEI (optional)</label><input type="text" id="f-imei" class="fc sm-soft" placeholder="15-stellig"/></div></div>',
       "",
       ""
     );
@@ -1081,7 +1091,7 @@ function configS3(t){
     document.getElementById("s3-title").textContent="Details";
     h=buildStep3CardFlow(
       "Wichtige Angaben",
-      '<div class="row g-2 mb-2"><div class="col-6"><label class="fl">Geräteart</label><input type="text" id="f-farbe" class="fc sm-soft" placeholder="z. B. Adapter, Kamera"/></div><div class="col-6"><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"])+'</div></div>',
+      '<div class="row g-2 mb-2"><div class="col-6"><label class="fl">Geräteart</label><input type="text" id="f-farbe" class="fc sm-soft" placeholder="z. B. Adapter, Kamera"/></div><div class="col-6"><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Sehr gut","Gut","Akzeptabel","Teildefekt","Defekt"])+'</div></div>',
       '<label class="fl">Hinweise</label><textarea id="f-hinweise" class="fc sm-soft" placeholder="z. B. mit Originalkabel"></textarea>',
       ""
     );
@@ -1131,8 +1141,8 @@ function selPCTyp(v){
   document.getElementById("pc-l").className="cbtn"+(v==="Laptop"?" sel":"");
   document.getElementById("pc-d").className="cbtn"+(v==="Desktop"?" sel":"");
   var wrap=document.getElementById("pc-fields-wrap");if(!wrap)return;wrap.style.display="block";
-  var lf='<div class="row g-2 mb-3"><div class="col-6"><label class="fl">Marke / Modell *</label><input type="text" id="f-brand" class="fc" placeholder="z.B. Dell XPS 15"/></div><div class="col-6"><label class="fl">Bildschirmgröße</label><input type="text" id="f-screen" class="fc" placeholder="z.B. 15,6 Zoll"/></div></div><div class="mb-3"><label class="fl">Prozessor</label><input type="text" id="f-cpu" class="fc" placeholder="z.B. Intel Core i7-13700H"/></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">RAM (GB)</label><input type="number" id="f-ram" class="fc" placeholder="z.B. 16"/></div><div class="col-6"><label class="fl">Speicher (GB)</label><input type="number" id="f-gb" class="fc" placeholder="z.B. 512"/></div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Grafikkarte</label><input type="text" id="f-gpu" class="fc" placeholder="z.B. RTX 4060"/></div><div class="col-6"><label class="fl">Akku-Zustand</label>'+selHTML("f-battery",["Sehr gut","Gut","Ok","Schwach","Defekt"])+'</div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Betriebssystem</label>'+selHTML("f-os",["Windows 11","Windows 10","macOS","Linux","Ohne OS"])+'</div><div class="col-6"><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Wie neu","Sehr gut","Gut","Gebraucht","Defekt"])+'</div></div>';
-  var df='<div class="mb-3"><label class="fl">Prozessor *</label><input type="text" id="f-cpu" class="fc" placeholder="z.B. Intel Core i7-13700K"/></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">RAM (GB)</label><input type="number" id="f-ram" class="fc" placeholder="z.B. 32"/></div><div class="col-6"><label class="fl">Speicher (GB)</label><input type="number" id="f-gb" class="fc" placeholder="z.B. 1000"/></div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Speichertyp</label>'+selHTML("f-stype",["SSD","HDD","SSD+HDD","NVMe SSD"])+'</div><div class="col-6"><label class="fl">Grafikkarte</label><input type="text" id="f-gpu" class="fc" placeholder="z.B. RTX 4070"/></div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Mainboard</label><input type="text" id="f-mb" class="fc" placeholder="z.B. ASUS ROG Z790"/></div><div class="col-6"><label class="fl">Netzteil (W)</label><input type="number" id="f-psu" class="fc" placeholder="z.B. 650"/></div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Betriebssystem</label>'+selHTML("f-os",["Windows 11","Windows 10","Linux","Ohne OS"])+'</div><div class="col-6"><label class="fl">Anschlüsse</label><input type="text" id="f-ports" class="fc" placeholder="z.B. USB 3.2, HDMI, DP"/></div></div><div class="mb-3"><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Wie neu","Sehr gut","Gut","Gebraucht","Defekt"])+'</div>';
+  var lf='<div class="row g-2 mb-3"><div class="col-6"><label class="fl">Marke / Modell *</label><input type="text" id="f-brand" class="fc" placeholder="z.B. Dell XPS 15"/></div><div class="col-6"><label class="fl">Bildschirmgröße</label><input type="text" id="f-screen" class="fc" placeholder="z.B. 15,6 Zoll"/></div></div><div class="mb-3"><label class="fl">Prozessor</label><input type="text" id="f-cpu" class="fc" placeholder="z.B. Intel Core i7-13700H"/></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">RAM (GB)</label><input type="number" id="f-ram" class="fc" placeholder="z.B. 16"/></div><div class="col-6"><label class="fl">Speicher (GB)</label><input type="number" id="f-gb" class="fc" placeholder="z.B. 512"/></div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Grafikkarte</label><input type="text" id="f-gpu" class="fc" placeholder="z.B. RTX 4060"/></div><div class="col-6"><label class="fl">Akku-Zustand</label>'+selHTML("f-battery",["Sehr gut","Gut","Ok","Schwach","Defekt"])+'</div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Betriebssystem</label>'+selHTML("f-os",["Windows 11","Windows 10","macOS","Linux","Ohne OS"])+'</div><div class="col-6"><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Wie neu","Sehr gut","Gut","Gebraucht","Teildefekt","Defekt"])+'</div></div>';
+  var df='<div class="mb-3"><label class="fl">Prozessor *</label><input type="text" id="f-cpu" class="fc" placeholder="z.B. Intel Core i7-13700K"/></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">RAM (GB)</label><input type="number" id="f-ram" class="fc" placeholder="z.B. 32"/></div><div class="col-6"><label class="fl">Speicher (GB)</label><input type="number" id="f-gb" class="fc" placeholder="z.B. 1000"/></div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Speichertyp</label>'+selHTML("f-stype",["SSD","HDD","SSD+HDD","NVMe SSD"])+'</div><div class="col-6"><label class="fl">Grafikkarte</label><input type="text" id="f-gpu" class="fc" placeholder="z.B. RTX 4070"/></div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Mainboard</label><input type="text" id="f-mb" class="fc" placeholder="z.B. ASUS ROG Z790"/></div><div class="col-6"><label class="fl">Netzteil (W)</label><input type="number" id="f-psu" class="fc" placeholder="z.B. 650"/></div></div><div class="row g-2 mb-3"><div class="col-6"><label class="fl">Betriebssystem</label>'+selHTML("f-os",["Windows 11","Windows 10","Linux","Ohne OS"])+'</div><div class="col-6"><label class="fl">Anschlüsse</label><input type="text" id="f-ports" class="fc" placeholder="z.B. USB 3.2, HDMI, DP"/></div></div><div class="mb-3"><label class="fl">Zustand</label>'+selHTML("f-zustand",["Neuwertig","Wie neu","Sehr gut","Gut","Gebraucht","Teildefekt","Defekt"])+'</div>';
   wrap.innerHTML=(v==="Desktop"?df:lf);
 }
 function buildDots(){var c=document.getElementById("step-dots");c.innerHTML="";for(var i=1;i<=stepTotal;i++){var d=document.createElement("div");d.className="sdot"+(i===1?" act":"");d.id="sd"+i;c.appendChild(d);}}
@@ -1585,17 +1595,33 @@ function refreshInventoryWithLoading(done){
   if(listBody)listBody.innerHTML='<div class="empty"><span class="spin-b"></span><p>Lade…</p></div>';
   loadAll(true,function(){if(typeof done==="function")try{done();}catch(e){}});
 }
-function itemHasDefektCondition(i){
+function itemZustandNorm(i){return String((i&&i.zustand)||"").toLowerCase().trim();}
+function itemHasTeildefektCondition(i){
+  if(!i||i.type==="setbundle"||i.type==="defekt")return false;
+  var z=itemZustandNorm(i);
+  if(z.indexOf("teildefekt")>-1)return true;
+  var pt=String(i.problemTyp||"").toLowerCase();
+  if(pt.indexOf("leichte")>-1||pt==="leichte_gebrauchsspuren")return true;
+  if((pt.indexOf("relevant")>-1||pt==="relevanter_schaden")&&z.indexOf("defekt")===-1)return true;
+  return false;
+}
+function itemHasFullDefektCondition(i){
   if(!i||i.type==="setbundle")return false;
   if(i.type==="defekt")return true;
-  var z=String(i.zustand||"").toLowerCase();
-  if(z.indexOf("defekt")>-1||z.indexOf("teildefekt")>-1)return true;
-  if(String(i.problemTyp||"").trim())return true;
+  if(itemHasTeildefektCondition(i))return false;
+  var z=itemZustandNorm(i);
+  if(z==="defekt"||(z.indexOf("defekt")>-1&&z.indexOf("teil")===-1))return true;
   if(i.kategorien&&String(i.kategorien).indexOf("Defekt")>-1)return true;
   return false;
 }
+function itemHasDefektCondition(i){return itemHasFullDefektCondition(i)||itemHasTeildefektCondition(i);}
+function itemConditionGrade(i){
+  if(itemHasFullDefektCondition(i))return"defekt";
+  if(itemHasTeildefektCondition(i))return"teildefekt";
+  return"ok";
+}
 function renderList(){
-  cardRegistry=[];rebuildOpenVerkaufScanIndex();ensureLagerDropdownUI();ensureLagerRedesignStyles();
+  cardRegistry=[];rebuildOpenVerkaufScanIndex();ensureLagerTabs();ensureLagerDropdownUI();ensureLagerRedesignStyles();
   var q=(document.getElementById("list-q")||{value:""}).value.toLowerCase();
   var ddMain=(document.getElementById("lager-dd-main")||{value:""}).value;
   var ddSub=(document.getElementById("lager-dd-sub")||{value:""}).value;
@@ -1609,7 +1635,8 @@ function renderList(){
     if(lf==="spielwaren")tm=(i.type==="konsole"||i.type==="spiel"||i.type==="controller");
     else if(lf==="handy")tm=(i.type==="handy");
     else if(lf==="pc")tm=(i.type==="pc");
-    else if(lf==="defekt")tm=itemHasDefektCondition(i);
+    else if(lf==="defekt")tm=itemHasFullDefektCondition(i);
+    else if(lf==="teildefekt")tm=itemHasTeildefektCondition(i);
     if(!tm)return false;
     if(ddMain==="spielwaren"){
       if(ddSub==="konsole"&&i.type!=="konsole")return false;
@@ -1629,7 +1656,9 @@ function renderList(){
       if(ddStatus==="set"&&!(setMembershipByScanId[String(i.scanId||"").trim()]||[]).length)return false;
       if(ddStatus==="mitbild"&&!((i.kaFotos&&i.kaFotos.length)||(i.fotos&&i.fotos.length)))return false;
       if(ddStatus==="ohnebild"&&((i.kaFotos&&i.kaFotos.length)||(i.fotos&&i.fotos.length)))return false;
-      if(ddStatus==="defekt"&&!String(i.problemTyp||"").trim())return false;
+      if(ddStatus==="teildefekt"&&!itemHasTeildefektCondition(i))return false;
+      if(ddStatus==="defekt"&&!itemHasFullDefektCondition(i))return false;
+      if(ddStatus==="mangel"&&!itemHasDefektCondition(i))return false;
     }
     if(window._realityFilter==="missing_ek"){
       if(parseFloat(i.einkaufspreis||0)>0)return false;
@@ -1652,15 +1681,21 @@ function renderList(){
   if(!f.length){document.getElementById("list-body").innerHTML='<div class="empty"><i class="bi bi-inbox"></i><p>Nichts gefunden.</p></div>';return;}
   document.getElementById("list-body").innerHTML=f.map(function(i){return mkCard(i);}).join("");
 }
-var lfArr=["all","spielwaren","handy","pc","defekt"],lfLabels={"all":"Gesamtes Lager","spielwaren":"🎮 Spielwaren","handy":"📱 Handys","pc":"💻 PCs & Laptops","defekt":"⚠️ Defekte Geräte"};
-function setLF(m){lf=m;var tabs=document.querySelectorAll("#list-panel .lager-tabs .ltab");var idx=lfArr.indexOf(m);tabs.forEach(function(t,i){t.classList.toggle("on",i===idx);});var hdr=document.getElementById("lager-category-header"),lbl=document.getElementById("lager-cat-label");if(hdr&&lbl){if(m==="all"){hdr.style.display="none";}else{hdr.style.display="block";lbl.textContent=lfLabels[m]||m;}}renderList();}
+var lfArr=["all","spielwaren","handy","pc","teildefekt","defekt"],lfLabels={"all":"Gesamtes Lager","spielwaren":"🎮 Spielwaren","handy":"📱 Handys","pc":"💻 PCs & Laptops","teildefekt":"🟡 Teildefekt","defekt":"🔴 Defekt"};
+function ensureLagerTabs(){
+  var wrap=document.querySelector("#list-panel .lager-tabs");
+  if(!wrap||wrap.dataset.rosTabs==="v2")return;
+  wrap.dataset.rosTabs="v2";
+  wrap.innerHTML=lfArr.map(function(k){return'<button type="button" class="ltab'+(lf===k?" on":"")+'" onclick="setLF(\''+k+'\')">'+esc(lfLabels[k]||k)+'</button>';}).join("");
+}
+function setLF(m){lf=m;ensureLagerTabs();var tabs=document.querySelectorAll("#list-panel .lager-tabs .ltab");var idx=lfArr.indexOf(m);tabs.forEach(function(t,i){t.classList.toggle("on",i===idx);});var hdr=document.getElementById("lager-category-header"),lbl=document.getElementById("lager-cat-label");if(hdr&&lbl){if(m==="all"){hdr.style.display="none";}else{hdr.style.display="block";lbl.textContent=lfLabels[m]||m;}}renderList();}
 function ensureLagerDropdownUI(){
   var wrap=document.querySelector("#list-panel .wrap");
   if(!wrap||document.getElementById("lager-dd-wrap"))return;
   var box=document.createElement("div");
   box.id="lager-dd-wrap";
   box.className="lager-topbar";
-  box.innerHTML='<div class="lager-topbar-row"><input id="list-q" class="fc lager-search" placeholder="Suchen…"/><select id="lager-dd-main" class="fc lager-sel"><option value="">Kategorie</option><option value="spielwaren">Spielwaren</option><option value="handy">Handys</option><option value="pc">PC</option></select><select id="lager-dd-sub" class="fc lager-sel" style="display:none"></select><select id="lager-dd-sub2" class="fc lager-sel" style="display:none"></select><select id="lager-dd-status" class="fc lager-sel"><option value="">Status</option><option value="set">Teil eines Sets</option><option value="mitbild">Mit Bild</option><option value="ohnebild">Ohne Bild</option><option value="defekt">Defekt-Hinweis</option><option value="soldout">Ausgeschieden (Verkauf)</option></select></div><div id="lager-active-chips" class="lager-active-chips"></div>';
+  box.innerHTML='<div class="lager-topbar-row"><input id="list-q" class="fc lager-search" placeholder="Suchen…"/><select id="lager-dd-main" class="fc lager-sel"><option value="">Kategorie</option><option value="spielwaren">Spielwaren</option><option value="handy">Handys</option><option value="pc">PC</option></select><select id="lager-dd-sub" class="fc lager-sel" style="display:none"></select><select id="lager-dd-sub2" class="fc lager-sel" style="display:none"></select><select id="lager-dd-status" class="fc lager-sel"><option value="">Status</option><option value="set">Teil eines Sets</option><option value="mitbild">Mit Bild</option><option value="ohnebild">Ohne Bild</option><option value="teildefekt">Teildefekt</option><option value="defekt">Voll defekt</option><option value="mangel">Alle Mängel</option><option value="soldout">Ausgeschieden (Verkauf)</option></select></div><div id="lager-active-chips" class="lager-active-chips"></div>';
   var body=document.getElementById("list-body");
   if(body&&body.parentNode===wrap)wrap.insertBefore(box,body);
   document.getElementById("lager-dd-main").onchange=function(){updateLagerDropdowns();renderList();};
@@ -1668,6 +1703,9 @@ function ensureLagerDropdownUI(){
   document.getElementById("lager-dd-sub2").onchange=function(){renderList();};
   document.getElementById("lager-dd-status").onchange=function(){renderList();};
   document.getElementById("list-q").addEventListener("input",function(){renderList();});
+}
+function lagerStatusFilterLabel(v){
+  return{teildefekt:"Teildefekt",defekt:"Voll defekt",mangel:"Alle Mängel",set:"Teil eines Sets",mitbild:"Mit Bild",ohnebild:"Ohne Bild",soldout:"Ausgeschieden"}[v]||v;
 }
 function renderLagerFilterChips(){
   var out=document.getElementById("lager-active-chips");if(!out)return;
@@ -1681,7 +1719,7 @@ function renderLagerFilterChips(){
   if(main)chips.push({k:"main",v:main,l:"Kategorie: "+main});
   if(sub)chips.push({k:"sub",v:sub,l:"Typ: "+sub});
   if(sub2)chips.push({k:"sub2",v:sub2,l:"Subtyp: "+sub2});
-  if(st)chips.push({k:"status",v:st,l:"Status: "+st});
+  if(st)chips.push({k:"status",v:st,l:"Status: "+lagerStatusFilterLabel(st)});
   out.innerHTML=chips.map(function(c){return'<button class="lager-chip-filter" onclick="removeLagerFilter(\''+esc(c.k)+'\')">'+esc(c.l)+' <span>✕</span></button>';}).join("");
 }
 function removeLagerFilter(k){
@@ -1696,7 +1734,7 @@ function ensureLagerRedesignStyles(){
   if(document.getElementById("lager-redesign-style"))return;
   var st=document.createElement("style");
   st.id="lager-redesign-style";
-  st.textContent=".lager-cond-badge{font-size:9px;font-weight:800;letter-spacing:.35px;padding:2px 8px;border-radius:6px;margin-left:6px;vertical-align:middle;white-space:nowrap}.lager-cond-ok{background:rgba(0,255,136,.12);color:var(--acc);border:1px solid rgba(0,255,136,.28)}.lager-cond-def{background:rgba(248,81,73,.12);color:var(--col-r);border:1px solid rgba(248,81,73,.32)}#list-panel{background:#0a0a0a}.lager-topbar{position:sticky;top:0;z-index:8;background:#0a0a0a;padding:8px 0 12px}.lager-topbar-row{display:flex;gap:8px;flex-wrap:wrap}.lager-search{flex:1;min-width:220px}.lager-sel{min-width:140px;max-width:180px}.lager-active-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.lager-chip-filter{background:#111;border:1px solid #222;color:#9ca3af;border-radius:999px;padding:4px 10px;font-size:11px}.lager-chip-filter span{color:#e5e7eb}.lager-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px}.lager-card{background:#111;border:1px solid #222;border-radius:14px;padding:12px;transition:all .18s ease}.lager-card:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,0,0,.35);background:#151515}.lager-card-row{display:grid;grid-template-columns:80px 1fr;gap:12px}.lager-thumb{width:80px;height:80px;border-radius:12px;overflow:hidden;background:#0d1117;border:1px solid #222}.lager-thumb img{width:100%;height:100%;object-fit:cover}.lager-title{font-size:15px;font-weight:700;color:#fff;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.lager-price{font-size:20px;color:#00ff88;font-weight:800;margin-top:2px}.lager-sub{font-size:11px;color:#9ca3af;margin-top:3px}.lager-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.lager-tag{font-size:10px;color:#9ca3af;border:1px solid #2b2b2b;padding:2px 6px;border-radius:999px}.lager-meta{font-size:10px;color:#6b7280;margin-top:8px;display:flex;gap:10px;flex-wrap:wrap}.lager-sethint{font-size:11px;color:#00ff88;margin-top:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.35);padding:3px 8px;border-radius:999px}.lager-actions{display:flex;gap:6px;align-items:flex-start}.lager-head{display:flex;justify-content:space-between;gap:8px}.addset-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:10100;display:none;align-items:center;justify-content:center;padding:16px}.addset-modal{width:min(500px,96vw);max-height:80vh;overflow:auto;background:#0f1115;border:1px solid rgba(0,255,136,.25);border-radius:14px;padding:16px;animation:addsetIn .18s ease}.addset-list{margin-top:10px;display:flex;flex-direction:column;gap:8px;max-height:44vh;overflow:auto}.addset-row{padding:10px 12px;background:#0b0d12;border:1px solid #1f2937;border-radius:10px;cursor:pointer;transition:all .15s ease}.addset-row:hover{border-color:rgba(0,255,136,.45);background:#101820}.addset-row.selected{border-color:#00ff88;background:rgba(0,255,136,.1)}.addset-row.disabled{opacity:.55;cursor:not-allowed}.setinfo-overlay{position:fixed;inset:0;background:rgba(0,0,0,.64);z-index:10101;display:none;align-items:center;justify-content:center;padding:12px}.setinfo-card{width:min(460px,96vw);background:#0f1115;border:1px solid rgba(0,255,136,.25);border-radius:12px;padding:12px;max-height:70vh;overflow:auto}@keyframes addsetIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}";
+  st.textContent=".lager-cond-badge{font-size:9px;font-weight:800;letter-spacing:.35px;padding:2px 8px;border-radius:6px;margin-left:6px;vertical-align:middle;white-space:nowrap}.lager-cond-ok{background:rgba(0,255,136,.12);color:var(--acc);border:1px solid rgba(0,255,136,.28)}.lager-cond-def{background:rgba(248,81,73,.12);color:var(--col-r);border:1px solid rgba(248,81,73,.32)}.lager-cond-partial{background:rgba(255,204,0,.12);color:var(--col-y);border:1px solid rgba(255,204,0,.35)}#list-panel{background:#0a0a0a}.lager-topbar{position:sticky;top:0;z-index:8;background:#0a0a0a;padding:8px 0 12px}.lager-topbar-row{display:flex;gap:8px;flex-wrap:wrap}.lager-search{flex:1;min-width:220px}.lager-sel{min-width:140px;max-width:180px}.lager-active-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.lager-chip-filter{background:#111;border:1px solid #222;color:#9ca3af;border-radius:999px;padding:4px 10px;font-size:11px}.lager-chip-filter span{color:#e5e7eb}.lager-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px}.lager-card{background:#111;border:1px solid #222;border-radius:14px;padding:12px;transition:all .18s ease}.lager-card:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,0,0,.35);background:#151515}.lager-card-row{display:grid;grid-template-columns:80px 1fr;gap:12px}.lager-thumb{width:80px;height:80px;border-radius:12px;overflow:hidden;background:#0d1117;border:1px solid #222}.lager-thumb img{width:100%;height:100%;object-fit:cover}.lager-title{font-size:15px;font-weight:700;color:#fff;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.lager-price{font-size:20px;color:#00ff88;font-weight:800;margin-top:2px}.lager-sub{font-size:11px;color:#9ca3af;margin-top:3px}.lager-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.lager-tag{font-size:10px;color:#9ca3af;border:1px solid #2b2b2b;padding:2px 6px;border-radius:999px}.lager-meta{font-size:10px;color:#6b7280;margin-top:8px;display:flex;gap:10px;flex-wrap:wrap}.lager-sethint{font-size:11px;color:#00ff88;margin-top:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.35);padding:3px 8px;border-radius:999px}.lager-actions{display:flex;gap:6px;align-items:flex-start}.lager-head{display:flex;justify-content:space-between;gap:8px}.addset-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:10100;display:none;align-items:center;justify-content:center;padding:16px}.addset-modal{width:min(500px,96vw);max-height:80vh;overflow:auto;background:#0f1115;border:1px solid rgba(0,255,136,.25);border-radius:14px;padding:16px;animation:addsetIn .18s ease}.addset-list{margin-top:10px;display:flex;flex-direction:column;gap:8px;max-height:44vh;overflow:auto}.addset-row{padding:10px 12px;background:#0b0d12;border:1px solid #1f2937;border-radius:10px;cursor:pointer;transition:all .15s ease}.addset-row:hover{border-color:rgba(0,255,136,.45);background:#101820}.addset-row.selected{border-color:#00ff88;background:rgba(0,255,136,.1)}.addset-row.disabled{opacity:.55;cursor:not-allowed}.setinfo-overlay{position:fixed;inset:0;background:rgba(0,0,0,.64);z-index:10101;display:none;align-items:center;justify-content:center;padding:12px}.setinfo-card{width:min(460px,96vw);background:#0f1115;border:1px solid rgba(0,255,136,.25);border-radius:12px;padding:12px;max-height:70vh;overflow:auto}@keyframes addsetIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}";
   document.head.appendChild(st);
 }
 function updateLagerDropdowns(skipReset){
@@ -1981,7 +2019,7 @@ function setupRefreshButtons(){
 function showD(id,msg,cls){var e=document.getElementById(id);if(!e)return;e.className="diag "+(cls||"derr");e.textContent=msg;e.style.display="block";}
 function hideD(id){var e=document.getElementById(id);if(e)e.style.display="none";}
 function toast(msg,t,d){d=d||4000;var w=document.getElementById("toasts"),el=document.createElement("div");var c=t==="ok"?"tok":t==="err"?"terr":"tinf",ic=t==="ok"?"✅":t==="err"?"❌":"💡";el.className="tm "+c;el.innerHTML="<span>"+ic+"</span><span>"+msg+"</span>";w.appendChild(el);setTimeout(function(){el.style.opacity="0";el.style.transform="translateY(7px)";setTimeout(function(){el.remove();},300);},d);}
-function showZustandInfo(){var info=[["Neuwertig","Neu & originalverpackt, unbenutzt"],["Sehr gut","Mit Originalverpackung, kaum Gebrauchsspuren"],["Gut","Leichte Gebrauchsspuren, vollständig mit Hülle"],["Akzeptabel","Sichtbare Kratzer/Gebrauch, funktionsfähig"],["Defekt","Funktioniert nicht oder stark beschädigt"]];var rows=info.map(function(r){return'<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)"><span style="font-weight:700;color:var(--blue);min-width:90px;font-size:13px">'+r[0]+'</span><span style="font-size:13px;color:var(--text2)">'+r[1]+'</span></div>';}).join("");var overlay=document.createElement("div");overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)";var inner=document.createElement("div");inner.style.cssText="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:400px;width:100%";var hd=document.createElement("div");hd.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px";var ttl=document.createElement("span");ttl.style.cssText="font-size:16px;font-weight:700;color:var(--text)";ttl.textContent="Zustand-Erklärung";var xbtn=document.createElement("button");xbtn.textContent="✕";xbtn.style.cssText="background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:14px";xbtn.onclick=function(){overlay.remove();};hd.appendChild(ttl);hd.appendChild(xbtn);inner.appendChild(hd);var rd=document.createElement("div");rd.innerHTML=rows;inner.appendChild(rd);overlay.appendChild(inner);overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};document.body.appendChild(overlay);}
+function showZustandInfo(){var info=[["Neuwertig","Neu & originalverpackt, unbenutzt"],["Sehr gut","Mit Originalverpackung, kaum Gebrauchsspuren"],["Gut","Leichte Gebrauchsspuren, vollständig mit Hülle"],["Akzeptabel","Sichtbare Kratzer/Gebrauch, funktionsfähig"],["Teildefekt","Eingeschränkt funktionsfähig — oft verkaufbar"],["Defekt","Nicht funktionsfähig oder Totalschaden"]];var rows=info.map(function(r){return'<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)"><span style="font-weight:700;color:var(--blue);min-width:90px;font-size:13px">'+r[0]+'</span><span style="font-size:13px;color:var(--text2)">'+r[1]+'</span></div>';}).join("");var overlay=document.createElement("div");overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)";var inner=document.createElement("div");inner.style.cssText="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:400px;width:100%";var hd=document.createElement("div");hd.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px";var ttl=document.createElement("span");ttl.style.cssText="font-size:16px;font-weight:700;color:var(--text)";ttl.textContent="Zustand-Erklärung";var xbtn=document.createElement("button");xbtn.textContent="✕";xbtn.style.cssText="background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:14px";xbtn.onclick=function(){overlay.remove();};hd.appendChild(ttl);hd.appendChild(xbtn);inner.appendChild(hd);var rd=document.createElement("div");rd.innerHTML=rows;inner.appendChild(rd);overlay.appendChild(inner);overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};document.body.appendChild(overlay);}
 
 // ── BENACHRICHTIGUNGEN ────────────────────────────────────────────
 var notifications=[];
@@ -6076,7 +6114,7 @@ function _renderEKCheckPhase(host){
     +'<button type="button" class="btn btn-outline-secondary btn-sm mb-2" onclick="_goEKFlowPhase(\'list\')"><i class="bi bi-arrow-left me-1"></i>Zur Liste</button>'
     +'<div class="ek-ph-title">'+esc(item.name)+'</div>'
     +'<label class="fl">Zustand</label><select id="ek-ch-zustand" class="fc mb-2">'
-    +["Neuwertig","Sehr gut","Gut","Akzeptabel","Defekt"].map(function(z){return'<option'+(item.checkZustand===z?' selected':'')+'>'+z+'</option>';}).join("")
+    +["Neuwertig","Sehr gut","Gut","Akzeptabel","Teildefekt","Defekt"].map(function(z){return'<option'+(item.checkZustand===z?' selected':'')+'>'+z+'</option>';}).join("")
     +'</select>'
     +'<label class="fl">Beschreibung / Hinweise</label><textarea id="ek-ch-beschr" class="fc mb-2" rows="2" placeholder="optional">'+esc(item.checkBeschreibung||"")+'</textarea>'
     +'<label class="fl">Einkauf (Einheit)</label><div class="ek-price-pill">'+((item.unitEkPrice!=null?item.unitEkPrice:0).toFixed(2))+' €</div>'
@@ -6697,7 +6735,7 @@ function sbHandleChat(){
 }
 function _setEligibleItems(){
   return (allItems||[]).filter(function(i){
-    if(!i||i.type==="defekt"||i.type==="setbundle")return false;
+    if(!i||i.type==="defekt"||i.type==="setbundle"||itemHasFullDefektCondition(i))return false;
     if(itemIsLagerSoldOut&&itemIsLagerSoldOut(i))return false;
     var st=String(i.status||"").toLowerCase();
     if(st==="verkauft"||st==="archiviert")return false;
