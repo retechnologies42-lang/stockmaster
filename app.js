@@ -1,7 +1,7 @@
 
 
 
-var GAS_URL = "https://script.google.com/macros/s/AKfycbytfRI-vqVgKnOIgaYgrS0uuRJA9yzAJYt5ARM0pKTM4-hoB6NOOAEO0rTHJGtj/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbyrSUgUCRtcNSvnf37bF6FpYZgToPjbZGAaWWzGlcKRrSUqlOfoHwIOPiaob62bxA/exec";
 function resolveGasUrl(){
   var raw=String(
     GAS_URL ||
@@ -239,48 +239,127 @@ function gasGet(action, data, onSuccess, onError) {
     if (v !== null && v !== undefined && typeof v === "object") v = JSON.stringify(v);
     urlParams.push(encodeURIComponent(k) + "=" + encodeURIComponent(String(v == null ? "" : v)));
   }
-  fetch(base + "?" + urlParams.join("&"), {method:"GET"})
-    .then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})
-    .then(function(result){if(onSuccess)onSuccess(result);})
+  var url=base + "?" + urlParams.join("&");
+  if(url.length>7000){var m=action+" fehlgeschlagen: Request-URL zu lang — zu viele Daten im GET. Bitte Bilder separat speichern.";if(onError)onError(m);else toast(m,"err");return;}
+  if(window.SMP_DEBUG)console.log("[gasGet]",action,{urlLen:url.length});
+  fetch(url, {method:"GET", redirect:"follow"})
+    .then(function(r){
+      if(!r.ok)throw new Error("HTTP "+r.status+" "+r.statusText);
+      return parseGasResponse(r);
+    })
+    .then(function(result){
+      if(window.SMP_DEBUG)console.log("[gasGet ok]",action,result);
+      if(onSuccess)onSuccess(result);
+    })
     .catch(function(e){
-      var msg=String(e||"");
-      if(msg.toLowerCase().indexOf("failed to fetch")>-1){
-        msg="Failed to fetch ("+action+"). Prüfe /exec URL, Web-App Zugriff=Jeder und neue Deployment-Version.";
-      }
-      if(onError)onError(msg);else toast("Fehler: "+msg,"err");
+      var msg=formatGasError(action,e);
+      if(window.SMP_DEBUG)console.error("[gasGet err]",action,e);
+      if(onError)onError(msg);else toast(msg,"err");
     });
 }
 
 function logClientActivity(o){
   gasPost("logActivity",{mitarbeiter:o.mitarbeiter||emp,aktion:o.aktion||"",details:o.details||"",typ:o.typ||"info"},function(){_cacheActivity.t=0;},function(){});
 }
+function isNewPhotoData(src){
+  var s=String(src||"");
+  if(!s)return false;
+  if(s.indexOf("data:image/")===0)return true;
+  if(/^https?:\/\//i.test(s)||s.indexOf("blob:")===0)return false;
+  return s.length>180;
+}
+function photoFingerprint(arr){
+  return(arr||[]).map(function(s){
+    s=String(s||"");
+    if(s.length<64)return s;
+    return s.length+":"+s.slice(0,24)+":"+s.slice(-16);
+  }).join("|");
+}
+function photosFromItem(item){
+  if(!item)return[];
+  if(Array.isArray(item.kaFotos)&&item.kaFotos.length)return item.kaFotos.slice();
+  if(Array.isArray(item.fotos)&&item.fotos.length)return item.fotos.slice();
+  return[];
+}
+function photoSetsEqual(a,b){return photoFingerprint(a)===photoFingerprint(b);}
+function extractNewUploadPhotos(photoObjs){
+  return(photoObjs||[]).map(function(p){return p&&p.b64;}).filter(function(b){return b&&isNewPhotoData(b);});
+}
+function diffNewPhotoData(current,original){
+  var origFps={},i,s;
+  for(i=0;i<(original||[]).length;i++){s=original[i];origFps[photoFingerprint([s])]=1;}
+  return(current||[]).filter(function(s){return !origFps[photoFingerprint([s])];});
+}
+function hasHeavyNewPhotos(current,original){
+  var diff=diffNewPhotoData(current,original),i;
+  for(i=0;i<diff.length;i++){if(isNewPhotoData(diff[i]))return true;}
+  return false;
+}
+function payloadPhotoBytes(d){
+  var n=0,i,s,ar=[].concat(d.fotos||[],d.kaFotos||[],d.defektFotos||[]);
+  for(i=0;i<ar.length;i++){s=String(ar[i]||"");if(isNewPhotoData(s))n+=s.length;}
+  return n;
+}
+function estimatePayloadBytes(obj){
+  try{return JSON.stringify(obj).length;}catch(e){return 0;}
+}
+function formatGasError(action,e,extra){
+  var msg=String((e&&e.message)||e||"");
+  if(msg.toLowerCase().indexOf("failed to fetch")>-1){
+    var hint="Netzwerk/Apps-Script nicht erreichbar";
+    if(extra&&extra>4500000)hint="Payload zu groß (~"+Math.round(extra/1024/1024)+" MB) — nur geänderte Bilder senden";
+    else if(/^update/i.test(action))hint="Update-Request blockiert — oft zu große Bilder oder falsche /exec URL";
+    return action+" fehlgeschlagen: "+hint+". Prüfe Web-App Deployment (/exec), Zugriff=Jeder, neue Version.";
+  }
+  if(msg.indexOf("HTTP ")===0)return action+" fehlgeschlagen: "+msg;
+  return action+" fehlgeschlagen: "+msg;
+}
+function parseGasResponse(r){
+  return r.text().then(function(txt){
+    if(!txt)return{};
+    try{return JSON.parse(txt);}catch(e){
+      throw new Error("Ungültige API-Antwort (kein JSON): "+txt.slice(0,180));
+    }
+  });
+}
 function gasPost(action, data, onSuccess, onError) {
   var base=ensureGasUrlOrError(onError);if(!base)return;
   var payload = Object.assign({action: action}, data || {});
+  var bytes=estimatePayloadBytes(payload);
+  if(bytes>4800000){var m="Payload zu groß ("+Math.round(bytes/1024/1024)+" MB). Bitte weniger/neu komprimierte Bilder.";if(onError)onError(m);else toast(m,"err");return;}
+  if(window.SMP_DEBUG)console.log("[gasPost]",action,{bytes:bytes,keys:Object.keys(payload)});
   fetch(base, {
     method: "POST",
     headers: {"Content-Type": "text/plain"},
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
+    redirect: "follow"
   })
-  .then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})
-  .then(function(result){if(onSuccess)onSuccess(result);})
+  .then(function(r){
+    if(!r.ok)throw new Error("HTTP "+r.status+" "+r.statusText);
+    return parseGasResponse(r);
+  })
+  .then(function(result){
+    if(window.SMP_DEBUG)console.log("[gasPost ok]",action,result);
+    if(onSuccess)onSuccess(result);
+  })
   .catch(function(e){
-    var msg=String(e||"");
-    if(msg.toLowerCase().indexOf("failed to fetch")>-1){
-      msg="Failed to fetch ("+action+"). Prüfe /exec URL, Web-App Zugriff=Jeder und neue Deployment-Version.";
-    }
-    if(onError)onError(msg);else toast("Fehler: "+msg,"err");
+    var msg=formatGasError(action,e,bytes);
+    if(window.SMP_DEBUG)console.error("[gasPost err]",action,e);
+    if(onError)onError(msg);else toast(msg,"err");
   });
 }
-
-// Automatisch POST wenn Fotos enthalten, sonst GET
-function gasCall(action, data, onSuccess, onError) {
-  var hasFotos = data && Array.isArray(data.fotos) && data.fotos.length > 0;
-  if (hasFotos) {
-    gasPost(action, data, onSuccess, onError);
-  } else {
-    gasGet(action, data, onSuccess, onError);
+function gasSaveOrUpdate(action, data, onSuccess, onError){
+  var d=Object.assign({},data||{});
+  var photoBytes=payloadPhotoBytes(d);
+  if(photoBytes>0){
+    gasPost(action,d,onSuccess,onError);
+  }else{
+    gasGet(action,d,onSuccess,onError);
   }
+}
+// Automatisch POST wenn neue Foto-Uploads enthalten, sonst GET
+function gasCall(action, data, onSuccess, onError) {
+  gasSaveOrUpdate(action,data,onSuccess,onError);
 }
 
 // ── LOGIN ─────────────────────────────────────────────────────────
@@ -1400,10 +1479,16 @@ function doSave(){
   var probD=probChoice==="none"?"":(gv("f-prob-beschr"));
   var fotoB64arr=photos.map(function(p){return p.b64;});
   var defektB64arr=damagePhotos.map(function(p){return p.b64;});
-  var origMainFotos=(isEditMode&&editingItem)?((Array.isArray(editingItem.kaFotos)&&editingItem.kaFotos.length)?editingItem.kaFotos.slice():((Array.isArray(editingItem.fotos)&&editingItem.fotos.length)?editingItem.fotos.slice():[])):[];
+  var origMainFotos=isEditMode&&editingItem?photosFromItem(editingItem):[];
   var origDefektFotos=(isEditMode&&editingItem&&Array.isArray(editingItem.defektFotos))?editingItem.defektFotos.slice():[];
-  var effectiveMainCount=fotoB64arr.length||origMainFotos.length;
-  var effectiveDefektCount=defektB64arr.length||origDefektFotos.length;
+  var currentMain=fotoB64arr.slice();
+  var currentDefekt=defektB64arr.slice();
+  var mainPhotosChanged=!photoSetsEqual(currentMain,origMainFotos);
+  var defektPhotosChanged=!photoSetsEqual(currentDefekt,origDefektFotos);
+  var newMainUploads=diffNewPhotoData(currentMain,origMainFotos);
+  var newDefektUploads=diffNewPhotoData(currentDefekt,origDefektFotos);
+  var effectiveMainCount=currentMain.length||origMainFotos.length;
+  var effectiveDefektCount=currentDefekt.length||origDefektFotos.length;
   if(fotoB64arr.length>12||defektB64arr.length>12){setBL(btn,false,orig);toast("Maximal 12 Bilder pro Kategorie erlaubt.","err");return;}
   var zustF=(gv("f-zustand")||"").trim();
   var miss=[];
@@ -1428,18 +1513,25 @@ function doSave(){
   if(curType==="controller"&&!scanId){scanId="CTRL-"+Date.now();}
   var d={scanId:scanId,mitarbeiter:ma,problemTyp:probTyp,problemBeschr:probD,
          einkaufspreis:gv("f-einkaufspreis"),warentyp:gv("f-warentyp")||"Gebraucht"};
-  // Bei Edit nur Bilder senden, wenn sie wirklich geändert wurden (verhindert große unnötige POST-Requests).
   if(!isEditMode){
-    d.fotos=fotoB64arr;d.kaFotos=fotoB64arr;d.defektFotos=defektB64arr;
+    d.fotos=currentMain;d.kaFotos=currentMain;d.defektFotos=currentDefekt;
   }else{
-    var mainChanged=JSON.stringify(fotoB64arr)!==JSON.stringify(origMainFotos);
-    var defektChanged=JSON.stringify(defektB64arr)!==JSON.stringify(origDefektFotos);
-    if(mainChanged){d.fotos=fotoB64arr;d.kaFotos=fotoB64arr;}
-    if(defektChanged){d.defektFotos=defektB64arr;}
+    if(mainPhotosChanged){
+      if(hasHeavyNewPhotos(currentMain,origMainFotos)){
+        d.fotos=currentMain;d.kaFotos=currentMain;
+      }else if(currentMain.length!==origMainFotos.length||newMainUploads.length>0){
+        d.fotos=currentMain;d.kaFotos=currentMain;
+      }
+    }
+    if(defektPhotosChanged){
+      if(hasHeavyNewPhotos(currentDefekt,origDefektFotos)||currentDefekt.length!==origDefektFotos.length){
+        d.defektFotos=currentDefekt;
+      }
+    }
   }
   var fn="";
 
-  if(curType==="konsole"){d.name=name;d.speicherGB=gv("f-gb");d.farbe=gv("f-farbe");fn=isEditMode?"updateKonsole":"saveKonsole";}
+  if(curType==="konsole"){d.name=name;d.speicherGB=gv("f-gb");d.farbe=gv("f-farbe");d.zustand=gv("f-zustand");fn=isEditMode?"updateKonsole":"saveKonsole";}
   else if(curType==="spiel"){d.spiel=name;d.system=gv("f-sys");d.zustand=gv("f-zustand");d.usk=gv("f-usk");d.sprache=gv("f-sprache");d.hinweise=gv("f-hinweise");fn=isEditMode?"updateSpiel":"saveSpiel";}
   else if(curType==="controller"){d.spiel=name;d.system="Controller-"+(gv("f-sys")||"Universal");d.zustand=gv("f-zustand");d.usk="";d.sprache="";d.hinweise=["Plattform: "+(gv("f-sys")||"-"),"Verbindung: "+(gv("f-conn")||"-"),"Stickdrift: "+(gv("f-drift")||"-"),"OVP: "+(gv("f-box-c")||"-"),"Zubehör: "+(gv("f-acc-c")||"-"),gv("f-hinweise")||""].join(" | ");fn=isEditMode?"updateSpiel":"saveSpiel";}
   else if(curType==="handy"){d.modell=name;d.speicherGB=gv("f-gb");d.ram=gv("f-ram");d.farbe=gv("f-farbe");d.netzwerk=gv("f-netz");d.imei=gv("f-imei");d.zustand=gv("f-zustand");fn=isEditMode?"updateHandy":"saveHandy";}
@@ -1447,12 +1539,49 @@ function doSave(){
   else if(curType==="allgemein"){d.name=name;d.farbe=gv("f-farbe");d.zustand=gv("f-zustand");d.hinweise=gv("f-hinweise");fn=isEditMode?"updateKonsole":"saveKonsole";}
 
   if(!fn){setBL(btn,false,orig);toast("Kein Typ ausgewählt.","err");return;}
-  if(isEditMode&&editingItem)d.rowIndex=editingItem.rowIndex;
+  if(isEditMode&&editingItem){
+    var ri=parseInt(editingItem.rowIndex,10);
+    if(!ri||ri<2){setBL(btn,false,orig);toast("Update fehlgeschlagen: ungültige Zeilennummer (rowIndex). Bitte Lager neu laden.","err");return;}
+    d.rowIndex=ri;
+  }
+  if(window.SMP_DEBUG)console.log("[doSave]",fn,{edit:isEditMode,rowIndex:d.rowIndex,mainChanged:mainPhotosChanged,newMain:newMainUploads.length,defektChanged:defektPhotosChanged,photoBytes:payloadPhotoBytes(d)});
 
-  // POST für alle save/update (Fotos können dabei sein oder auch nicht)
-  gasPost(fn,d,
-    function(r){setBL(btn,false,orig);window._saveDupBypass=false;if(r&&r.ok){clearStepperDraft();if(window._afterSaveCallback){var _cbSave=window._afterSaveCallback;window._afterSaveCallback=null;_cbSave(r.scanId||gv("f-scanid"));}toast(r.msg,"ok");addNotification(isEditMode?"✏️ Aktualisiert":"✅ Eingelagert",r.msg,"info");allItems=[];loadStats();isEditMode=false;editingItem=null;var _ekRet=!!window._ekAfterSaveReturnToCheck;window._ekAfterSaveReturnToCheck=false;if(_ekRet)window._ekStoreActive=false;setTimeout(function(){refreshInventoryWithLoading(function(){if(_ekRet){stopCam();resetStepperState();document.getElementById("main-stepper").style.display="none";document.getElementById("cat-chooser").style.display="none";document.getElementById("sw-sub").style.display="none";document.getElementById("mode-chooser").style.display="none";var ep=document.getElementById("ek-check-panel");if(ep)ep.style.display="block";goTabFn("scan-panel");ekCheckStep=2;ekFlowPhase="list";_renderEKCheckStep();_renderEKFlow();_ekFocusNextOpenArticle();}else{resetFlow();goTabFn("list-panel");}});},700);}else{toast("Fehler: "+(r?r.fehler:"?"),"err");}},
-    function(e){setBL(btn,false,orig);window._saveDupBypass=false;toast("Fehler: "+e,"err");}
+  gasSaveOrUpdate(fn,d,
+    function(r){
+      setBL(btn,false,orig);window._saveDupBypass=false;
+      if(r&&r.ok){
+        clearStepperDraft();
+        if(window._afterSaveCallback){var _cbSave=window._afterSaveCallback;window._afterSaveCallback=null;_cbSave(r.scanId||gv("f-scanid"));}
+        toast(isEditMode?"✅ Artikel erfolgreich aktualisiert":(r.msg||"Gespeichert"),"ok");
+        addNotification(isEditMode?"✏️ Aktualisiert":"✅ Eingelagert",r.msg||"OK","info");
+        allItems=[];loadStats();
+        var _wasEdit=isEditMode;
+        isEditMode=false;editingItem=null;
+        var _ekRet=!!window._ekAfterSaveReturnToCheck;
+        window._ekAfterSaveReturnToCheck=false;
+        if(_ekRet)window._ekStoreActive=false;
+        setTimeout(function(){
+          refreshInventoryWithLoading(function(){
+            if(_ekRet){
+              stopCam();resetStepperState();
+              document.getElementById("main-stepper").style.display="none";
+              document.getElementById("cat-chooser").style.display="none";
+              document.getElementById("sw-sub").style.display="none";
+              document.getElementById("mode-chooser").style.display="none";
+              var ep=document.getElementById("ek-check-panel");if(ep)ep.style.display="block";
+              goTabFn("scan-panel");ekCheckStep=2;ekFlowPhase="list";_renderEKCheckStep();_renderEKFlow();_ekFocusNextOpenArticle();
+            }else{
+              resetFlow();
+              if(_wasEdit){goTabFn("list-panel");renderList();}
+            }
+          });
+        },400);
+      }else{
+        var errMsg=(r&&(r.fehler||r.error||r.msg))||"Unbekannter API-Fehler";
+        toast("Update fehlgeschlagen: "+errMsg,"err");
+      }
+    },
+    function(e){setBL(btn,false,orig);window._saveDupBypass=false;toast(e,"err");}
   );
 }
 
