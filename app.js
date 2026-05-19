@@ -1,7 +1,7 @@
 
 
 
-var GAS_URL = "https://script.google.com/macros/s/AKfycbwbJ6g63d2YIO9UMYxD1pk6LUQ4as7p_6cHW5tz0aHUmp_lgA__Atrp-O3_0gRUxw/exec";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbzAZ3Om_I90_Da10L52A4r1RN-bqL6TIpYp-zI4YpHIgWduBTPBRhDeQegsQR5MBA/exec";
 function resolveGasUrl(){
   var raw=String(
     GAS_URL ||
